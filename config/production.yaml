@@ -1,0 +1,275 @@
+# Stock Deepseeker Production Configuration
+# 生产环境配置
+
+# 环境设置
+environment: production
+trading_mode: paper  # paper/live/backtest
+
+# 系统配置
+system_name: "Stock Deepseeker"
+system_version: "3.0.0"
+timezone: "America/New_York"
+num_workers: 8
+async_enabled: true
+cache_enabled: true
+
+# AI模型配置
+model:
+  # Transformer配置
+  transformer_hidden_size: 512
+  transformer_num_layers: 8
+  transformer_num_heads: 8
+  transformer_dropout: 0.1
+  transformer_max_seq_length: 512
+
+  # SAC强化学习配置
+  sac_learning_rate: 0.0003
+  sac_buffer_size: 1000000
+  sac_batch_size: 256
+  sac_gamma: 0.99
+  sac_tau: 0.005
+  sac_alpha: 0.2
+  sac_auto_entropy_tuning: true
+
+  # ChatGPT-5配置
+  gpt5_model: "gpt-5-nano"
+  gpt5_api_key: "${GPT5_API_KEY}"
+  gpt5_max_tokens: 4096
+  gpt5_temperature: 0.7
+  gpt5_top_p: 0.9
+
+  # 训练配置
+  training_epochs: 100
+  training_batch_size: 128
+  training_learning_rate: 0.0001
+  training_warmup_steps: 1000
+  training_gradient_clip: 1.0
+
+  # 模型保存
+  model_save_dir: "models/checkpoints"
+  model_save_frequency: 1000
+
+# 数据配置
+data:
+  # 数据源
+  primary_source: "yahoo"
+  backup_sources:
+    - "alpaca"
+    - "polygon"
+
+  # 交易品种
+  symbols:
+    - "SPY"
+    - "QQQ"
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+    - "AMZN"
+    - "NVDA"
+    - "TSLA"
+    - "META"
+    - "JPM"
+
+  # 数据范围
+  lookback_days: 252
+
+  # 数据更新
+  update_interval_seconds: 60
+  cache_enabled: true
+  cache_ttl_seconds: 300
+
+  # 技术指标
+  technical_indicators:
+    - "SMA_20"
+    - "SMA_50"
+    - "SMA_200"
+    - "EMA_12"
+    - "EMA_26"
+    - "RSI_14"
+    - "RSI_28"
+    - "MACD"
+    - "MACD_Signal"
+    - "MACD_Hist"
+    - "BB_Upper"
+    - "BB_Middle"
+    - "BB_Lower"
+    - "ATR_14"
+    - "ADX_14"
+    - "OBV"
+    - "Volume_SMA_20"
+    - "Stochastic_K"
+    - "Stochastic_D"
+    - "Williams_R"
+    - "CCI"
+
+  # 基本面特征
+  fundamental_features:
+    - "PE_Ratio"
+    - "PB_Ratio"
+    - "PS_Ratio"
+    - "Debt_to_Equity"
+    - "ROE"
+    - "ROA"
+    - "Profit_Margin"
+    - "EPS_Growth"
+    - "Revenue_Growth"
+    - "Free_Cash_Flow"
+
+  # 情绪数据源
+  sentiment_sources:
+    - "twitter"
+    - "reddit"
+    - "news"
+    - "sec_filings"
+
+  # 数据质量
+  min_data_quality_score: 0.95
+  handle_missing_data: "interpolate"
+  outlier_detection: true
+  outlier_method: "iqr"
+
+# 风险管理配置
+risk:
+  # 仓位限制
+  max_position_size: 0.10
+  max_total_exposure: 1.0
+  max_sector_exposure: 0.30
+  max_correlation: 0.70
+
+  # 止损止盈
+  stop_loss_pct: 0.02
+  take_profit_pct: 0.05
+  trailing_stop_pct: 0.015
+
+  # 风险限额
+  max_daily_loss: 0.03
+  max_weekly_loss: 0.10
+  max_drawdown: 0.20
+
+  # VaR配置
+  var_confidence: 0.95
+  var_lookback_days: 252
+  expected_shortfall: true
+
+  # 风控动作
+  circuit_breaker_enabled: true
+  circuit_breaker_threshold: 0.05
+  auto_hedge_enabled: true
+  hedge_ratio: 0.5
+
+  # 压力测试
+  stress_test_enabled: true
+  stress_scenarios:
+    - "market_crash"
+    - "flash_crash"
+    - "sector_rotation"
+    - "volatility_spike"
+    - "liquidity_crisis"
+
+# 交易执行配置
+execution:
+  # 经纪商
+  broker: "alpaca"
+  broker_api_key: "${BROKER_API_KEY}"
+  broker_secret_key: "${BROKER_SECRET_KEY}"
+  broker_base_url: "https://paper-api.alpaca.markets"
+
+  # 订单类型
+  default_order_type: "limit"
+  limit_order_offset_pct: 0.001
+
+  # 执行优化
+  smart_order_routing: true
+  minimize_market_impact: true
+  vwap_execution: true
+  twap_execution: false
+
+  # 订单分拆
+  enable_order_splitting: true
+  max_order_size_pct: 0.01
+  split_large_orders: true
+  child_order_delay_seconds: 5
+
+  # 滑点控制
+  max_slippage_pct: 0.002
+  slippage_model: "adaptive"
+
+  # 佣金
+  commission_per_share: 0.001
+  commission_min: 1.0
+  commission_pct: 0.0
+
+  # 重试机制
+  max_retry_attempts: 3
+  retry_delay_seconds: 1
+  exponential_backoff: true
+
+# 多智能体配置
+agent:
+  # 智能体数量
+  num_retail_agents: 200
+  num_institutional_agents: 50
+  num_expert_agents: 5
+
+  # 智能体类型分布
+  retail_types:
+    momentum_chaser: 0.25
+    panic_seller: 0.20
+    herd_follower: 0.20
+    value_seeker: 0.20
+    technical_trader: 0.15
+
+  institutional_types:
+    quantitative: 0.30
+    value_investor: 0.20
+    trend_follower: 0.20
+    high_frequency: 0.20
+    index_fund: 0.10
+
+  # 智能体学习
+  agent_learning_enabled: true
+  agent_learning_rate: 0.01
+  agent_memory_size: 1000
+  agent_experience_replay: true
+
+  # 协作机制
+  enable_communication: true
+  communication_protocol: "broadcast"
+  consensus_threshold: 0.70
+
+  # 决策权重
+  retail_weight: 0.30
+  institutional_weight: 0.50
+  expert_weight: 0.20
+
+# 监控配置
+monitoring:
+  # 日志
+  log_level: "INFO"
+  log_file: "logs/trading_system.log"
+  log_rotation: "1 day"
+  log_retention: "30 days"
+  log_format: "json"
+
+  # 指标收集
+  metrics_enabled: true
+  metrics_interval_seconds: 60
+  metrics_retention_days: 90
+
+  # 性能监控
+  track_latency: true
+  track_throughput: true
+  track_resource_usage: true
+
+  # 告警
+  alerting_enabled: true
+  alert_channels:
+    - "email"
+    - "slack"
+  alert_email: "alerts@example.com"
+  alert_slack_webhook: "${SLACK_WEBHOOK_URL}"
+
+  # 实时监控
+  dashboard_enabled: true
+  dashboard_port: 8080
+  dashboard_host: "0.0.0.0"

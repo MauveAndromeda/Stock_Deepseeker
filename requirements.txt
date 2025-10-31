@@ -1,0 +1,63 @@
+# Core dependencies
+python-dotenv==1.0.0
+pyyaml==6.0.1
+loguru==0.7.2
+
+# AI and ML (2025)
+openai==1.54.0
+anthropic==0.39.0
+transformers==4.46.3
+torch==2.4.0
+torchvision==0.19.0
+torchaudio==2.4.0
+
+# Reinforcement Learning
+stable-baselines3==2.3.2
+gymnasium==0.29.1
+tensorboard==2.18.0
+
+# Data Science
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.5.2
+scipy==1.14.1
+
+# Technical Analysis
+ta-lib==0.4.32
+pandas-ta==0.3.14b
+
+# Financial Data
+yfinance==0.2.48
+alpaca-py==0.30.1
+polygon-api-client==1.14.1
+
+# Database
+sqlalchemy==2.0.35
+redis==5.0.8
+pymongo==4.10.1
+
+# API and Web
+fastapi==0.115.4
+uvicorn==0.32.0
+aiohttp==3.10.10
+requests==2.32.3
+httpx==0.27.2
+
+# Task Scheduling
+apscheduler==3.10.4
+celery==5.4.0
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==5.0.0
+
+# Visualization
+matplotlib==3.9.2
+plotly==5.24.1
+dash==2.18.1
+
+# Utils
+click==8.1.7
+rich==13.9.2
+tqdm==4.66.5
