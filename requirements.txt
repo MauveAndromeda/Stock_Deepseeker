@@ -1,0 +1,154 @@
+# Core Dependencies
+python>=3.11
+
+# Deep Learning & AI
+torch>=2.1.0
+torchvision>=0.16.0
+transformers>=4.35.0
+stable-baselines3>=2.2.0
+gymnasium>=0.29.0
+tensorboard>=2.15.0
+ray[rllib]>=2.8.0
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.1.0
+polars>=0.19.0  # Fast dataframe operations
+pyarrow>=14.0.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+
+# Time Series Analysis
+statsmodels>=0.14.0
+arch>=6.2.0  # GARCH models
+prophet>=1.1.5
+
+# Financial Data
+yfinance>=0.2.31
+alpha-vantage>=2.3.1
+polygon-api-client>=1.12.0
+finnhub-python>=2.4.19
+pandas-datareader>=0.10.0
+
+# Technical Analysis
+ta-lib>=0.4.28
+pandas-ta>=0.3.14b
+stockstats>=0.6.2
+tulipy>=0.4.0
+
+# NLP & Sentiment
+nltk>=3.8.1
+spacy>=3.7.0
+textblob>=0.17.1
+vaderSentiment>=3.3.2
+newspaper3k>=0.2.8
+beautifulsoup4>=4.12.0
+
+# LLM Integration
+openai>=1.3.0
+anthropic>=0.7.0
+tiktoken>=0.5.0
+
+# Database
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.23
+timescaledb>=0.3.1
+redis>=5.0.1
+pymongo>=4.6.0
+
+# API & Web
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+aiohttp>=3.9.0
+requests>=2.31.0
+httpx>=0.25.0
+
+# Trading & Brokers
+alpaca-trade-api>=3.1.1
+ib-insync>=0.9.86
+ccxt>=4.1.0  # Crypto exchanges (if needed)
+
+# Risk & Portfolio
+pyfolio>=0.9.2
+empyrical>=0.5.5
+quantlib>=1.31
+cvxpy>=1.4.1  # Convex optimization
+riskfolio-lib>=5.0.0
+
+# Backtesting
+backtrader>=1.9.78
+vectorbt>=0.26.0
+zipline-reloaded>=3.0.3
+
+# Monitoring & Logging
+prometheus-client>=0.19.0
+grafana-client>=3.5.0
+sentry-sdk>=1.38.0
+loguru>=0.7.2
+python-json-logger>=2.0.7
+
+# Configuration
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+omegaconf>=2.3.0
+hydra-core>=1.3.2
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+hypothesis>=6.92.0
+
+# Code Quality
+black>=23.11.0
+flake8>=6.1.0
+mypy>=1.7.0
+pylint>=3.0.3
+isort>=5.12.0
+pre-commit>=3.5.0
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+tqdm>=4.66.1
+joblib>=1.3.2
+click>=8.1.7
+pyyaml>=6.0.1
+toml>=0.10.2
+
+# Caching & Performance
+diskcache>=5.6.3
+cachetools>=5.3.2
+numba>=0.58.1  # JIT compilation
+bottleneck>=1.3.7  # Fast NumPy operations
+
+# Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+plotly>=5.18.0
+dash>=2.14.2
+
+# Distributed Computing
+dask[complete]>=2023.11.0
+celery>=5.3.4
+redis>=5.0.1
+
+# Security
+cryptography>=41.0.7
+pyjwt>=2.8.0
+python-jose[cryptography]>=3.3.0
+
+# Notification
+python-telegram-bot>=20.7
+slack-sdk>=3.26.0
+twilio>=8.11.0
+
+# Other
+schedule>=1.2.0
+apscheduler>=3.10.4
+arrow>=1.3.0
+freezegun>=1.4.0  # For testing
+faker>=20.1.0  # For testing
