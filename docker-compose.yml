@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  # 主回测服务
+  backtest:
+    build: .
+    container_name: stock_deepseeker
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backtest_results:/app/backtest_results
+      - ./institutional_results:/app/institutional_results
+      - ./models:/app/models
+      - ./.env:/app/.env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    command: python quick_backtest.py
+    networks:
+      - trading_network
+
+  # 高级回测服务
+  advanced_backtest:
+    build: .
+    container_name: stock_deepseeker_advanced
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backtest_results:/app/backtest_results
+      - ./models:/app/models
+      - ./.env:/app/.env
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: python advanced_backtest.py
+    networks:
+      - trading_network
+    profiles:
+      - advanced
+
+  # 机构级回测服务（10年）
+  institutional_backtest:
+    build: .
+    container_name: stock_deepseeker_institutional
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./institutional_results:/app/institutional_results
+      - ./models:/app/models
+      - ./.env:/app/.env
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: python institutional_backtest.py --start 2014-01-01 --end 2024-12-31
+    networks:
+      - trading_network
+    profiles:
+      - institutional
+
+  # API服务（实时交易）
+  api:
+    build: .
+    container_name: stock_deepseeker_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      - ./.env:/app/.env
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - trading_network
+    profiles:
+      - api
+
+  # 参数优化服务
+  optimizer:
+    build: .
+    container_name: stock_deepseeker_optimizer
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backtest_results:/app/backtest_results
+      - ./models:/app/models
+      - ./.env:/app/.env
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: python tools/optimize_parameters.py
+    networks:
+      - trading_network
+    profiles:
+      - optimizer
+
+  # Jupyter Notebook服务
+  jupyter:
+    build: .
+    container_name: stock_deepseeker_jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backtest_results:/app/backtest_results
+      - ./models:/app/models
+    environment:
+      - PYTHONPATH=/app
+    env_file:
+      - .env
+    command: jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''
+    networks:
+      - trading_network
+    profiles:
+      - jupyter
+
+networks:
+  trading_network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
+  backtest_results:
+  institutional_results:
+  models:
