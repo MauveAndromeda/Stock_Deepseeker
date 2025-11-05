@@ -29,6 +29,15 @@ class TradingMode(Enum):
     BACKTEST = "backtest"  # 回测
 
 
+class DataSource(Enum):
+    """数据源枚举"""
+    YAHOO = "yahoo"
+    ALPACA = "alpaca"
+    ALPHA_VANTAGE = "alpha_vantage"
+    IEX = "iex"
+    POLYGON = "polygon"
+
+
 @dataclass
 class ModelConfig:
     """AI模型配置"""
