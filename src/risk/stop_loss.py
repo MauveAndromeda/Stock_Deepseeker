@@ -4,7 +4,7 @@ Dynamic stop-loss management system.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from enum import Enum
 import pandas as pd
 from loguru import logger

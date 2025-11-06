@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=68.0,<70", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -47,17 +47,15 @@ dependencies = [
     "scikit-learn>=1.5.0",
 
     # Financial Data
-    "yfinance>=0.2.40",
+    "yfinance>=0.2.28,<0.2.40",  # Pin to avoid multitasking build issues
     "pandas-market-calendars>=4.3.0",
     "exchange-calendars>=4.5.0",
-
-    # Technical Analysis
-    "ta-lib>=0.4.28",
 
     # Database
     "sqlalchemy>=2.0.30",
     "psycopg2-binary>=2.9.9",
     "redis>=5.0.0",
+    "peewee>=3.17.0",
 
     # API and Web
     "fastapi>=0.115.0",
@@ -106,6 +104,12 @@ viz = [
     "dash>=2.17.0",
 ]
 
+# Technical Analysis (optional - requires system dependencies)
+ta = [
+    "ta-lib>=0.4.28",  # Requires C library: apt-get install ta-lib
+    "pandas-ta>=0.3.14b",  # Pure Python alternative
+]
+
 # Development dependencies
 dev = [
     "pytest>=8.3.0",
@@ -140,6 +144,10 @@ dev = [
     "faker>=25.0.0",
     "freezegun>=1.5.0",
     "responses>=0.25.0",
+
+    # Security
+    "bandit>=1.7.0",
+    "safety>=3.0.0",
 ]
 
 # Production dependencies (optimized for deployment)
@@ -150,7 +158,7 @@ prod = [
 
 # All optional dependencies
 all = [
-    "stock-deepseeker[ai,rl,viz,dev,prod]",
+    "stock-deepseeker[ai,rl,viz,ta,dev,prod]",
 ]
 
 [project.urls]
