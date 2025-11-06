@@ -1,0 +1,383 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stock-deepseeker"
+version = "3.0.0"
+description = "Quantitative trading research platform for academic and personal research purposes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Stock Deepseeker Team", email = "team@stockdeepseeker.com"}
+]
+keywords = [
+    "quantitative-research",
+    "algorithmic-trading-research",
+    "backtesting",
+    "alpha-research",
+    "research-platform"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Education",
+    "Typing :: Typed"
+]
+
+dependencies = [
+    # Core dependencies
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.1",
+    "loguru>=0.7.2",
+    "typing-extensions>=4.8.0",
+
+    # Data Science
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "scipy>=1.14.0",
+    "scikit-learn>=1.5.0",
+
+    # Financial Data
+    "yfinance>=0.2.40",
+    "pandas-market-calendars>=4.3.0",
+    "exchange-calendars>=4.5.0",
+
+    # Technical Analysis
+    "ta-lib>=0.4.28",
+
+    # Database
+    "sqlalchemy>=2.0.30",
+    "psycopg2-binary>=2.9.9",
+    "redis>=5.0.0",
+
+    # API and Web
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "aiohttp>=3.10.0",
+    "httpx>=0.27.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.3.0",
+
+    # Task Scheduling
+    "apscheduler>=3.10.4",
+
+    # Monitoring and Logging
+    "prometheus-client>=0.20.0",
+    "python-json-logger>=2.0.7",
+
+    # Utils
+    "click>=8.1.7",
+    "rich>=13.7.0",
+    "tqdm>=4.66.0",
+]
+
+[project.optional-dependencies]
+# AI and ML dependencies (heavy)
+ai = [
+    "openai>=1.40.0",
+    "anthropic>=0.34.0",
+    "google-generativeai>=0.7.0",
+    "transformers>=4.44.0",
+    "torch>=2.4.0",
+    "torchvision>=0.19.0",
+]
+
+# Reinforcement Learning
+rl = [
+    "stable-baselines3>=2.3.0",
+    "gymnasium>=0.29.0",
+    "tensorboard>=2.17.0",
+]
+
+# Visualization
+viz = [
+    "matplotlib>=3.9.0",
+    "plotly>=5.22.0",
+    "seaborn>=0.13.0",
+    "dash>=2.17.0",
+]
+
+# Development dependencies
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "pytest-xdist>=3.6.0",
+    "pytest-timeout>=2.3.0",
+    "pytest-benchmark>=4.0.0",
+
+    # Code Quality
+    "ruff>=0.5.0",
+    "black>=24.4.0",
+    "isort>=5.13.0",
+    "mypy>=1.11.0",
+    "pylint>=3.2.0",
+
+    # Type Stubs
+    "pandas-stubs>=2.2.0",
+    "types-pyyaml>=6.0.12",
+    "types-redis>=4.6.0",
+
+    # Pre-commit
+    "pre-commit>=3.7.0",
+
+    # Documentation
+    "sphinx>=7.3.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-autodoc-typehints>=2.2.0",
+    "myst-parser>=3.0.0",
+
+    # Testing Tools
+    "faker>=25.0.0",
+    "freezegun>=1.5.0",
+    "responses>=0.25.0",
+]
+
+# Production dependencies (optimized for deployment)
+prod = [
+    "gunicorn>=22.0.0",
+    "gevent>=24.2.0",
+]
+
+# All optional dependencies
+all = [
+    "stock-deepseeker[ai,rl,viz,dev,prod]",
+]
+
+[project.urls]
+Homepage = "https://github.com/MauveAndromeda/Stock_Deepseeker"
+Documentation = "https://stock-deepseeker.readthedocs.io"
+Repository = "https://github.com/MauveAndromeda/Stock_Deepseeker"
+Issues = "https://github.com/MauveAndromeda/Stock_Deepseeker/issues"
+Changelog = "https://github.com/MauveAndromeda/Stock_Deepseeker/blob/main/CHANGELOG.md"
+
+[project.scripts]
+stock-deepseeker = "src.cli:main"
+deepseeker-backtest = "src.cli.backtest:main"
+deepseeker-optimize = "src.cli.optimize:main"
+deepseeker-serve = "src.cli.serve:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+src = ["py.typed", "**/*.yaml", "**/*.json"]
+
+# Ruff configuration (replaces flake8, isort, pyupgrade, etc.)
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "ANN",    # flake8-annotations
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EM",     # flake8-errmsg
+    "EXE",    # flake8-executable
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate
+    "PL",     # pylint
+    "TRY",    # tryceratops
+    "RUF",    # ruff-specific rules
+]
+ignore = [
+    "ANN101",  # Missing type annotation for self
+    "ANN102",  # Missing type annotation for cls
+    "ANN401",  # Dynamically typed expressions (Any)
+    "S101",    # Use of assert
+    "PLR0913", # Too many arguments
+    "PLR2004", # Magic value used in comparison
+    "COM812",  # Trailing comma missing (conflicts with formatter)
+    "ISC001",  # Implicit string concatenation (conflicts with formatter)
+]
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.egg-info",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN", "PLR2004"]
+"scripts/**/*.py" = ["T201", "S603", "S607"]
+
+[tool.ruff.isort]
+known-first-party = ["src"]
+force-sort-within-sections = true
+combine-as-imports = true
+
+# Black configuration
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | \.pytest_cache
+  | \.mypy_cache
+  | build
+  | dist
+)/
+'''
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+strict_concatenate = true
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = [
+    "yfinance.*",
+    "ta.*",
+    "pandas_ta.*",
+    "sklearn.*",
+    "transformers.*",
+    "torch.*",
+    "stable_baselines3.*",
+]
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--color=yes",
+    "--tb=short",
+    "--maxfail=10",
+    "-ra",
+    "--durations=10",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "requires_api: marks tests that require API keys",
+    "requires_network: marks tests that require network access",
+    "requires_gpu: marks tests that require GPU",
+    "benchmark: marks tests as performance benchmarks",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+    "*/.venv/*",
+]
+branch = true
+parallel = true
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "@overload",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# Pylint configuration
+[tool.pylint.main]
+py-version = "3.10"
+jobs = 0  # Use all available CPUs
+
+[tool.pylint.messages_control]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "R0903",  # too-few-public-methods
+    "R0913",  # too-many-arguments
+    "W0212",  # protected-access
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.design]
+max-args = 10
+max-locals = 20
+max-branches = 15
+max-statements = 60

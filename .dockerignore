@@ -1,72 +1,86 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+dist/
+build/
 *.egg
+.eggs/
 
 # Virtual environments
 venv/
 env/
 ENV/
-.venv
+.venv/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Project specific
-data/
-logs/
-backtest_results/
-institutional_results/
-comparison_results/
-models/
-*.csv
-*.png
-*.log
-
-# Git
-.git/
-.gitignore
-
-# Docker
-Dockerfile
-docker-compose.yml
-.dockerignore
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+junit/
 
 # Documentation
-docs/
+docs/_build/
 *.md
 !README.md
 
-# Tests
-.pytest_cache/
-.coverage
-htmlcov/
+# Data and results
+data/
+logs/
+backtest_results/
+models/
+institutional_results/
+comparison_results/
+*.log
+*.csv
+*.json
+*.pkl
+*.h5
+*.pth
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
+# Temp files
+*.tmp
+*.bak
+tmp/
+temp/
+
+# CI/CD
+.github/
+.circleci/
+.travis.yml
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Other
+*.pdf
+*.png
+*.jpg
+*.jpeg
