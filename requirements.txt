@@ -14,7 +14,7 @@ torchaudio==2.4.0
 # Reinforcement Learning
 stable-baselines3==2.3.2
 gymnasium==0.29.1
-tensorboard==2.18.0
+tensorboard==2.20.0
 
 # Data Science
 pandas==2.2.3
