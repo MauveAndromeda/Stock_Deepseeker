@@ -44,7 +44,7 @@ requests==2.32.3
 httpx==0.27.2
 
 # Task Scheduling
-apscheduler==3.10.4
+apscheduler==3.11.1
 celery==5.4.0
 
 # Testing
