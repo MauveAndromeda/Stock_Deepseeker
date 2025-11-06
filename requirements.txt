@@ -34,7 +34,7 @@ polygon-api-client==1.14.1
 # Database
 sqlalchemy==2.0.35
 redis==5.0.8
-pymongo==4.10.1
+pymongo==4.15.3
 
 # API and Web
 fastapi==0.115.4
