@@ -1,490 +1,243 @@
 """
-VaR (Value at Risk) 计算
-包括历史模拟法、方差-协方差法、蒙特卡洛模拟法
+Value at Risk (VaR) and Expected Shortfall (ES) calculations.
+
+Multiple methodologies: Historical, Parametric, Monte Carlo.
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
-from scipy import stats
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional
 from enum import Enum
+import pandas as pd
+import numpy as np
+from loguru import logger
+from scipy import stats
 
 
 class VaRMethod(Enum):
-    """VaR计算方法"""
-    HISTORICAL = "historical"  # 历史模拟法
-    PARAMETRIC = "parametric"  # 方差-协方差法
-    MONTE_CARLO = "monte_carlo"  # 蒙特卡洛模拟
+    """VaR calculation methods."""
+    HISTORICAL = "historical"
+    PARAMETRIC = "parametric"
+    MONTE_CARLO = "monte_carlo"
+    CORNISH_FISHER = "cornish_fisher"
 
 
 @dataclass
 class VaRResult:
-    """VaR计算结果"""
-    var_value: float  # VaR值
-    confidence_level: float  # 置信水平
-    time_horizon: int  # 时间跨度（天）
-    method: VaRMethod  # 计算方法
-    percentile: float  # 分位数
-    worst_loss: float  # 最大损失
-    expected_shortfall: Optional[float] = None  # 期望损失（CVaR/ES）
-    metadata: Dict = None
+    """
+    VaR calculation result.
+    
+    Attributes:
+        var_95: 95% Value at Risk
+        var_99: 99% Value at Risk
+        var_99_5: 99.5% Value at Risk
+        expected_shortfall_95: ES at 95%
+        expected_shortfall_99: ES at 99%
+        method: Calculation method used
+        timestamp: Calculation time
+        lookback_days: Days of history used
+    """
+    var_95: float
+    var_99: float
+    var_99_5: float
+    expected_shortfall_95: float
+    expected_shortfall_99: float
+    method: VaRMethod
+    timestamp: datetime
+    lookback_days: int
 
 
 class VaRCalculator:
-    """VaR计算器"""
-
+    """
+    VaR calculator with multiple methodologies.
+    """
+    
     def __init__(
         self,
-        confidence_level: float = 0.95,
-        time_horizon: int = 1,
-        lookback_period: int = 252
-    ):
-        """
-        初始化VaR计算器
-
-        Args:
-            confidence_level: 置信水平（如0.95表示95%）
-            time_horizon: 时间跨度（天）
-            lookback_period: 回溯期（天）
-        """
-        self.confidence_level = confidence_level
-        self.time_horizon = time_horizon
-        self.lookback_period = lookback_period
-
-    def calculate_var(
+        method: VaRMethod = VaRMethod.HISTORICAL,
+        confidence_levels: List[float] = None,
+        lookback_days: int = 252,
+        monte_carlo_simulations: int = 10000
+    ) -> None:
+        """Initialize VaR calculator."""
+        self.method = method
+        self.confidence_levels = confidence_levels or [0.95, 0.99, 0.995]
+        self.lookback_days = lookback_days
+        self.monte_carlo_simulations = monte_carlo_simulations
+        
+        logger.info(f"Initialized VaRCalculator: method={method.value}")
+    
+    def calculate(
         self,
-        returns: np.ndarray,
-        portfolio_value: float,
-        method: VaRMethod = VaRMethod.HISTORICAL
+        returns: pd.Series,
+        portfolio_value: float
     ) -> VaRResult:
-        """
-        计算VaR
-
-        Args:
-            returns: 收益率序列
-            portfolio_value: 投资组合价值
-            method: 计算方法
-
-        Returns:
-            VaR计算结果
-        """
-        if method == VaRMethod.HISTORICAL:
+        """Calculate VaR using configured method."""
+        if self.method == VaRMethod.HISTORICAL:
             return self._historical_var(returns, portfolio_value)
-        elif method == VaRMethod.PARAMETRIC:
+        elif self.method == VaRMethod.PARAMETRIC:
             return self._parametric_var(returns, portfolio_value)
-        elif method == VaRMethod.MONTE_CARLO:
+        elif self.method == VaRMethod.MONTE_CARLO:
             return self._monte_carlo_var(returns, portfolio_value)
+        elif self.method == VaRMethod.CORNISH_FISHER:
+            return self._cornish_fisher_var(returns, portfolio_value)
         else:
-            raise ValueError(f"Unknown VaR method: {method}")
-
+            raise ValueError(f"Unknown VaR method: {self.method}")
+    
     def _historical_var(
         self,
-        returns: np.ndarray,
+        returns: pd.Series,
         portfolio_value: float
     ) -> VaRResult:
-        """历史模拟法计算VaR"""
-
-        # 使用最近的历史数据
-        recent_returns = returns[-self.lookback_period:]
-
-        # 调整时间跨度
-        if self.time_horizon > 1:
-            # 简化假设：sqrt(time) scaling
-            scaled_returns = recent_returns * np.sqrt(self.time_horizon)
-        else:
-            scaled_returns = recent_returns
-
-        # 计算分位数
-        percentile = (1 - self.confidence_level) * 100
-        var_percentile = np.percentile(scaled_returns, percentile)
-
-        # VaR值（负的损失）
-        var_value = -var_percentile * portfolio_value
-
-        # 最大损失
-        worst_loss = -np.min(scaled_returns) * portfolio_value
-
+        """Historical simulation VaR."""
+        returns_data = returns.tail(self.lookback_days)
+        
+        var_95 = returns_data.quantile(0.05) * portfolio_value
+        var_99 = returns_data.quantile(0.01) * portfolio_value
+        var_99_5 = returns_data.quantile(0.005) * portfolio_value
+        
+        # Expected Shortfall
+        es_95 = returns_data[returns_data <= returns_data.quantile(0.05)].mean() * portfolio_value
+        es_99 = returns_data[returns_data <= returns_data.quantile(0.01)].mean() * portfolio_value
+        
         return VaRResult(
-            var_value=var_value,
-            confidence_level=self.confidence_level,
-            time_horizon=self.time_horizon,
+            var_95=var_95,
+            var_99=var_99,
+            var_99_5=var_99_5,
+            expected_shortfall_95=es_95,
+            expected_shortfall_99=es_99,
             method=VaRMethod.HISTORICAL,
-            percentile=percentile,
-            worst_loss=worst_loss
+            timestamp=datetime.now(),
+            lookback_days=len(returns_data)
         )
-
+    
     def _parametric_var(
         self,
-        returns: np.ndarray,
+        returns: pd.Series,
         portfolio_value: float
     ) -> VaRResult:
-        """方差-协方差法（参数法）计算VaR"""
-
-        # 使用最近的历史数据
-        recent_returns = returns[-self.lookback_period:]
-
-        # 计算均值和标准差
-        mean_return = np.mean(recent_returns)
-        std_return = np.std(recent_returns)
-
-        # Z-score（标准正态分位数）
-        z_score = stats.norm.ppf(1 - self.confidence_level)
-
-        # 调整时间跨度
-        if self.time_horizon > 1:
-            mean_return = mean_return * self.time_horizon
-            std_return = std_return * np.sqrt(self.time_horizon)
-
-        # VaR = -(μ + z * σ) * 投资组合价值
-        var_return = -(mean_return + z_score * std_return)
-        var_value = var_return * portfolio_value
-
-        # 估计最大损失（3倍标准差）
-        worst_loss = (mean_return - 3 * std_return) * portfolio_value
-
+        """Parametric VaR (assumes normal distribution)."""
+        returns_data = returns.tail(self.lookback_days)
+        
+        mean = returns_data.mean()
+        std = returns_data.std()
+        
+        # VaR = mean + z * std
+        var_95 = (mean + stats.norm.ppf(0.05) * std) * portfolio_value
+        var_99 = (mean + stats.norm.ppf(0.01) * std) * portfolio_value
+        var_99_5 = (mean + stats.norm.ppf(0.005) * std) * portfolio_value
+        
+        # Expected Shortfall (analytical)
+        es_95 = (mean - std * stats.norm.pdf(stats.norm.ppf(0.05)) / 0.05) * portfolio_value
+        es_99 = (mean - std * stats.norm.pdf(stats.norm.ppf(0.01)) / 0.01) * portfolio_value
+        
         return VaRResult(
-            var_value=var_value,
-            confidence_level=self.confidence_level,
-            time_horizon=self.time_horizon,
+            var_95=var_95,
+            var_99=var_99,
+            var_99_5=var_99_5,
+            expected_shortfall_95=es_95,
+            expected_shortfall_99=es_99,
             method=VaRMethod.PARAMETRIC,
-            percentile=(1 - self.confidence_level) * 100,
-            worst_loss=abs(worst_loss),
-            metadata={
-                'mean_return': mean_return,
-                'std_return': std_return,
-                'z_score': z_score
-            }
+            timestamp=datetime.now(),
+            lookback_days=len(returns_data)
         )
-
+    
     def _monte_carlo_var(
         self,
-        returns: np.ndarray,
-        portfolio_value: float,
-        num_simulations: int = 10000
+        returns: pd.Series,
+        portfolio_value: float
     ) -> VaRResult:
-        """蒙特卡洛模拟法计算VaR"""
-
-        # 使用最近的历史数据估计参数
-        recent_returns = returns[-self.lookback_period:]
-
-        mean_return = np.mean(recent_returns)
-        std_return = np.std(recent_returns)
-
-        # 蒙特卡洛模拟
+        """Monte Carlo simulation VaR."""
+        returns_data = returns.tail(self.lookback_days)
+        
+        mean = returns_data.mean()
+        std = returns_data.std()
+        
+        # Generate simulations
         simulated_returns = np.random.normal(
-            loc=mean_return * self.time_horizon,
-            scale=std_return * np.sqrt(self.time_horizon),
-            size=num_simulations
+            mean, std, self.monte_carlo_simulations
         )
-
-        # 计算VaR
-        percentile = (1 - self.confidence_level) * 100
-        var_percentile = np.percentile(simulated_returns, percentile)
-        var_value = -var_percentile * portfolio_value
-
-        # 最大损失
-        worst_loss = -np.min(simulated_returns) * portfolio_value
-
+        
+        # Calculate VaR
+        var_95 = np.percentile(simulated_returns, 5) * portfolio_value
+        var_99 = np.percentile(simulated_returns, 1) * portfolio_value
+        var_99_5 = np.percentile(simulated_returns, 0.5) * portfolio_value
+        
+        # Expected Shortfall
+        es_95 = simulated_returns[simulated_returns <= np.percentile(simulated_returns, 5)].mean() * portfolio_value
+        es_99 = simulated_returns[simulated_returns <= np.percentile(simulated_returns, 1)].mean() * portfolio_value
+        
         return VaRResult(
-            var_value=var_value,
-            confidence_level=self.confidence_level,
-            time_horizon=self.time_horizon,
+            var_95=var_95,
+            var_99=var_99,
+            var_99_5=var_99_5,
+            expected_shortfall_95=es_95,
+            expected_shortfall_99=es_99,
             method=VaRMethod.MONTE_CARLO,
-            percentile=percentile,
-            worst_loss=worst_loss,
-            metadata={
-                'num_simulations': num_simulations,
-                'mean_return': mean_return,
-                'std_return': std_return
-            }
+            timestamp=datetime.now(),
+            lookback_days=len(returns_data)
         )
-
-    def calculate_portfolio_var(
+    
+    def _cornish_fisher_var(
         self,
-        returns_matrix: np.ndarray,
-        weights: np.ndarray,
-        portfolio_value: float,
-        method: VaRMethod = VaRMethod.PARAMETRIC
+        returns: pd.Series,
+        portfolio_value: float
     ) -> VaRResult:
-        """
-        计算投资组合VaR（考虑相关性）
-
-        Args:
-            returns_matrix: 收益率矩阵 (T x N)，T是时间，N是资产数量
-            weights: 权重向量 (N,)
-            portfolio_value: 投资组合价值
-            method: 计算方法
-
-        Returns:
-            VaR计算结果
-        """
-        # 计算投资组合收益率
-        portfolio_returns = returns_matrix @ weights
-
-        # 计算VaR
-        return self.calculate_var(portfolio_returns, portfolio_value, method)
-
-    def calculate_component_var(
-        self,
-        returns_matrix: np.ndarray,
-        weights: np.ndarray,
-        portfolio_value: float
-    ) -> Dict[str, float]:
-        """
-        计算成分VaR（Component VaR）
-
-        Args:
-            returns_matrix: 收益率矩阵
-            weights: 权重向量
-            portfolio_value: 投资组合价值
-
-        Returns:
-            各成分的VaR贡献
-        """
-        n_assets = returns_matrix.shape[1]
-
-        # 计算协方差矩阵
-        cov_matrix = np.cov(returns_matrix, rowvar=False)
-
-        # 投资组合方差
-        portfolio_variance = weights.T @ cov_matrix @ weights
-
-        # 投资组合标准差
-        portfolio_std = np.sqrt(portfolio_variance)
-
-        # 边际VaR
-        z_score = stats.norm.ppf(1 - self.confidence_level)
-        marginal_var = z_score * (cov_matrix @ weights) / portfolio_std
-
-        # 成分VaR
-        component_var = weights * marginal_var * portfolio_value
-
-        return {
-            f"asset_{i}": float(component_var[i])
-            for i in range(n_assets)
-        }
+        """Cornish-Fisher expansion VaR (accounts for skewness/kurtosis)."""
+        returns_data = returns.tail(self.lookback_days)
+        
+        mean = returns_data.mean()
+        std = returns_data.std()
+        skew = returns_data.skew()
+        kurt = returns_data.kurtosis()
+        
+        # Cornish-Fisher quantile
+        def cf_quantile(alpha):
+            z = stats.norm.ppf(alpha)
+            z_cf = z + (z**2 - 1) * skew / 6 + \
+                   (z**3 - 3*z) * kurt / 24 - \
+                   (2*z**3 - 5*z) * skew**2 / 36
+            return mean + z_cf * std
+        
+        var_95 = cf_quantile(0.05) * portfolio_value
+        var_99 = cf_quantile(0.01) * portfolio_value
+        var_99_5 = cf_quantile(0.005) * portfolio_value
+        
+        # Use historical ES (CF doesn't have analytical ES)
+        es_95 = returns_data[returns_data <= returns_data.quantile(0.05)].mean() * portfolio_value
+        es_99 = returns_data[returns_data <= returns_data.quantile(0.01)].mean() * portfolio_value
+        
+        return VaRResult(
+            var_95=var_95,
+            var_99=var_99,
+            var_99_5=var_99_5,
+            expected_shortfall_95=es_95,
+            expected_shortfall_99=es_99,
+            method=VaRMethod.CORNISH_FISHER,
+            timestamp=datetime.now(),
+            lookback_days=len(returns_data)
+        )
 
 
-class ExpectedShortfall:
-    """期望损失（Expected Shortfall / CVaR）计算器"""
-
-    def __init__(
-        self,
-        confidence_level: float = 0.95,
-        time_horizon: int = 1
-    ):
-        """
-        初始化ES计算器
-
-        Args:
-            confidence_level: 置信水平
-            time_horizon: 时间跨度（天）
-        """
+class ESCalculator:
+    """Expected Shortfall (CVaR) calculator."""
+    
+    def __init__(self, confidence_level: float = 0.95):
+        """Initialize ES calculator."""
         self.confidence_level = confidence_level
-        self.time_horizon = time_horizon
-
-    def calculate_es(
+    
+    def calculate(
         self,
-        returns: np.ndarray,
-        portfolio_value: float,
-        method: str = "historical"
-    ) -> float:
-        """
-        计算期望损失
-
-        Args:
-            returns: 收益率序列
-            portfolio_value: 投资组合价值
-            method: 计算方法（historical或parametric）
-
-        Returns:
-            期望损失值
-        """
-        if method == "historical":
-            return self._historical_es(returns, portfolio_value)
-        elif method == "parametric":
-            return self._parametric_es(returns, portfolio_value)
-        else:
-            raise ValueError(f"Unknown ES method: {method}")
-
-    def _historical_es(
-        self,
-        returns: np.ndarray,
+        returns: pd.Series,
         portfolio_value: float
     ) -> float:
-        """历史模拟法计算ES"""
-
-        # 调整时间跨度
-        if self.time_horizon > 1:
-            scaled_returns = returns * np.sqrt(self.time_horizon)
+        """Calculate Expected Shortfall."""
+        threshold = returns.quantile(1 - self.confidence_level)
+        tail_returns = returns[returns <= threshold]
+        
+        if len(tail_returns) > 0:
+            es = tail_returns.mean() * portfolio_value
         else:
-            scaled_returns = returns
-
-        # VaR阈值
-        percentile = (1 - self.confidence_level) * 100
-        var_threshold = np.percentile(scaled_returns, percentile)
-
-        # ES = 超过VaR的损失的平均值
-        tail_losses = scaled_returns[scaled_returns <= var_threshold]
-
-        if len(tail_losses) > 0:
-            es_return = np.mean(tail_losses)
-            es_value = -es_return * portfolio_value
-        else:
-            es_value = 0.0
-
-        return es_value
-
-    def _parametric_es(
-        self,
-        returns: np.ndarray,
-        portfolio_value: float
-    ) -> float:
-        """参数法计算ES（假设正态分布）"""
-
-        mean_return = np.mean(returns)
-        std_return = np.std(returns)
-
-        # 调整时间跨度
-        if self.time_horizon > 1:
-            mean_return = mean_return * self.time_horizon
-            std_return = std_return * np.sqrt(self.time_horizon)
-
-        # 正态分布的ES公式
-        z_score = stats.norm.ppf(1 - self.confidence_level)
-
-        # ES = μ - σ * φ(z) / (1 - α)
-        # 其中 φ 是标准正态PDF
-        phi_z = stats.norm.pdf(z_score)
-        es_return = -(mean_return - std_return * phi_z / (1 - self.confidence_level))
-
-        es_value = es_return * portfolio_value
-
-        return es_value
-
-
-class MarginalVaR:
-    """边际VaR计算器"""
-
-    def __init__(
-        self,
-        confidence_level: float = 0.95,
-        time_horizon: int = 1
-    ):
-        self.confidence_level = confidence_level
-        self.time_horizon = time_horizon
-        self.var_calculator = VaRCalculator(confidence_level, time_horizon)
-
-    def calculate_marginal_var(
-        self,
-        returns_matrix: np.ndarray,
-        weights: np.ndarray,
-        portfolio_value: float,
-        asset_index: int,
-        delta: float = 0.01
-    ) -> float:
-        """
-        计算边际VaR（单个资产权重变化对VaR的影响）
-
-        Args:
-            returns_matrix: 收益率矩阵
-            weights: 当前权重
-            portfolio_value: 投资组合价值
-            asset_index: 资产索引
-            delta: 权重变化量
-
-        Returns:
-            边际VaR
-        """
-        # 当前VaR
-        current_var = self.var_calculator.calculate_portfolio_var(
-            returns_matrix,
-            weights,
-            portfolio_value,
-            VaRMethod.PARAMETRIC
-        )
-
-        # 调整权重
-        new_weights = weights.copy()
-        new_weights[asset_index] += delta
-
-        # 重新归一化
-        new_weights = new_weights / np.sum(new_weights)
-
-        # 新VaR
-        new_var = self.var_calculator.calculate_portfolio_var(
-            returns_matrix,
-            new_weights,
-            portfolio_value,
-            VaRMethod.PARAMETRIC
-        )
-
-        # 边际VaR
-        marginal_var = (new_var.var_value - current_var.var_value) / delta
-
-        return marginal_var
-
-
-class IncrementalVaR:
-    """增量VaR计算器"""
-
-    def __init__(
-        self,
-        confidence_level: float = 0.95,
-        time_horizon: int = 1
-    ):
-        self.confidence_level = confidence_level
-        self.time_horizon = time_horizon
-        self.var_calculator = VaRCalculator(confidence_level, time_horizon)
-
-    def calculate_incremental_var(
-        self,
-        returns_matrix: np.ndarray,
-        weights: np.ndarray,
-        portfolio_value: float,
-        asset_index: int
-    ) -> float:
-        """
-        计算增量VaR（移除某个资产对VaR的影响）
-
-        Args:
-            returns_matrix: 收益率矩阵
-            weights: 当前权重
-            portfolio_value: 投资组合价值
-            asset_index: 要移除的资产索引
-
-        Returns:
-            增量VaR
-        """
-        # 当前VaR
-        current_var = self.var_calculator.calculate_portfolio_var(
-            returns_matrix,
-            weights,
-            portfolio_value,
-            VaRMethod.PARAMETRIC
-        )
-
-        # 移除资产
-        new_weights = weights.copy()
-        new_weights[asset_index] = 0
-
-        # 重新归一化
-        if np.sum(new_weights) > 0:
-            new_weights = new_weights / np.sum(new_weights)
-        else:
-            # 如果只有一个资产，返回当前VaR
-            return current_var.var_value
-
-        # 新VaR
-        new_var = self.var_calculator.calculate_portfolio_var(
-            returns_matrix,
-            new_weights,
-            portfolio_value,
-            VaRMethod.PARAMETRIC
-        )
-
-        # 增量VaR = 当前VaR - 移除后的VaR
-        incremental_var = current_var.var_value - new_var.var_value
-
-        return incremental_var
+            es = threshold * portfolio_value
+        
+        return es
