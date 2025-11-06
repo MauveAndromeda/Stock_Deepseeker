@@ -465,3 +465,7 @@ def count_calls(metric_name: str):
             return func(*args, **kwargs)
         return wrapper
     return decorator
+
+
+# Alias for backward compatibility
+MetricsCalculator = MetricsCollector

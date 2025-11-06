@@ -20,6 +20,20 @@ class EventType(Enum):
     REBALANCE = "rebalance"  # Portfolio rebalancing
 
 
+class OrderType(Enum):
+    """Order types."""
+    MARKET = "market"
+    LIMIT = "limit"
+    STOP = "stop"
+    STOP_LIMIT = "stop_limit"
+
+
+class OrderSide(Enum):
+    """Order side."""
+    BUY = "buy"
+    SELL = "sell"
+
+
 @dataclass
 class Event:
     """

@@ -9,14 +9,17 @@ Features:
 - Liquidity constraints
 """
 
+from __future__ import annotations
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING, Any
 import pandas as pd
 from loguru import logger
 
 from src.backtest.events import OrderEvent, FillEvent
 from src.backtest.portfolio_v2 import PortfolioV2
-from src.backtest.engine_v2 import BacktestConfig
+
+if TYPE_CHECKING:
+    from src.backtest.engine_v2 import BacktestConfig
 
 
 class ExecutionHandler:
@@ -34,7 +37,7 @@ class ExecutionHandler:
         self,
         portfolio: PortfolioV2,
         price_data: Dict[str, pd.DataFrame],
-        config: BacktestConfig
+        config: Any  # BacktestConfig - use Any to avoid circular import at runtime
     ) -> None:
         """
         Initialize execution handler.

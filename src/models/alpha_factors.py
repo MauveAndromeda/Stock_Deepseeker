@@ -7,8 +7,19 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
 from dataclasses import dataclass
+from enum import Enum
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
+
+
+class FactorCategory(str, Enum):
+    """因子分类"""
+    MOMENTUM = "momentum"
+    REVERSAL = "reversal"
+    VALUE = "value"
+    QUALITY = "quality"
+    VOLATILITY = "volatility"
+    LIQUIDITY = "liquidity"
 
 
 @dataclass

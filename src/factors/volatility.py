@@ -616,3 +616,8 @@ def create_volatility_factors() -> List[Factor]:
         # Upside potential
         UpVolatility(lookback=20),
     ]
+
+
+# Aliases for backward compatibility
+Beta = BetaFactor
+Volatility = HistoricalVolatility

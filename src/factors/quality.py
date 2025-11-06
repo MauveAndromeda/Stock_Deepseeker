@@ -839,3 +839,11 @@ def create_quality_factors() -> List[Factor]:
         # Composite
         PiotroskiFScore(),
     ]
+
+
+# Aliases for backward compatibility and convenience
+ROE = ReturnOnEquity
+ROA = ReturnOnAssets
+ROIC = ReturnOnInvestedCapital
+GrossMargin = GrossProfitMargin
+NetMargin = NetProfitMargin
