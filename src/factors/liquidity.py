@@ -587,3 +587,11 @@ def create_liquidity_factors() -> List[Factor]:
         # Size
         MarketCapitalization(),
     ]
+
+
+# Alias for backward compatibility
+DollarVolume = AverageDollarVolume
+
+
+# Additional alias
+MarketCapFactor = MarketCapitalization

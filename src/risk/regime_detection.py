@@ -512,3 +512,8 @@ if __name__ == "__main__":
     stats = detector.get_regime_statistics()
     print(f"\nRegime统计:")
     print(stats.tail())
+
+
+# Aliases for backward compatibility
+RegimeParameters = RegimeState
+

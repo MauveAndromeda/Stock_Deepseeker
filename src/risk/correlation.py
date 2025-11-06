@@ -380,3 +380,8 @@ class CorrelationManager:
             effective_dimension=0,
             timestamp=datetime.now()
         )
+
+
+# Alias for backward compatibility
+CorrelationMonitor = CorrelationManager
+

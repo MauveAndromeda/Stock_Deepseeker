@@ -151,3 +151,9 @@ class StressTester:
         """Add custom stress scenario."""
         self.scenarios.append(scenario)
         logger.info(f"Added stress scenario: {scenario.name}")
+
+
+# Aliases for backward compatibility
+StressTest = StressTester
+StressScenario = StressTestScenario
+
