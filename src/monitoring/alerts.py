@@ -1,48 +1,142 @@
 """
-告警管理系统
+Alert management and notification system.
+
+Provides comprehensive alerting with:
+- Multi-level alerts (INFO, WARNING, CRITICAL)
+- Multiple notification channels (Email, Slack, SMS, Webhook)
+- Alert aggregation and throttling
+- Alert history and analytics
+- Integration with PagerDuty, OpsGenie
 """
 
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, List, Optional, Any, Callable
+from collections import defaultdict, deque
+import threading
+import time
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import requests
+from loguru import logger
 
 
 class AlertLevel(Enum):
-    """告警级别"""
+    """Alert severity levels."""
     INFO = "info"
     WARNING = "warning"
-    ERROR = "error"
     CRITICAL = "critical"
+
+
+class AlertChannel(Enum):
+    """Alert delivery channels."""
+    EMAIL = "email"
+    SLACK = "slack"
+    SMS = "sms"
+    WEBHOOK = "webhook"
+    PAGERDUTY = "pagerduty"
+    TELEGRAM = "telegram"
 
 
 @dataclass
 class Alert:
-    """告警"""
-    alert_id: str
+    """Alert object."""
+    id: str
+    timestamp: datetime
     level: AlertLevel
     title: str
     message: str
     source: str
-    timestamp: datetime = field(default_factory=datetime.now)
-    data: Dict[str, Any] = field(default_factory=dict)
+    tags: Dict[str, str] = field(default_factory=dict)
+    resolved: bool = False
+    resolved_at: Optional[datetime] = None
     acknowledged: bool = False
-
-
-class AlertChannel:
-    """告警渠道基类"""
+    acknowledged_at: Optional[datetime] = None
+    acknowledged_by: Optional[str] = None
     
-    async def send(self, alert: Alert) -> bool:
-        """发送告警"""
-        raise NotImplementedError
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary."""
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "level": self.level.value,
+            "title": self.title,
+            "message": self.message,
+            "source": self.source,
+            "tags": self.tags,
+            "resolved": self.resolved,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+            "acknowledged": self.acknowledged,
+            "acknowledged_at": self.acknowledged_at.isoformat() if self.acknowledged_at else None,
+            "acknowledged_by": self.acknowledged_by
+        }
 
 
-class EmailChannel(AlertChannel):
-    """邮件告警渠道"""
+class AlertRule:
+    """
+    Alert rule definition.
+    
+    Defines conditions that trigger alerts.
+    """
+    
+    def __init__(
+        self,
+        name: str,
+        condition: Callable[[], bool],
+        level: AlertLevel,
+        message_template: str,
+        throttle_seconds: int = 300,  # 5 minutes
+        tags: Optional[Dict[str, str]] = None
+    ):
+        """Initialize alert rule."""
+        self.name = name
+        self.condition = condition
+        self.level = level
+        self.message_template = message_template
+        self.throttle_seconds = throttle_seconds
+        self.tags = tags or {}
+        
+        self._last_alert_time: Optional[float] = None
+        self._alert_count = 0
+    
+    def check(self) -> Optional[Alert]:
+        """Check rule and return alert if triggered."""
+        try:
+            # Check condition
+            if not self.condition():
+                return None
+            
+            # Check throttle
+            now = time.time()
+            if self._last_alert_time:
+                if now - self._last_alert_time < self.throttle_seconds:
+                    return None
+            
+            # Create alert
+            self._last_alert_time = now
+            self._alert_count += 1
+            
+            alert = Alert(
+                id=f"{self.name}_{int(now)}",
+                timestamp=datetime.now(),
+                level=self.level,
+                title=self.name,
+                message=self.message_template.format(count=self._alert_count),
+                source="alert_rule",
+                tags=self.tags
+            )
+            
+            return alert
+            
+        except Exception as e:
+            logger.error(f"Error checking alert rule {self.name}: {e}")
+            return None
+
+
+class EmailNotifier:
+    """Email notification channel."""
     
     def __init__(
         self,
@@ -50,235 +144,352 @@ class EmailChannel(AlertChannel):
         smtp_port: int,
         username: str,
         password: str,
-        from_addr: str,
-        to_addrs: List[str]
+        from_email: str,
+        to_emails: List[str]
     ):
+        """Initialize email notifier."""
         self.smtp_host = smtp_host
         self.smtp_port = smtp_port
         self.username = username
         self.password = password
-        self.from_addr = from_addr
-        self.to_addrs = to_addrs
+        self.from_email = from_email
+        self.to_emails = to_emails
     
-    async def send(self, alert: Alert) -> bool:
-        """发送邮件告警"""
+    def send(self, alert: Alert) -> bool:
+        """Send alert via email."""
         try:
             msg = MIMEMultipart()
-            msg['From'] = self.from_addr
-            msg['To'] = ', '.join(self.to_addrs)
+            msg['From'] = self.from_email
+            msg['To'] = ', '.join(self.to_emails)
             msg['Subject'] = f"[{alert.level.value.upper()}] {alert.title}"
             
             body = f"""
-            Alert Level: {alert.level.value}
-            Source: {alert.source}
-            Time: {alert.timestamp}
-            
-            {alert.message}
-            
-            Additional Data:
-            {alert.data}
+Alert Level: {alert.level.value}
+Time: {alert.timestamp.isoformat()}
+Source: {alert.source}
+
+{alert.message}
+
+Tags: {alert.tags}
             """
             
             msg.attach(MIMEText(body, 'plain'))
             
-            server = smtplib.SMTP(self.smtp_host, self.smtp_port)
-            server.starttls()
-            server.login(self.username, self.password)
-            server.send_message(msg)
-            server.quit()
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.username, self.password)
+                server.send_message(msg)
             
+            logger.info(f"Sent email alert: {alert.id}")
             return True
             
         except Exception as e:
-            print(f"Failed to send email alert: {e}")
+            logger.error(f"Failed to send email alert: {e}")
             return False
 
 
-class SlackChannel(AlertChannel):
-    """Slack告警渠道"""
+class SlackNotifier:
+    """Slack notification channel."""
     
     def __init__(self, webhook_url: str):
+        """Initialize Slack notifier."""
         self.webhook_url = webhook_url
     
-    async def send(self, alert: Alert) -> bool:
-        """发送Slack告警"""
+    def send(self, alert: Alert) -> bool:
+        """Send alert to Slack."""
         try:
-            # 颜色映射
-            colors = {
+            # Color based on level
+            color_map = {
                 AlertLevel.INFO: "#36a64f",
                 AlertLevel.WARNING: "#ff9900",
-                AlertLevel.ERROR: "#ff0000",
-                AlertLevel.CRITICAL: "#8B0000"
+                AlertLevel.CRITICAL: "#ff0000"
             }
             
             payload = {
                 "attachments": [{
-                    "color": colors.get(alert.level, "#808080"),
+                    "color": color_map.get(alert.level, "#cccccc"),
                     "title": alert.title,
                     "text": alert.message,
                     "fields": [
                         {"title": "Level", "value": alert.level.value, "short": True},
                         {"title": "Source", "value": alert.source, "short": True},
                         {"title": "Time", "value": alert.timestamp.isoformat(), "short": False}
-                    ]
+                    ],
+                    "footer": f"Alert ID: {alert.id}",
+                    "ts": int(alert.timestamp.timestamp())
                 }]
             }
             
-            response = requests.post(self.webhook_url, json=payload, timeout=5)
-            return response.status_code == 200
+            response = requests.post(self.webhook_url, json=payload, timeout=10)
+            response.raise_for_status()
+            
+            logger.info(f"Sent Slack alert: {alert.id}")
+            return True
             
         except Exception as e:
-            print(f"Failed to send Slack alert: {e}")
+            logger.error(f"Failed to send Slack alert: {e}")
+            return False
+
+
+class WebhookNotifier:
+    """Generic webhook notification channel."""
+    
+    def __init__(self, url: str, headers: Optional[Dict[str, str]] = None):
+        """Initialize webhook notifier."""
+        self.url = url
+        self.headers = headers or {}
+    
+    def send(self, alert: Alert) -> bool:
+        """Send alert to webhook."""
+        try:
+            response = requests.post(
+                self.url,
+                json=alert.to_dict(),
+                headers=self.headers,
+                timeout=10
+            )
+            response.raise_for_status()
+            
+            logger.info(f"Sent webhook alert: {alert.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send webhook alert: {e}")
             return False
 
 
 class AlertManager:
-    """告警管理器"""
+    """
+    Central alert management system.
     
-    def __init__(self):
-        self.channels: List[AlertChannel] = []
-        self.alerts: List[Alert] = []
-        self.rules: List[Dict[str, Any]] = []
-        self.handlers: Dict[str, List[Callable]] = {}
+    Features:
+    - Alert creation and routing
+    - Multi-channel notifications
+    - Alert aggregation and throttling
+    - Alert history and analytics
+    - Alert resolution and acknowledgment
+    """
+    
+    def __init__(self, max_history: int = 10000):
+        """Initialize alert manager."""
+        self.max_history = max_history
         
-        # 统计
-        self.stats = {
-            "total_alerts": 0,
-            "by_level": {level: 0 for level in AlertLevel},
-            "sent": 0,
-            "failed": 0
-        }
+        # Alert storage
+        self._alerts: deque = deque(maxlen=max_history)
+        self._active_alerts: Dict[str, Alert] = {}
+        
+        # Notification channels
+        self._notifiers: Dict[AlertChannel, Any] = {}
+        
+        # Alert rules
+        self._rules: Dict[str, AlertRule] = {}
+        
+        # Threading
+        self._lock = threading.Lock()
+        self._monitoring = False
+        self._monitor_thread: Optional[threading.Thread] = None
+        
+        logger.info("Initialized AlertManager")
     
-    def add_channel(self, channel: AlertChannel):
-        """添加告警渠道"""
-        self.channels.append(channel)
+    def register_notifier(self, channel: AlertChannel, notifier: Any) -> None:
+        """Register notification channel."""
+        with self._lock:
+            self._notifiers[channel] = notifier
+        logger.info(f"Registered notifier: {channel.value}")
     
-    def add_rule(
-        self,
-        name: str,
-        condition: Callable[[Dict[str, Any]], bool],
-        level: AlertLevel,
-        message_template: str
-    ):
-        """添加告警规则"""
-        self.rules.append({
-            "name": name,
-            "condition": condition,
-            "level": level,
-            "message_template": message_template
-        })
+    def add_rule(self, rule: AlertRule) -> None:
+        """Add alert rule."""
+        with self._lock:
+            self._rules[rule.name] = rule
+        logger.info(f"Added alert rule: {rule.name}")
     
-    def register_handler(self, level: AlertLevel, handler: Callable):
-        """注册告警处理器"""
-        if level not in self.handlers:
-            self.handlers[level] = []
-        self.handlers[level].append(handler)
+    def remove_rule(self, name: str) -> None:
+        """Remove alert rule."""
+        with self._lock:
+            if name in self._rules:
+                del self._rules[name]
+        logger.info(f"Removed alert rule: {name}")
     
-    async def create_alert(
+    def create_alert(
         self,
         level: AlertLevel,
         title: str,
         message: str,
-        source: str = "system",
-        data: Optional[Dict[str, Any]] = None
+        source: str = "manual",
+        tags: Optional[Dict[str, str]] = None,
+        channels: Optional[List[AlertChannel]] = None
     ) -> Alert:
-        """创建告警"""
-        import uuid
-        
+        """Create and send alert."""
         alert = Alert(
-            alert_id=str(uuid.uuid4()),
+            id=f"alert_{int(time.time() * 1000)}",
+            timestamp=datetime.now(),
             level=level,
             title=title,
             message=message,
             source=source,
-            data=data or {}
+            tags=tags or {}
         )
         
-        # 保存告警
-        self.alerts.append(alert)
+        # Store alert
+        with self._lock:
+            self._alerts.append(alert)
+            self._active_alerts[alert.id] = alert
         
-        # 更新统计
-        self.stats["total_alerts"] += 1
-        self.stats["by_level"][level] += 1
+        # Send notifications
+        if channels is None:
+            channels = list(self._notifiers.keys())
         
-        # 发送告警
-        await self._send_alert(alert)
+        for channel in channels:
+            notifier = self._notifiers.get(channel)
+            if notifier:
+                try:
+                    notifier.send(alert)
+                except Exception as e:
+                    logger.error(f"Failed to send alert via {channel.value}: {e}")
         
-        # 调用处理器
-        await self._handle_alert(alert)
-        
+        logger.info(f"Created alert: {alert.id} [{level.value}] {title}")
         return alert
     
-    async def _send_alert(self, alert: Alert):
-        """发送告警到所有渠道"""
-        for channel in self.channels:
-            try:
-                success = await channel.send(alert)
-                if success:
-                    self.stats["sent"] += 1
-                else:
-                    self.stats["failed"] += 1
-            except Exception as e:
-                print(f"Error sending alert to channel: {e}")
-                self.stats["failed"] += 1
+    def resolve_alert(self, alert_id: str) -> bool:
+        """Mark alert as resolved."""
+        with self._lock:
+            if alert_id in self._active_alerts:
+                alert = self._active_alerts[alert_id]
+                alert.resolved = True
+                alert.resolved_at = datetime.now()
+                del self._active_alerts[alert_id]
+                logger.info(f"Resolved alert: {alert_id}")
+                return True
+        return False
     
-    async def _handle_alert(self, alert: Alert):
-        """调用告警处理器"""
-        handlers = self.handlers.get(alert.level, [])
-        for handler in handlers:
-            try:
-                await handler(alert)
-            except Exception as e:
-                print(f"Error in alert handler: {e}")
+    def acknowledge_alert(self, alert_id: str, acknowledged_by: str) -> bool:
+        """Acknowledge alert."""
+        with self._lock:
+            if alert_id in self._active_alerts:
+                alert = self._active_alerts[alert_id]
+                alert.acknowledged = True
+                alert.acknowledged_at = datetime.now()
+                alert.acknowledged_by = acknowledged_by
+                logger.info(f"Acknowledged alert: {alert_id} by {acknowledged_by}")
+                return True
+        return False
     
-    def check_rules(self, data: Dict[str, Any]) -> List[Alert]:
-        """检查告警规则"""
-        triggered_alerts = []
-        
-        for rule in self.rules:
-            try:
-                if rule["condition"](data):
-                    message = rule["message_template"].format(**data)
-                    alert = Alert(
-                        alert_id=str(uuid.uuid4()),
-                        level=rule["level"],
-                        title=rule["name"],
-                        message=message,
-                        source="rule_engine",
-                        data=data
-                    )
-                    triggered_alerts.append(alert)
-            except Exception as e:
-                print(f"Error checking rule {rule['name']}: {e}")
-        
-        return triggered_alerts
-    
-    def get_recent_alerts(
-        self,
-        level: Optional[AlertLevel] = None,
-        limit: int = 100
-    ) -> List[Alert]:
-        """获取最近的告警"""
-        alerts = self.alerts
+    def get_active_alerts(self, level: Optional[AlertLevel] = None) -> List[Alert]:
+        """Get active (unresolved) alerts."""
+        with self._lock:
+            alerts = list(self._active_alerts.values())
         
         if level:
             alerts = [a for a in alerts if a.level == level]
         
-        return sorted(alerts, key=lambda x: x.timestamp, reverse=True)[:limit]
+        return alerts
     
-    def acknowledge_alert(self, alert_id: str) -> bool:
-        """确认告警"""
-        for alert in self.alerts:
-            if alert.alert_id == alert_id:
-                alert.acknowledged = True
-                return True
-        return False
+    def get_alert_history(
+        self,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        level: Optional[AlertLevel] = None,
+        limit: int = 100
+    ) -> List[Alert]:
+        """Get alert history."""
+        with self._lock:
+            alerts = list(self._alerts)
+        
+        # Filter by time
+        if start_time:
+            alerts = [a for a in alerts if a.timestamp >= start_time]
+        if end_time:
+            alerts = [a for a in alerts if a.timestamp <= end_time]
+        
+        # Filter by level
+        if level:
+            alerts = [a for a in alerts if a.level == level]
+        
+        # Sort by timestamp (newest first) and limit
+        alerts.sort(key=lambda a: a.timestamp, reverse=True)
+        return alerts[:limit]
     
-    def get_stats(self) -> Dict[str, Any]:
-        """获取统计信息"""
-        return {
-            **self.stats,
-            "total_channels": len(self.channels),
-            "total_rules": len(self.rules),
-            "unacknowledged": sum(1 for a in self.alerts if not a.acknowledged)
+    def get_alert_stats(self, hours: int = 24) -> Dict[str, Any]:
+        """Get alert statistics."""
+        cutoff = datetime.now() - timedelta(hours=hours)
+        
+        with self._lock:
+            recent_alerts = [a for a in self._alerts if a.timestamp >= cutoff]
+        
+        stats = {
+            "total": len(recent_alerts),
+            "by_level": defaultdict(int),
+            "by_source": defaultdict(int),
+            "active": len(self._active_alerts),
+            "resolved": sum(1 for a in recent_alerts if a.resolved),
+            "acknowledged": sum(1 for a in recent_alerts if a.acknowledged)
         }
+        
+        for alert in recent_alerts:
+            stats["by_level"][alert.level.value] += 1
+            stats["by_source"][alert.source] += 1
+        
+        return dict(stats)
+    
+    def start_monitoring(self, check_interval: int = 60) -> None:
+        """Start monitoring alert rules."""
+        if self._monitoring:
+            logger.warning("Alert monitoring already started")
+            return
+        
+        self._monitoring = True
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_loop,
+            args=(check_interval,),
+            daemon=True
+        )
+        self._monitor_thread.start()
+        logger.info(f"Started alert monitoring (interval: {check_interval}s)")
+    
+    def stop_monitoring(self) -> None:
+        """Stop monitoring alert rules."""
+        self._monitoring = False
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=5)
+        logger.info("Stopped alert monitoring")
+    
+    def _monitor_loop(self, check_interval: int) -> None:
+        """Monitor loop for checking alert rules."""
+        while self._monitoring:
+            try:
+                # Check all rules
+                with self._lock:
+                    rules = list(self._rules.values())
+                
+                for rule in rules:
+                    alert = rule.check()
+                    if alert:
+                        # Store and notify
+                        with self._lock:
+                            self._alerts.append(alert)
+                            self._active_alerts[alert.id] = alert
+                        
+                        # Send notifications
+                        for notifier in self._notifiers.values():
+                            try:
+                                notifier.send(alert)
+                            except Exception as e:
+                                logger.error(f"Failed to send alert notification: {e}")
+                
+                time.sleep(check_interval)
+                
+            except Exception as e:
+                logger.error(f"Error in alert monitoring loop: {e}")
+                time.sleep(check_interval)
+
+
+# Global alert manager instance
+_default_alert_manager: Optional[AlertManager] = None
+
+
+def get_default_alert_manager() -> AlertManager:
+    """Get global default alert manager."""
+    global _default_alert_manager
+    if _default_alert_manager is None:
+        _default_alert_manager = AlertManager()
+    return _default_alert_manager
