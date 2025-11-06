@@ -91,13 +91,40 @@ pip install -e ".[dev]"
 
 ## Quick Start
 
-See `examples/` directory for usage examples:
+### 一键回测（推荐）
+
+最简单的方式 - 使用完整的回测脚本：
+
+```bash
+# 使用模拟数据运行回测（用于演示）
+python run_backtest.py --mock
+
+# 使用真实数据（需要网络连接）
+python run_backtest.py --symbols AAPL
+
+# 自定义参数
+python run_backtest.py --symbols AAPL MSFT --start 2023-01-01 --capital 50000 --mock
+
+# 查看所有选项
+python run_backtest.py --help
+```
+
+**特性：**
+- ✅ 完整的端到端回测示例
+- ✅ 使用真实的 Yahoo Finance 数据或模拟数据
+- ✅ 双均线交叉策略（可定制参数）
+- ✅ 详细的回测结果报告
+- ✅ 100% 可运行，无需额外配置
+
+### 示例代码
+
+查看 `examples/` 目录了解更多用法：
 
 ```bash
 python examples/basic_backtest.py
 ```
 
-**Note:** Examples are educational skeletons, not complete implementations.
+**注意:** 示例代码是教学性骨架，`run_backtest.py` 是完整实现。
 
 ## Testing
 
