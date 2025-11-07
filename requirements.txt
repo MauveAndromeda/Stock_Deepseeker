@@ -61,3 +61,12 @@ dash==2.18.1
 click==8.1.7
 rich==13.9.2
 tqdm==4.66.5
+
+# Multi-Agent System (LangChain/LangGraph)
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+langchain-anthropic>=0.3.0
+langgraph>=0.2.0
+nest-asyncio>=1.6.0
+pydantic>=2.9.0
