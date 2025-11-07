@@ -51,18 +51,16 @@ class TestEnhancedAgents:
         """测试智能体创建"""
         agent = MomentumChaserAgent(
             agent_id="test_momentum",
-            agent_type=AgentType.MOMENTUM_CHASER,
             initial_capital=100000
         )
         assert agent.agent_id == "test_momentum"
-        assert agent.agent_type == AgentType.MOMENTUM_CHASER
+        assert agent.agent_type == "momentum_chaser"
 
     @pytest.mark.asyncio
     async def test_agent_prompt_template(self):
         """测试prompt模板"""
         agent = ValueSeekerAgent(
-            agent_id="test_value",
-            agent_type=AgentType.VALUE_SEEKER
+            agent_id="test_value"
         )
         prompt_template = agent._create_prompt_template()
         assert prompt_template is not None
@@ -71,8 +69,7 @@ class TestEnhancedAgents:
     def test_agent_personality(self):
         """测试性格特征"""
         agent = MomentumChaserAgent(
-            agent_id="test",
-            agent_type=AgentType.MOMENTUM_CHASER
+            agent_id="test"
         )
         personality = agent._get_personality_traits()
         assert len(personality) > 0
@@ -151,10 +148,13 @@ class TestBacktestIntegration:
             date=dates[-1]
         )
 
-        assert 'symbol' in market_data
-        assert 'price' in market_data
-        assert 'indicators' in market_data
-        assert market_data['symbol'] == "TEST"
+        # market_data is now a MarketContext object, not a dict
+        assert hasattr(market_data, 'symbol')
+        assert hasattr(market_data, 'current_price')
+        assert hasattr(market_data, 'technical_indicators')
+        assert market_data.symbol == "TEST"
+        assert market_data.current_price > 0
+        assert 'SMA_20' in market_data.technical_indicators
 
     @pytest.mark.asyncio
     async def test_decision_synthesis(self):
@@ -227,8 +227,8 @@ class TestEndToEnd:
             slippage_rate=0.0005
         )
 
-        # 生成信号
-        signals = await strategy.generate_signals(
+        # 生成信号 (generate_signals is synchronous, it wraps async internally)
+        signals = strategy.generate_signals(
             date=price_data.end_date,
             data=data,
             portfolio=portfolio

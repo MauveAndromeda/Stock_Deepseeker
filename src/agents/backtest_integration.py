@@ -17,6 +17,12 @@ from src.backtest.portfolio_v2 import PortfolioV2
 from src.agents.enhanced_base import LLMEnhancedAgent
 from src.agents.langgraph_workflow import ExpertPanelWorkflow
 from src.agents.base import Action
+from src.agents.unified_interface import (
+    MarketContext,
+    AgentDecisionOutput,
+    ActionType,
+    IAgent
+)
 from loguru import logger
 
 
@@ -129,9 +135,12 @@ class MultiAgentStrategy(Strategy):
                 # 2. 如果启用，运行专家面板讨论
                 expert_decision = None
                 if self.use_expert_panel and self.expert_panel:
+                    # Convert MarketContext to dict for workflow compatibility
+                    market_data_dict = self._market_context_to_dict(market_data)
+
                     expert_result = await self.expert_panel.discuss(
                         symbol=symbol,
-                        market_data=market_data,
+                        market_data=market_data_dict,
                         metadata={'agent_decisions': agent_decisions}
                     )
                     expert_decision = expert_result['final_decision']
@@ -212,21 +221,29 @@ class MultiAgentStrategy(Strategy):
     async def _gather_agent_decisions(
         self,
         symbol: str,
-        market_data: Dict
+        market_data: MarketContext
     ) -> List[Dict]:
-        """收集所有智能体的决策"""
+        """
+        收集所有智能体的决策
+        Uses unified interface (MarketContext -> AgentDecisionOutput)
+        """
         decisions = []
 
         for agent in self.agents:
             try:
+                # Use new unified interface
                 decision = await agent.analyze(market_data)
+
+                # Convert AgentDecisionOutput to dict for compatibility
                 decisions.append({
-                    'agent_id': agent.agent_id,
-                    'agent_type': agent.agent_type.value,
+                    'agent_id': decision.agent_id,
+                    'agent_type': decision.agent_type,
                     'action': decision.action.value,
                     'confidence': decision.confidence,
                     'reasoning': decision.reasoning,
-                    'metadata': decision.metadata
+                    'metadata': decision.metadata,
+                    'risk_level': decision.risk_level.value,
+                    'key_factors': decision.key_factors
                 })
             except Exception as e:
                 logger.warning(f"Agent {agent.agent_id} failed: {e}")
@@ -287,41 +304,64 @@ class MultiAgentStrategy(Strategy):
         symbol: str,
         df: pd.DataFrame,
         date: datetime
-    ) -> Dict[str, Any]:
-        """准备市场数据上下文"""
+    ) -> MarketContext:
+        """
+        准备市场数据上下文
+        Returns standardized MarketContext
+        """
         # 获取最新数据
         latest = df.iloc[-1]
         prev = df.iloc[-2] if len(df) > 1 else latest
 
         # 计算技术指标
         close_prices = df['close'].values
-        sma_20 = close_prices[-20:].mean() if len(close_prices) >= 20 else close_prices.mean()
-        sma_50 = close_prices[-50:].mean() if len(close_prices) >= 50 else close_prices.mean()
+        sma_20 = float(close_prices[-20:].mean() if len(close_prices) >= 20 else close_prices.mean())
+        sma_50 = float(close_prices[-50:].mean() if len(close_prices) >= 50 else close_prices.mean())
 
         # 计算变化
         price_change = (latest['close'] - prev['close']) / prev['close'] if prev['close'] > 0 else 0
         volume_change = (latest['volume'] - prev['volume']) / prev['volume'] if prev['volume'] > 0 else 0
 
-        return {
-            'symbol': symbol,
-            'date': date,
-            'price': latest['close'],
-            'change_pct': price_change,
-            'volume': latest['volume'],
-            'volume_change_pct': volume_change,
-            'indicators': {
+        # Create standardized MarketContext
+        return MarketContext(
+            symbol=symbol,
+            timestamp=date,
+            current_price=float(latest['close']),
+            price_change_pct=float(price_change),
+            volume=int(latest['volume']),
+            technical_indicators={
                 'SMA_20': sma_20,
                 'SMA_50': sma_50,
-                'above_sma_20': latest['close'] > sma_20,
-                'above_sma_50': latest['close'] > sma_50,
-                'trend': 'bullish' if sma_20 > sma_50 else 'bearish'
+                'above_sma_20': 1.0 if float(latest['close']) > sma_20 else 0.0,
+                'above_sma_50': 1.0 if float(latest['close']) > sma_50 else 0.0,
+                'trend_score': 1.0 if sma_20 > sma_50 else -1.0,  # 1.0 = bullish, -1.0 = bearish
+                'volume_change_pct': float(volume_change)
             },
-            'ohlc': {
-                'open': latest['open'],
-                'high': latest['high'],
-                'low': latest['low'],
-                'close': latest['close']
+            fundamentals={},
+            sentiment=None,
+            metadata={
+                'trend': 'bullish' if sma_20 > sma_50 else 'bearish',  # Move string to metadata
+                'ohlc': {
+                    'open': float(latest['open']),
+                    'high': float(latest['high']),
+                    'low': float(latest['low']),
+                    'close': float(latest['close'])
+                }
             }
+        )
+
+    def _market_context_to_dict(self, context: MarketContext) -> Dict[str, Any]:
+        """Convert MarketContext to dict for legacy compatibility"""
+        return {
+            'symbol': context.symbol,
+            'date': context.timestamp,
+            'price': context.current_price,
+            'change_pct': context.price_change_pct,
+            'volume': context.volume,
+            'indicators': context.technical_indicators,
+            'fundamentals': context.fundamentals,
+            'sentiment': context.sentiment,
+            **context.metadata
         }
 
     def get_performance_summary(self) -> Dict[str, Any]:
@@ -353,13 +393,15 @@ class MultiAgentStrategy(Strategy):
 # 便捷函数
 
 async def create_default_multi_agent_strategy(
-    use_expert_panel: bool = True
+    use_expert_panel: bool = True,
+    register_agents: bool = True
 ) -> MultiAgentStrategy:
     """
     创建默认的多智能体策略
 
     Args:
         use_expert_panel: 是否使用专家面板
+        register_agents: 是否将智能体注册到全局注册表
 
     Returns:
         配置好的多智能体策略
@@ -370,32 +412,35 @@ async def create_default_multi_agent_strategy(
         TechnicalTraderAgent,
         QuantitativeAgent
     )
-    from src.agents.base import AgentType
+    from src.agents.unified_interface import get_agent_registry
     from src.ai.model_unified import ModelTier
 
-    # 创建多样化的智能体
+    # 创建多样化的智能体（使用新的统一接口）
     agents = [
         MomentumChaserAgent(
             agent_id="momentum_1",
-            agent_type=AgentType.MOMENTUM_CHASER,
             model_tier=ModelTier.FAST
         ),
         ValueSeekerAgent(
             agent_id="value_1",
-            agent_type=AgentType.VALUE_SEEKER,
             model_tier=ModelTier.FAST
         ),
         TechnicalTraderAgent(
             agent_id="technical_1",
-            agent_type=AgentType.TECHNICAL_TRADER,
             model_tier=ModelTier.FAST
         ),
         QuantitativeAgent(
             agent_id="quant_1",
-            agent_type=AgentType.QUANTITATIVE,
             model_tier=ModelTier.BALANCED
         )
     ]
+
+    # 注册到全局注册表
+    if register_agents:
+        registry = get_agent_registry()
+        for agent in agents:
+            registry.register(agent)
+            logger.info(f"Registered agent: {agent.agent_id} with capabilities: {agent.capabilities}")
 
     strategy = MultiAgentStrategy(
         name="MultiAgent_Default",
