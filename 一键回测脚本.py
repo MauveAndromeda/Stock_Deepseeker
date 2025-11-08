@@ -109,6 +109,7 @@ def step_2_install_dependencies():
 
     # 其他依赖
     other_dependencies = [
+        "aiohttp>=3.8.0",           # 异步HTTP客户端
         "nest-asyncio>=1.6.0",
         "python-dateutil>=2.8.0",
         "tqdm>=4.65.0",
