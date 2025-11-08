@@ -23,6 +23,7 @@ from src.agents.unified_interface import (
     ActionType,
     IAgent
 )
+from src.risk import RiskManager, RiskLimit, RiskCheckResult
 from loguru import logger
 
 
@@ -52,7 +53,9 @@ class MultiAgentStrategy(Strategy):
         use_expert_panel: bool = True,
         expert_panel_rounds: int = 2,
         consensus_threshold: float = 0.7,
-        min_confidence: float = 0.6
+        min_confidence: float = 0.6,
+        risk_limits: Optional[RiskLimit] = None,
+        enable_risk_management: bool = True
     ):
         super().__init__(name)
 
@@ -66,6 +69,13 @@ class MultiAgentStrategy(Strategy):
         self.expert_panel: Optional[ExpertPanelWorkflow] = None
         if self.use_expert_panel:
             self.expert_panel = ExpertPanelWorkflow(max_rounds=expert_panel_rounds)
+
+        # 风险管理器
+        self.enable_risk_management = enable_risk_management
+        self.risk_manager: Optional[RiskManager] = None
+        if self.enable_risk_management:
+            self.risk_manager = RiskManager(risk_limits=risk_limits)
+            logger.info("Risk management enabled with limits")
 
         # 决策历史
         self.decision_history: List[MultiAgentDecisionRecord] = []
@@ -160,15 +170,58 @@ class MultiAgentStrategy(Strategy):
                     # 只在需要时生成信号
                     should_signal = False
                     signal_type = None
+                    position_value = 0.0
+                    risk_adjustment = None
 
                     if final_action == 'BUY' and current_position == 0:
                         should_signal = True
                         signal_type = 'LONG'
+                        # 计算拟议仓位大小（基础仓位 = 10%组合价值，根据置信度调整）
+                        base_position_pct = 0.10
+                        confidence_adjusted_pct = base_position_pct * final_confidence
+                        position_value = portfolio.cash * confidence_adjusted_pct
+
+                        # 风险检查与调整
+                        if self.enable_risk_management and self.risk_manager:
+                            # 获取当前持仓
+                            current_positions = {}
+                            for pos_symbol in data.keys():
+                                pos_obj = portfolio.get_position(pos_symbol)
+                                if pos_obj and pos_obj.quantity > 0:
+                                    pos_price = data[pos_symbol]['close'].iloc[-1]
+                                    current_positions[pos_symbol] = pos_obj.quantity * pos_price
+
+                            # 风险验证
+                            approved, adjustment = self.risk_manager.validate_trade(
+                                symbol=symbol,
+                                action='BUY',
+                                proposed_size=position_value,
+                                current_price=current_price,
+                                portfolio_value=portfolio.total_value,
+                                current_positions=current_positions,
+                                price_history=df['close'] if len(df) >= 20 else None
+                            )
+
+                            if not approved:
+                                should_signal = False
+                                logger.warning(f"{symbol} BUY signal rejected by risk manager")
+                            elif adjustment and adjustment.adjusted_size != position_value:
+                                position_value = adjustment.adjusted_size
+                                risk_adjustment = adjustment
+                                logger.info(
+                                    f"{symbol} position adjusted by risk manager: "
+                                    f"{adjustment.original_size:.2f} -> {adjustment.adjusted_size:.2f}"
+                                )
+
                     elif final_action == 'SELL' and current_position > 0:
                         should_signal = True
                         signal_type = 'EXIT'
+                        position_value = current_position * current_price
 
-                    if should_signal:
+                    if should_signal and position_value > 0:
+                        # 计算股数（如果是买入）
+                        quantity = int(position_value / current_price) if signal_type == 'LONG' else current_position
+
                         signal = SignalEvent(
                             timestamp=date,
                             symbol=symbol,
@@ -178,14 +231,24 @@ class MultiAgentStrategy(Strategy):
                                 'agent_count': len(agent_decisions),
                                 'expert_panel_used': expert_decision is not None,
                                 'consensus_confidence': final_confidence,
-                                'price_at_signal': current_price
+                                'price_at_signal': current_price,
+                                'suggested_quantity': quantity,
+                                'suggested_value': position_value,
+                                'risk_adjusted': risk_adjustment is not None,
+                                'risk_adjustment': {
+                                    'original_size': risk_adjustment.original_size,
+                                    'adjusted_size': risk_adjustment.adjusted_size,
+                                    'reason': risk_adjustment.adjustment_reason,
+                                    'risk_score': risk_adjustment.risk_score
+                                } if risk_adjustment else None
                             }
                         )
                         signals.append(signal)
                         self.total_signals += 1
                         logger.info(
                             f"Signal generated for {symbol}: {signal_type} "
-                            f"(confidence: {final_confidence:.2f})"
+                            f"(confidence: {final_confidence:.2f}, "
+                            f"quantity: {quantity}, value: ${position_value:.2f})"
                         )
 
                 # 记录决策
