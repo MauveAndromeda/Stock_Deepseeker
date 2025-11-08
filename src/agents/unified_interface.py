@@ -394,6 +394,10 @@ class AgentRegistry:
         """获取智能体"""
         return self._agents.get(agent_id)
 
+    def get_agent_count(self) -> int:
+        """获取注册的智能体数量"""
+        return len(self._agents)
+
     def get_agents_by_capability(self, capability: AgentCapability) -> List[IAgent]:
         """根据能力获取智能体"""
         agent_ids = self._agents_by_capability.get(capability, [])
