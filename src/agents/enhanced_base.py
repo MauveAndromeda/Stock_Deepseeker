@@ -12,7 +12,7 @@ import json
 from abc import ABC, abstractmethod
 
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 
 from src.agents.base import Agent, AgentType, AgentDecision, Action, AgentState
@@ -79,7 +79,7 @@ class LLMEnhancedAgent(BaseAgentV2):
 
         # LangChain组件
         self.prompt_template = self._create_prompt_template()
-        self.output_parser = JsonOutputParser(pydantic_object=AgentAnalysisOutput)
+        self.output_parser = PydanticOutputParser(pydantic_object=AgentAnalysisOutput)
 
         # 会话记忆 (both old and new style)
         self.conversation_history: List[Dict] = []
