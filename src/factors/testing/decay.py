@@ -6,10 +6,10 @@ Analyzes how factor signals decay over time.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 from scipy.stats import spearmanr
 
 
@@ -35,8 +35,8 @@ class DecayAnalysis:
     half_life: float
     optimal_holding_period: int
     decay_rate: float
-    periods_tested: List[int]
-    metadata: Dict = field(default_factory=dict)
+    periods_tested: list[int]
+    metadata: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         """Generate summary report."""
@@ -168,7 +168,7 @@ class FactorDecayAnalyzer:
 
     def compare_factors(
         self,
-        factor_values_dict: Dict[str, pd.Series],
+        factor_values_dict: dict[str, pd.Series],
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime
@@ -195,16 +195,16 @@ class FactorDecayAnalyzer:
             )
 
             comparison_results.append({
-                'factor': factor_name,
-                'half_life': decay.half_life,
-                'optimal_period': decay.optimal_holding_period,
-                'decay_rate': decay.decay_rate,
-                'max_ic': decay.ic_by_period.max(),
-                'max_return': decay.returns_by_period.max(),
+                "factor": factor_name,
+                "half_life": decay.half_life,
+                "optimal_period": decay.optimal_holding_period,
+                "decay_rate": decay.decay_rate,
+                "max_ic": decay.ic_by_period.max(),
+                "max_return": decay.returns_by_period.max(),
             })
 
         df = pd.DataFrame(comparison_results)
-        return df.sort_values('half_life', ascending=False)
+        return df.sort_values("half_life", ascending=False)
 
     def _calculate_period_metrics(
         self,
@@ -213,7 +213,7 @@ class FactorDecayAnalyzer:
         forward_period: int,
         start_date: datetime,
         end_date: datetime
-    ) -> tuple[Optional[float], Optional[float]]:
+    ) -> tuple[float | None, float | None]:
         """Calculate IC and returns for a specific forward period."""
         dates = sorted(factor_values.index.get_level_values(0).unique())
         dates = [d for d in dates if start_date <= d <= end_date]
@@ -261,22 +261,22 @@ class FactorDecayAnalyzer:
 
         # Calculate average return (for top quintile)
         combined = pd.DataFrame({
-            'factor': all_factors,
-            'return': all_returns
+            "factor": all_factors,
+            "return": all_returns
         })
-        combined = combined.sort_values('factor', ascending=False)
+        combined = combined.sort_values("factor", ascending=False)
         top_quintile = combined.head(len(combined) // 5)
-        avg_return = top_quintile['return'].mean()
+        avg_return = top_quintile["return"].mean()
 
         return ic, avg_return
 
     def _calculate_forward_returns(
         self,
-        symbols: List[str],
+        symbols: list[str],
         price_data: pd.DataFrame,
         start_date: datetime,
         forward_period: int
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Calculate forward returns for symbols."""
         all_dates = sorted(price_data.index.get_level_values(0).unique())
 
@@ -291,8 +291,8 @@ class FactorDecayAnalyzer:
 
         for symbol in symbols:
             try:
-                start_price = price_data.loc[(start_date, symbol), 'close']
-                end_price = price_data.loc[(end_date, symbol), 'close']
+                start_price = price_data.loc[(start_date, symbol), "close"]
+                end_price = price_data.loc[(end_date, symbol), "close"]
 
                 if start_price > 0:
                     ret = (end_price - start_price) / start_price
@@ -385,7 +385,7 @@ class FactorDecayAnalyzer:
     def _empty_result(
         self,
         factor_name: str,
-        periods: List[int]
+        periods: list[int]
     ) -> DecayAnalysis:
         """Return empty decay result."""
         return DecayAnalysis(
@@ -456,7 +456,7 @@ class FactorDecayAnalyzer:
         self,
         factor_values: pd.Series,
         quantile: int = 5,  # Top quintile
-        periods: List[int] = None
+        periods: list[int] = None
     ) -> pd.DataFrame:
         """
         Analyze portfolio turnover at different rebalancing frequencies.
@@ -504,10 +504,10 @@ class FactorDecayAnalyzer:
 
             if len(turnovers) > 0:
                 turnover_results.append({
-                    'period': period,
-                    'mean_turnover': np.mean(turnovers),
-                    'std_turnover': np.std(turnovers),
-                    'max_turnover': np.max(turnovers),
+                    "period": period,
+                    "mean_turnover": np.mean(turnovers),
+                    "std_turnover": np.std(turnovers),
+                    "max_turnover": np.max(turnovers),
                 })
 
         return pd.DataFrame(turnover_results)

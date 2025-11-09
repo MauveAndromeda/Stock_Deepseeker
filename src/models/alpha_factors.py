@@ -3,11 +3,11 @@ Alpha因子库 - 100+ 量化因子
 基于学术研究和业界最佳实践
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+import numpy as np
+import pandas as pd
 from scipy import stats
 from sklearn.preprocessing import StandardScaler
 
@@ -165,24 +165,24 @@ class AlphaFactorLibrary:
         """应计项目"""
         return (net_income - cash_flow) / assets
 
-    def piotroski_f_score(self, fundamentals: Dict) -> np.ndarray:
+    def piotroski_f_score(self, fundamentals: dict) -> np.ndarray:
         """Piotroski F-Score (9分制质量评分)"""
         score = 0
 
         # 盈利能力（4分）
-        score += (fundamentals['roa'] > 0).astype(int)
-        score += (fundamentals['cash_flow'] > 0).astype(int)
-        score += (fundamentals['roa_change'] > 0).astype(int)
-        score += (fundamentals['accruals'] < 0).astype(int)
+        score += (fundamentals["roa"] > 0).astype(int)
+        score += (fundamentals["cash_flow"] > 0).astype(int)
+        score += (fundamentals["roa_change"] > 0).astype(int)
+        score += (fundamentals["accruals"] < 0).astype(int)
 
         # 杠杆、流动性（3分）
-        score += (fundamentals['leverage_change'] < 0).astype(int)
-        score += (fundamentals['liquidity_change'] > 0).astype(int)
-        score += (fundamentals['equity_offering'] == 0).astype(int)
+        score += (fundamentals["leverage_change"] < 0).astype(int)
+        score += (fundamentals["liquidity_change"] > 0).astype(int)
+        score += (fundamentals["equity_offering"] == 0).astype(int)
 
         # 运营效率（2分）
-        score += (fundamentals['margin_change'] > 0).astype(int)
-        score += (fundamentals['turnover_change'] > 0).astype(int)
+        score += (fundamentals["margin_change"] > 0).astype(int)
+        score += (fundamentals["turnover_change"] > 0).astype(int)
 
         return score
 
@@ -304,7 +304,7 @@ class AlphaFactorLibrary:
 
     # ==================== 组合因子 ====================
 
-    def compute_all_factors(self, data: Dict[str, pd.Series]) -> pd.DataFrame:
+    def compute_all_factors(self, data: dict[str, pd.Series]) -> pd.DataFrame:
         """
         计算所有因子
 
@@ -317,40 +317,40 @@ class AlphaFactorLibrary:
         factors = {}
 
         # 动量因子
-        if 'close' in data:
-            factors['mom_1m'] = self.momentum_1m(data['close'])
-            factors['mom_3m'] = self.momentum_3m(data['close'])
-            factors['mom_6m'] = self.momentum_6m(data['close'])
-            factors['mom_12m'] = self.momentum_12m(data['close'])
-            factors['mom_52w_high'] = self.momentum_52w_high(data['close'])
+        if "close" in data:
+            factors["mom_1m"] = self.momentum_1m(data["close"])
+            factors["mom_3m"] = self.momentum_3m(data["close"])
+            factors["mom_6m"] = self.momentum_6m(data["close"])
+            factors["mom_12m"] = self.momentum_12m(data["close"])
+            factors["mom_52w_high"] = self.momentum_52w_high(data["close"])
 
         # 反转因子
-        if 'close' in data:
-            factors['rev_1d'] = self.reversal_1d(data['close'])
-            factors['rev_5d'] = self.reversal_5d(data['close'])
-            factors['rev_20d'] = self.reversal_20d(data['close'])
+        if "close" in data:
+            factors["rev_1d"] = self.reversal_1d(data["close"])
+            factors["rev_5d"] = self.reversal_5d(data["close"])
+            factors["rev_20d"] = self.reversal_20d(data["close"])
 
-        if 'open' in data and 'close' in data:
-            factors['rev_overnight'] = self.overnight_reversal(data['open'], data['close'])
+        if "open" in data and "close" in data:
+            factors["rev_overnight"] = self.overnight_reversal(data["open"], data["close"])
 
         # 波动率因子
-        if 'close' in data:
-            returns = data['close'].pct_change()
-            factors['vol_realized'] = self.realized_volatility(returns)
-            factors['vol_downside'] = self.downside_volatility(returns)
+        if "close" in data:
+            returns = data["close"].pct_change()
+            factors["vol_realized"] = self.realized_volatility(returns)
+            factors["vol_downside"] = self.downside_volatility(returns)
 
         # 流动性因子
-        if 'volume' in data and 'close' in data:
-            returns = data['close'].pct_change()
-            factors['illiq_amihud'] = self.amihud_illiquidity(returns, data['volume'])
-            factors['liquidity_dollar_vol'] = self.dollar_volume(data['volume'], data['close'])
+        if "volume" in data and "close" in data:
+            returns = data["close"].pct_change()
+            factors["illiq_amihud"] = self.amihud_illiquidity(returns, data["volume"])
+            factors["liquidity_dollar_vol"] = self.dollar_volume(data["volume"], data["close"])
 
         # 价值因子
-        if 'earnings' in data and 'close' in data:
-            factors['value_ep'] = self.earnings_yield(data['earnings'], data['close'])
+        if "earnings" in data and "close" in data:
+            factors["value_ep"] = self.earnings_yield(data["earnings"], data["close"])
 
-        if 'book_value' in data and 'market_cap' in data:
-            factors['value_bm'] = self.book_to_market(data['book_value'], data['market_cap'])
+        if "book_value" in data and "market_cap" in data:
+            factors["value_bm"] = self.book_to_market(data["book_value"], data["market_cap"])
 
         # 转换为DataFrame
         factor_df = pd.DataFrame(factors)
@@ -362,7 +362,7 @@ class AlphaFactorLibrary:
 
     def calculate_factor_ic(self, factor_values: np.ndarray,
                            forward_returns: np.ndarray,
-                           method: str = 'spearman') -> float:
+                           method: str = "spearman") -> float:
         """
         计算因子IC（信息系数）
 
@@ -382,7 +382,7 @@ class AlphaFactorLibrary:
         if len(factor_clean) < 10:
             return 0.0
 
-        if method == 'spearman':
+        if method == "spearman":
             ic, _ = stats.spearmanr(factor_clean, returns_clean)
         else:
             ic, _ = stats.pearsonr(factor_clean, returns_clean)
@@ -391,7 +391,7 @@ class AlphaFactorLibrary:
 
     def factor_portfolio_performance(self, factor_values: np.ndarray,
                                     returns: np.ndarray,
-                                    n_quantiles: int = 5) -> Dict:
+                                    n_quantiles: int = 5) -> dict:
         """
         因子分层回测
 
@@ -409,16 +409,16 @@ class AlphaFactorLibrary:
         returns_clean = returns[mask]
 
         # 分层
-        quantiles = pd.qcut(factor_clean, q=n_quantiles, labels=False, duplicates='drop')
+        quantiles = pd.qcut(factor_clean, q=n_quantiles, labels=False, duplicates="drop")
 
         # 计算各层平均收益
         layer_returns = {}
         for q in range(n_quantiles):
             layer_mask = (quantiles == q)
-            layer_returns[f'Q{q+1}'] = returns_clean[layer_mask].mean()
+            layer_returns[f"Q{q+1}"] = returns_clean[layer_mask].mean()
 
         # 多空收益
-        layer_returns['Long_Short'] = layer_returns[f'Q{n_quantiles}'] - layer_returns['Q1']
+        layer_returns["Long_Short"] = layer_returns[f"Q{n_quantiles}"] - layer_returns["Q1"]
 
         return layer_returns
 
@@ -434,7 +434,7 @@ class FactorCombiner:
         return factors.mean(axis=1).values
 
     def ic_weighted_combination(self, factors: pd.DataFrame,
-                               ic_weights: Dict[str, float]) -> np.ndarray:
+                               ic_weights: dict[str, float]) -> np.ndarray:
         """IC加权组合"""
         weights = np.array([ic_weights.get(col, 0) for col in factors.columns])
         weights = weights / weights.sum()  # 归一化
@@ -453,20 +453,20 @@ class FactorCombiner:
 
     def machine_learning_combination(self, factors: pd.DataFrame,
                                     target_returns: np.ndarray,
-                                    model_type: str = 'ridge') -> np.ndarray:
+                                    model_type: str = "ridge") -> np.ndarray:
         """机器学习组合"""
-        from sklearn.linear_model import Ridge, Lasso
         from sklearn.ensemble import RandomForestRegressor
+        from sklearn.linear_model import Lasso, Ridge
 
         # 训练模型
         X = factors.fillna(0).values
         y = target_returns
 
-        if model_type == 'ridge':
+        if model_type == "ridge":
             model = Ridge(alpha=1.0)
-        elif model_type == 'lasso':
+        elif model_type == "lasso":
             model = Lasso(alpha=0.1)
-        elif model_type == 'rf':
+        elif model_type == "rf":
             model = RandomForestRegressor(n_estimators=100, max_depth=5)
         else:
             raise ValueError(f"Unknown model type: {model_type}")
@@ -484,13 +484,13 @@ if __name__ == "__main__":
 
     # 模拟数据
     np.random.seed(42)
-    dates = pd.date_range('2020-01-01', '2024-01-01', freq='D')
+    dates = pd.date_range("2020-01-01", "2024-01-01", freq="D")
     n = len(dates)
 
     data = {
-        'close': pd.Series(100 + np.cumsum(np.random.randn(n) * 0.02), index=dates),
-        'volume': pd.Series(np.random.randint(1000000, 5000000, n), index=dates),
-        'open': pd.Series(100 + np.cumsum(np.random.randn(n) * 0.02), index=dates),
+        "close": pd.Series(100 + np.cumsum(np.random.randn(n) * 0.02), index=dates),
+        "volume": pd.Series(np.random.randint(1000000, 5000000, n), index=dates),
+        "open": pd.Series(100 + np.cumsum(np.random.randn(n) * 0.02), index=dates),
     }
 
     # 计算所有因子
@@ -501,11 +501,11 @@ if __name__ == "__main__":
     print(factors.columns.tolist())
 
     print(f"\n因子矩阵形状: {factors.shape}")
-    print(f"\n因子统计:")
+    print("\n因子统计:")
     print(factors.describe())
 
     # 计算因子IC
-    forward_returns = data['close'].pct_change().shift(-1)
+    forward_returns = data["close"].pct_change().shift(-1)
     print("\n\n因子IC值:")
     for col in factors.columns[:5]:  # 只显示前5个
         ic = factor_lib.calculate_factor_ic(

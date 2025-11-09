@@ -2,10 +2,10 @@
 Breakout trading strategy based on technical patterns and volume.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
-import numpy as np
 from collections import deque
+from enum import Enum
+
+import numpy as np
 
 from src.strategies.base import BaseStrategy, Signal, SignalType
 
@@ -67,11 +67,11 @@ class BreakoutStrategy(BaseStrategy):
         self.max_positions = max_positions
 
         # State
-        self.price_history: Dict[str, deque] = {}
-        self.volume_history: Dict[str, deque] = {}
-        self.high_history: Dict[str, deque] = {}
-        self.low_history: Dict[str, deque] = {}
-        self.breakout_positions: Dict[str, Tuple[float, float, float]] = {}  # symbol -> (entry, stop, target)
+        self.price_history: dict[str, deque] = {}
+        self.volume_history: dict[str, deque] = {}
+        self.high_history: dict[str, deque] = {}
+        self.low_history: dict[str, deque] = {}
+        self.breakout_positions: dict[str, tuple[float, float, float]] = {}  # symbol -> (entry, stop, target)
 
     def on_start(self) -> None:
         """Initialize strategy."""
@@ -83,7 +83,7 @@ class BreakoutStrategy(BaseStrategy):
             f"Volume multiplier: {self.volume_multiplier}x"
         )
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate breakout trading signals.
 
@@ -100,26 +100,26 @@ class BreakoutStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update price data
-        if 'prices' in data:
-            for symbol, price in data['prices'].items():
+        if "prices" in data:
+            for symbol, price in data["prices"].items():
                 if symbol not in self.price_history:
                     self.price_history[symbol] = deque(maxlen=self.lookback_sr * 2)
                 self.price_history[symbol].append(price)
 
-        if 'highs' in data:
-            for symbol, high in data['highs'].items():
+        if "highs" in data:
+            for symbol, high in data["highs"].items():
                 if symbol not in self.high_history:
                     self.high_history[symbol] = deque(maxlen=self.lookback_sr * 2)
                 self.high_history[symbol].append(high)
 
-        if 'lows' in data:
-            for symbol, low in data['lows'].items():
+        if "lows" in data:
+            for symbol, low in data["lows"].items():
                 if symbol not in self.low_history:
                     self.low_history[symbol] = deque(maxlen=self.lookback_sr * 2)
                 self.low_history[symbol].append(low)
 
-        if 'volumes' in data:
-            for symbol, volume in data['volumes'].items():
+        if "volumes" in data:
+            for symbol, volume in data["volumes"].items():
                 if symbol not in self.volume_history:
                     self.volume_history[symbol] = deque(maxlen=self.lookback_sr * 2)
                 self.volume_history[symbol].append(volume)
@@ -137,7 +137,7 @@ class BreakoutStrategy(BaseStrategy):
 
         return signals
 
-    def _detect_breakouts(self) -> List[Signal]:
+    def _detect_breakouts(self) -> list[Signal]:
         """Detect breakout patterns across all symbols."""
         signals = []
 
@@ -172,11 +172,11 @@ class BreakoutStrategy(BaseStrategy):
                     signal_type=SignalType.BUY,
                     strength=strength,
                     metadata={
-                        'strategy': 'breakout',
-                        'breakout_type': breakout_type.value,
-                        'entry': entry_price,
-                        'stop_loss': stop_loss,
-                        'take_profit': take_profit
+                        "strategy": "breakout",
+                        "breakout_type": breakout_type.value,
+                        "entry": entry_price,
+                        "stop_loss": stop_loss,
+                        "take_profit": take_profit
                     }
                 ))
 
@@ -195,7 +195,7 @@ class BreakoutStrategy(BaseStrategy):
         prices: np.ndarray,
         highs: np.ndarray,
         volumes: np.ndarray
-    ) -> Optional[Tuple[BreakoutType, float, float, float, float]]:
+    ) -> tuple[BreakoutType, float, float, float, float] | None:
         """Check for resistance level breakout."""
         # Identify resistance level
         lookback = min(self.lookback_sr, len(prices))
@@ -236,7 +236,7 @@ class BreakoutStrategy(BaseStrategy):
         highs: np.ndarray,
         lows: np.ndarray,
         volumes: np.ndarray
-    ) -> Optional[Tuple[BreakoutType, float, float, float, float]]:
+    ) -> tuple[BreakoutType, float, float, float, float] | None:
         """Check for trading range breakout."""
         lookback = min(self.lookback_consolidation, len(prices))
 
@@ -284,7 +284,7 @@ class BreakoutStrategy(BaseStrategy):
         highs: np.ndarray,
         lows: np.ndarray,
         volumes: np.ndarray
-    ) -> Optional[Tuple[BreakoutType, float, float, float, float]]:
+    ) -> tuple[BreakoutType, float, float, float, float] | None:
         """Check for consolidation pattern breakout."""
         lookback = min(self.lookback_consolidation, len(prices))
 
@@ -352,7 +352,7 @@ class BreakoutStrategy(BaseStrategy):
 
         return current_volume >= (avg_volume * self.volume_multiplier)
 
-    def _check_exits(self) -> List[Signal]:
+    def _check_exits(self) -> list[Signal]:
         """Check exit conditions for existing breakout positions."""
         signals = []
 
@@ -389,11 +389,11 @@ class BreakoutStrategy(BaseStrategy):
                     signal_type=SignalType.SELL,
                     strength=1.0,
                     metadata={
-                        'strategy': 'breakout_exit',
-                        'reason': reason,
-                        'entry': entry_price,
-                        'exit': current_price,
-                        'pnl_pct': (current_price - entry_price) / entry_price
+                        "strategy": "breakout_exit",
+                        "reason": reason,
+                        "entry": entry_price,
+                        "exit": current_price,
+                        "pnl_pct": (current_price - entry_price) / entry_price
                     }
                 ))
 

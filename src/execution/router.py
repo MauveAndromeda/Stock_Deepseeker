@@ -3,13 +3,14 @@
 智能路由订单到不同的执行场所和算法
 """
 
-from enum import Enum
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from enum import Enum
+from typing import Any
+
 import numpy as np
 
-from src.execution.engine import Order, OrderType, OrderStatus
+from src.execution.engine import Order
 
 
 class ExecutionVenue(Enum):
@@ -66,7 +67,7 @@ class RoutingDecision:
     """路由决策"""
     order_id: str
     venue: ExecutionVenue
-    algorithm: Optional[str] = None
+    algorithm: str | None = None
     estimated_cost: float = 0.0
     estimated_impact: float = 0.0
     confidence: float = 0.8
@@ -103,12 +104,12 @@ class OrderRouter:
         self.venue_configs = self._init_venue_configs()
 
         # 路由历史
-        self.routing_history: List[RoutingDecision] = []
+        self.routing_history: list[RoutingDecision] = []
 
         # 场所性能统计
-        self.venue_stats: Dict[ExecutionVenue, Dict[str, float]] = {}
+        self.venue_stats: dict[ExecutionVenue, dict[str, float]] = {}
 
-    def _init_venue_configs(self) -> Dict[ExecutionVenue, Dict[str, Any]]:
+    def _init_venue_configs(self) -> dict[ExecutionVenue, dict[str, Any]]:
         """初始化场所配置"""
         configs = {
             ExecutionVenue.NYSE: {
@@ -166,8 +167,8 @@ class OrderRouter:
     def route_order(
         self,
         order: Order,
-        market_data: Dict,
-        strategy: Optional[RoutingStrategy] = None
+        market_data: dict,
+        strategy: RoutingStrategy | None = None
     ) -> RoutingDecision:
         """
         路由订单
@@ -207,11 +208,11 @@ class OrderRouter:
     def _get_venue_quotes(
         self,
         symbol: str,
-        market_data: Dict
-    ) -> List[VenueQuote]:
+        market_data: dict
+    ) -> list[VenueQuote]:
         """获取各场所报价（模拟）"""
-        base_bid = market_data.get('bid', market_data.get('close', 100))
-        base_ask = market_data.get('ask', base_bid * 1.001)
+        base_bid = market_data.get("bid", market_data.get("close", 100))
+        base_ask = market_data.get("ask", base_bid * 1.001)
 
         quotes = []
 
@@ -228,7 +229,7 @@ class OrderRouter:
             ask_price = base_ask * (1 + ask_variation)
 
             # 模拟流动性
-            base_size = market_data.get('volume', 100000) // 100
+            base_size = market_data.get("volume", 100000) // 100
             bid_size = int(base_size * np.random.uniform(0.8, 1.2))
             ask_size = int(base_size * np.random.uniform(0.8, 1.2))
 
@@ -238,8 +239,8 @@ class OrderRouter:
                 ask_price=ask_price,
                 bid_size=bid_size,
                 ask_size=ask_size,
-                latency_ms=config['avg_latency_ms'] * np.random.uniform(0.9, 1.1),
-                fee_per_share=config['fee_per_share']
+                latency_ms=config["avg_latency_ms"] * np.random.uniform(0.9, 1.1),
+                fee_per_share=config["fee_per_share"]
             )
 
             quotes.append(quote)
@@ -249,7 +250,7 @@ class OrderRouter:
     def _route_best_price(
         self,
         order: Order,
-        quotes: List[VenueQuote]
+        quotes: list[VenueQuote]
     ) -> RoutingDecision:
         """最优价格路由"""
         if order.side == "buy":
@@ -274,7 +275,7 @@ class OrderRouter:
     def _route_best_liquidity(
         self,
         order: Order,
-        quotes: List[VenueQuote]
+        quotes: list[VenueQuote]
     ) -> RoutingDecision:
         """最优流动性路由"""
         if order.side == "buy":
@@ -297,7 +298,7 @@ class OrderRouter:
     def _route_minimize_impact(
         self,
         order: Order,
-        quotes: List[VenueQuote]
+        quotes: list[VenueQuote]
     ) -> RoutingDecision:
         """最小化市场冲击"""
         # 计算每个场所的预期冲击
@@ -309,7 +310,7 @@ class OrderRouter:
             if available > 0:
                 impact = (order.quantity / available) * quote.spread
             else:
-                impact = float('inf')
+                impact = float("inf")
 
             impact_scores.append((quote, impact))
 
@@ -328,7 +329,7 @@ class OrderRouter:
     def _route_fastest(
         self,
         order: Order,
-        quotes: List[VenueQuote]
+        quotes: list[VenueQuote]
     ) -> RoutingDecision:
         """最快执行路由"""
         # 选择延迟最低的场所
@@ -345,8 +346,8 @@ class OrderRouter:
     def _route_smart(
         self,
         order: Order,
-        quotes: List[VenueQuote],
-        market_data: Dict
+        quotes: list[VenueQuote],
+        market_data: dict
     ) -> RoutingDecision:
         """智能路由（综合考虑多个因素）"""
 
@@ -383,17 +384,17 @@ class OrderRouter:
 
             # 加权综合得分
             weights = {
-                'price': 0.4,
-                'liquidity': 0.3,
-                'speed': 0.15,
-                'cost': 0.15
+                "price": 0.4,
+                "liquidity": 0.3,
+                "speed": 0.15,
+                "cost": 0.15
             }
 
             total_score = (
-                price_score * weights['price'] +
-                liquidity_score * weights['liquidity'] +
-                speed_score * weights['speed'] +
-                cost_score * weights['cost']
+                price_score * weights["price"] +
+                liquidity_score * weights["liquidity"] +
+                speed_score * weights["speed"] +
+                cost_score * weights["cost"]
             )
 
             scores.append((quote, total_score))
@@ -409,7 +410,7 @@ class OrderRouter:
             reasoning=f"智能路由: 综合得分={best_score:.3f}"
         )
 
-    def get_routing_statistics(self) -> Dict[str, Any]:
+    def get_routing_statistics(self) -> dict[str, Any]:
         """获取路由统计"""
         if not self.routing_history:
             return {}

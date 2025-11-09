@@ -2,11 +2,11 @@
 数据预处理和特征工程
 """
 
-import pandas as pd
+
 import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
-from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
-from sklearn.impute import SimpleImputer, KNNImputer
+import pandas as pd
+from sklearn.impute import KNNImputer
+from sklearn.preprocessing import MinMaxScaler, RobustScaler, StandardScaler
 import talib as ta
 
 
@@ -43,11 +43,11 @@ class DataPreprocessor:
         df = df.copy()
 
         if method == "forward_fill":
-            df = df.fillna(method='ffill')
+            df = df.fillna(method="ffill")
         elif method == "backward_fill":
-            df = df.fillna(method='bfill')
+            df = df.fillna(method="bfill")
         elif method == "interpolate":
-            df = df.interpolate(method='linear')
+            df = df.interpolate(method="linear")
         elif method == "mean":
             df = df.fillna(df.mean())
         elif method == "median":
@@ -128,7 +128,7 @@ class DataPreprocessor:
         self,
         df: pd.DataFrame,
         method: str = "standard",
-        feature_range: Tuple[float, float] = (0, 1)
+        feature_range: tuple[float, float] = (0, 1)
     ) -> pd.DataFrame:
         """归一化数据"""
         df = df.copy()
@@ -152,8 +152,8 @@ class DataPreprocessor:
     def create_lag_features(
         self,
         df: pd.DataFrame,
-        columns: List[str],
-        lags: List[int]
+        columns: list[str],
+        lags: list[int]
     ) -> pd.DataFrame:
         """创建滞后特征"""
         df = df.copy()
@@ -167,9 +167,9 @@ class DataPreprocessor:
     def create_rolling_features(
         self,
         df: pd.DataFrame,
-        columns: List[str],
-        windows: List[int],
-        functions: List[str] = ['mean', 'std', 'min', 'max']
+        columns: list[str],
+        windows: list[int],
+        functions: list[str] = ["mean", "std", "min", "max"]
     ) -> pd.DataFrame:
         """创建滚动窗口特征"""
         df = df.copy()
@@ -177,15 +177,15 @@ class DataPreprocessor:
         for col in columns:
             for window in windows:
                 for func in functions:
-                    if func == 'mean':
+                    if func == "mean":
                         df[f"{col}_rolling_{window}_mean"] = df[col].rolling(window).mean()
-                    elif func == 'std':
+                    elif func == "std":
                         df[f"{col}_rolling_{window}_std"] = df[col].rolling(window).std()
-                    elif func == 'min':
+                    elif func == "min":
                         df[f"{col}_rolling_{window}_min"] = df[col].rolling(window).min()
-                    elif func == 'max':
+                    elif func == "max":
                         df[f"{col}_rolling_{window}_max"] = df[col].rolling(window).max()
-                    elif func == 'sum':
+                    elif func == "sum":
                         df[f"{col}_rolling_{window}_sum"] = df[col].rolling(window).sum()
 
         return df
@@ -200,57 +200,57 @@ class FeatureEngineer:
         df = df.copy()
 
         # 确保有OHLCV数据
-        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        required_cols = ["open", "high", "low", "close", "volume"]
         if not all(col in df.columns for col in required_cols):
             return df
 
         # 移动平均线
         for period in [5, 10, 20, 50, 100, 200]:
-            df[f'SMA_{period}'] = ta.SMA(df['close'], timeperiod=period)
-            df[f'EMA_{period}'] = ta.EMA(df['close'], timeperiod=period)
+            df[f"SMA_{period}"] = ta.SMA(df["close"], timeperiod=period)
+            df[f"EMA_{period}"] = ta.EMA(df["close"], timeperiod=period)
 
         # RSI
         for period in [14, 28]:
-            df[f'RSI_{period}'] = ta.RSI(df['close'], timeperiod=period)
+            df[f"RSI_{period}"] = ta.RSI(df["close"], timeperiod=period)
 
         # MACD
-        macd, signal, hist = ta.MACD(df['close'], fastperiod=12, slowperiod=26, signalperiod=9)
-        df['MACD'] = macd
-        df['MACD_Signal'] = signal
-        df['MACD_Hist'] = hist
+        macd, signal, hist = ta.MACD(df["close"], fastperiod=12, slowperiod=26, signalperiod=9)
+        df["MACD"] = macd
+        df["MACD_Signal"] = signal
+        df["MACD_Hist"] = hist
 
         # 布林带
-        upper, middle, lower = ta.BBANDS(df['close'], timeperiod=20)
-        df['BB_Upper'] = upper
-        df['BB_Middle'] = middle
-        df['BB_Lower'] = lower
-        df['BB_Width'] = (upper - lower) / middle
+        upper, middle, lower = ta.BBANDS(df["close"], timeperiod=20)
+        df["BB_Upper"] = upper
+        df["BB_Middle"] = middle
+        df["BB_Lower"] = lower
+        df["BB_Width"] = (upper - lower) / middle
 
         # ATR
-        df['ATR_14'] = ta.ATR(df['high'], df['low'], df['close'], timeperiod=14)
+        df["ATR_14"] = ta.ATR(df["high"], df["low"], df["close"], timeperiod=14)
 
         # ADX
-        df['ADX_14'] = ta.ADX(df['high'], df['low'], df['close'], timeperiod=14)
+        df["ADX_14"] = ta.ADX(df["high"], df["low"], df["close"], timeperiod=14)
 
         # OBV
-        df['OBV'] = ta.OBV(df['close'], df['volume'])
+        df["OBV"] = ta.OBV(df["close"], df["volume"])
 
         # Stochastic
-        slowk, slowd = ta.STOCH(df['high'], df['low'], df['close'])
-        df['Stochastic_K'] = slowk
-        df['Stochastic_D'] = slowd
+        slowk, slowd = ta.STOCH(df["high"], df["low"], df["close"])
+        df["Stochastic_K"] = slowk
+        df["Stochastic_D"] = slowd
 
         # Williams %R
-        df['Williams_R'] = ta.WILLR(df['high'], df['low'], df['close'], timeperiod=14)
+        df["Williams_R"] = ta.WILLR(df["high"], df["low"], df["close"], timeperiod=14)
 
         # CCI
-        df['CCI'] = ta.CCI(df['high'], df['low'], df['close'], timeperiod=14)
+        df["CCI"] = ta.CCI(df["high"], df["low"], df["close"], timeperiod=14)
 
         # MFI
-        df['MFI'] = ta.MFI(df['high'], df['low'], df['close'], df['volume'], timeperiod=14)
+        df["MFI"] = ta.MFI(df["high"], df["low"], df["close"], df["volume"], timeperiod=14)
 
         # ROC
-        df['ROC'] = ta.ROC(df['close'], timeperiod=10)
+        df["ROC"] = ta.ROC(df["close"], timeperiod=10)
 
         return df
 
@@ -259,23 +259,23 @@ class FeatureEngineer:
         """添加价格特征"""
         df = df.copy()
 
-        if 'close' in df.columns:
+        if "close" in df.columns:
             # 收益率
-            df['returns'] = df['close'].pct_change()
-            df['log_returns'] = np.log(df['close'] / df['close'].shift(1))
+            df["returns"] = df["close"].pct_change()
+            df["log_returns"] = np.log(df["close"] / df["close"].shift(1))
 
             # 累积收益
-            df['cumulative_returns'] = (1 + df['returns']).cumprod() - 1
+            df["cumulative_returns"] = (1 + df["returns"]).cumprod() - 1
 
-        if 'high' in df.columns and 'low' in df.columns:
+        if "high" in df.columns and "low" in df.columns:
             # 价格范围
-            df['price_range'] = df['high'] - df['low']
-            df['price_range_pct'] = df['price_range'] / df['close']
+            df["price_range"] = df["high"] - df["low"]
+            df["price_range_pct"] = df["price_range"] / df["close"]
 
-        if 'open' in df.columns and 'close' in df.columns:
+        if "open" in df.columns and "close" in df.columns:
             # 开收盘差
-            df['open_close_diff'] = df['close'] - df['open']
-            df['open_close_pct'] = (df['close'] - df['open']) / df['open']
+            df["open_close_diff"] = df["close"] - df["open"]
+            df["open_close_pct"] = (df["close"] - df["open"]) / df["open"]
 
         return df
 
@@ -284,19 +284,19 @@ class FeatureEngineer:
         """添加成交量特征"""
         df = df.copy()
 
-        if 'volume' not in df.columns:
+        if "volume" not in df.columns:
             return df
 
         # 成交量移动平均
         for period in [5, 10, 20]:
-            df[f'Volume_SMA_{period}'] = ta.SMA(df['volume'], timeperiod=period)
+            df[f"Volume_SMA_{period}"] = ta.SMA(df["volume"], timeperiod=period)
 
         # 成交量比率
-        df['Volume_Ratio'] = df['volume'] / df['Volume_SMA_20']
+        df["Volume_Ratio"] = df["volume"] / df["Volume_SMA_20"]
 
         # 价格成交量趋势
-        if 'close' in df.columns:
-            df['Price_Volume_Trend'] = df['volume'] * ((df['close'] - df['close'].shift(1)) / df['close'].shift(1))
+        if "close" in df.columns:
+            df["Price_Volume_Trend"] = df["volume"] * ((df["close"] - df["close"].shift(1)) / df["close"].shift(1))
 
         return df
 
@@ -305,17 +305,17 @@ class FeatureEngineer:
         """添加波动率特征"""
         df = df.copy()
 
-        if 'returns' not in df.columns and 'close' in df.columns:
-            df['returns'] = df['close'].pct_change()
+        if "returns" not in df.columns and "close" in df.columns:
+            df["returns"] = df["close"].pct_change()
 
-        if 'returns' in df.columns:
+        if "returns" in df.columns:
             # 历史波动率
             for period in [5, 10, 20, 60]:
-                df[f'Volatility_{period}'] = df['returns'].rolling(period).std() * np.sqrt(252)
+                df[f"Volatility_{period}"] = df["returns"].rolling(period).std() * np.sqrt(252)
 
             # Parkinson波动率
-            if 'high' in df.columns and 'low' in df.columns:
-                df['Parkinson_Volatility'] = np.sqrt(1/(4*np.log(2)) * (np.log(df['high']/df['low']))**2)
+            if "high" in df.columns and "low" in df.columns:
+                df["Parkinson_Volatility"] = np.sqrt(1/(4*np.log(2)) * (np.log(df["high"]/df["low"]))**2)
 
         return df
 
@@ -324,17 +324,17 @@ class FeatureEngineer:
         """添加时间特征"""
         df = df.copy()
 
-        if df.index.name == 'timestamp' or isinstance(df.index, pd.DatetimeIndex):
-            df['hour'] = df.index.hour
-            df['day_of_week'] = df.index.dayofweek
-            df['day_of_month'] = df.index.day
-            df['month'] = df.index.month
-            df['quarter'] = df.index.quarter
-            df['year'] = df.index.year
-            df['is_month_start'] = df.index.is_month_start.astype(int)
-            df['is_month_end'] = df.index.is_month_end.astype(int)
-            df['is_quarter_start'] = df.index.is_quarter_start.astype(int)
-            df['is_quarter_end'] = df.index.is_quarter_end.astype(int)
+        if df.index.name == "timestamp" or isinstance(df.index, pd.DatetimeIndex):
+            df["hour"] = df.index.hour
+            df["day_of_week"] = df.index.dayofweek
+            df["day_of_month"] = df.index.day
+            df["month"] = df.index.month
+            df["quarter"] = df.index.quarter
+            df["year"] = df.index.year
+            df["is_month_start"] = df.index.is_month_start.astype(int)
+            df["is_month_end"] = df.index.is_month_end.astype(int)
+            df["is_quarter_start"] = df.index.is_quarter_start.astype(int)
+            df["is_quarter_end"] = df.index.is_quarter_end.astype(int)
 
         return df
 
@@ -343,35 +343,35 @@ class DataValidator:
     """数据验证器"""
 
     @staticmethod
-    def validate_ohlcv(df: pd.DataFrame) -> Tuple[bool, List[str]]:
+    def validate_ohlcv(df: pd.DataFrame) -> tuple[bool, list[str]]:
         """验证OHLCV数据"""
         errors = []
 
         # 检查必需列
-        required_cols = ['open', 'high', 'low', 'close', 'volume']
+        required_cols = ["open", "high", "low", "close", "volume"]
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
             errors.append(f"Missing required columns: {missing_cols}")
             return False, errors
 
         # 验证high >= low
-        if not (df['high'] >= df['low']).all():
+        if not (df["high"] >= df["low"]).all():
             errors.append("High price must be >= low price")
 
         # 验证high >= open, close
-        if not (df['high'] >= df['open']).all():
+        if not (df["high"] >= df["open"]).all():
             errors.append("High price must be >= open price")
-        if not (df['high'] >= df['close']).all():
+        if not (df["high"] >= df["close"]).all():
             errors.append("High price must be >= close price")
 
         # 验证low <= open, close
-        if not (df['low'] <= df['open']).all():
+        if not (df["low"] <= df["open"]).all():
             errors.append("Low price must be <= open price")
-        if not (df['low'] <= df['close']).all():
+        if not (df["low"] <= df["close"]).all():
             errors.append("Low price must be <= close price")
 
         # 验证volume >= 0
-        if not (df['volume'] >= 0).all():
+        if not (df["volume"] >= 0).all():
             errors.append("Volume must be non-negative")
 
         # 验证没有NaN
@@ -401,7 +401,7 @@ class DataValidator:
             Q3 = df[col].quantile(0.75)
             IQR = Q3 - Q1
             outlier_count += ((df[col] < (Q1 - 1.5 * IQR)) | (df[col] > (Q3 + 1.5 * IQR))).sum()
-        
+
         outlier_ratio = outlier_count / (len(df) * len(numeric_cols))
         score -= outlier_ratio * 0.2
 

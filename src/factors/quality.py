@@ -4,12 +4,12 @@ Quality factors.
 Fundamental quality metrics for identifying financially strong companies.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+from loguru import logger
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class ReturnOnEquity(Factor):
@@ -32,7 +32,7 @@ class ReturnOnEquity(Factor):
             category=FactorCategory.QUALITY,
             description=f"Return on Equity (TTM, {lookback} days)",
             formula="TTM Net Income / Average Shareholders' Equity",
-            data_requirements=['net_income', 'shareholders_equity'],
+            data_requirements=["net_income", "shareholders_equity"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -41,25 +41,25 @@ class ReturnOnEquity(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate ROE."""
         # Get net income
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing net income data for ROE calculation")
             return pd.Series(dtype=float)
 
-        net_income = data['net_income'].unstack(fill_value=np.nan)
+        net_income = data["net_income"].unstack(fill_value=np.nan)
 
         # Calculate TTM net income
         net_income_ttm = net_income.rolling(window=4, min_periods=4).sum()
 
         # Get shareholders' equity
-        if 'shareholders_equity' not in data.columns:
+        if "shareholders_equity" not in data.columns:
             logger.warning("Missing shareholders equity data for ROE calculation")
             return pd.Series(dtype=float)
 
-        equity = data['shareholders_equity'].unstack(fill_value=np.nan)
+        equity = data["shareholders_equity"].unstack(fill_value=np.nan)
 
         # Use average equity over period
         avg_equity = equity.rolling(window=2, min_periods=2).mean()
@@ -95,7 +95,7 @@ class ReturnOnAssets(Factor):
             category=FactorCategory.QUALITY,
             description=f"Return on Assets (TTM, {lookback} days)",
             formula="TTM Net Income / Average Total Assets",
-            data_requirements=['net_income', 'total_assets'],
+            data_requirements=["net_income", "total_assets"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -104,25 +104,25 @@ class ReturnOnAssets(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate ROA."""
         # Get net income
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing net income data for ROA calculation")
             return pd.Series(dtype=float)
 
-        net_income = data['net_income'].unstack(fill_value=np.nan)
+        net_income = data["net_income"].unstack(fill_value=np.nan)
 
         # Calculate TTM net income
         net_income_ttm = net_income.rolling(window=4, min_periods=4).sum()
 
         # Get total assets
-        if 'total_assets' not in data.columns:
+        if "total_assets" not in data.columns:
             logger.warning("Missing total assets data for ROA calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
 
         # Use average assets over period
         avg_assets = assets.rolling(window=2, min_periods=2).mean()
@@ -158,7 +158,7 @@ class ReturnOnInvestedCapital(Factor):
             category=FactorCategory.QUALITY,
             description=f"Return on Invested Capital (TTM, {lookback} days)",
             formula="NOPAT / (Total Assets - Current Liabilities)",
-            data_requirements=['operating_income', 'tax_rate', 'total_assets', 'current_liabilities'],
+            data_requirements=["operating_income", "tax_rate", "total_assets", "current_liabilities"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -167,22 +167,22 @@ class ReturnOnInvestedCapital(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate ROIC."""
         # Get operating income
-        if 'operating_income' not in data.columns:
+        if "operating_income" not in data.columns:
             logger.warning("Missing operating income data for ROIC calculation")
             return pd.Series(dtype=float)
 
-        operating_income = data['operating_income'].unstack(fill_value=np.nan)
+        operating_income = data["operating_income"].unstack(fill_value=np.nan)
 
         # Calculate TTM operating income
         operating_income_ttm = operating_income.rolling(window=4, min_periods=4).sum()
 
         # Calculate NOPAT (Net Operating Profit After Tax)
-        if 'tax_rate' in data.columns:
-            tax_rate = data['tax_rate'].unstack(fill_value=np.nan)
+        if "tax_rate" in data.columns:
+            tax_rate = data["tax_rate"].unstack(fill_value=np.nan)
         else:
             # Assume 21% corporate tax rate if not available
             tax_rate = 0.21
@@ -190,12 +190,12 @@ class ReturnOnInvestedCapital(Factor):
         nopat = operating_income_ttm * (1 - tax_rate)
 
         # Get total assets and current liabilities
-        if 'total_assets' not in data.columns or 'current_liabilities' not in data.columns:
+        if "total_assets" not in data.columns or "current_liabilities" not in data.columns:
             logger.warning("Missing balance sheet data for ROIC calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
-        current_liabilities = data['current_liabilities'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
+        current_liabilities = data["current_liabilities"].unstack(fill_value=np.nan)
 
         # Calculate invested capital
         invested_capital = assets - current_liabilities
@@ -229,7 +229,7 @@ class GrossProfitMargin(Factor):
             category=FactorCategory.QUALITY,
             description="Gross profit margin (TTM)",
             formula="(TTM Revenue - TTM COGS) / TTM Revenue",
-            data_requirements=['revenue', 'cost_of_revenue'],
+            data_requirements=["revenue", "cost_of_revenue"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -237,23 +237,23 @@ class GrossProfitMargin(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate gross profit margin."""
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for margin calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
 
         # Get COGS
-        if 'cost_of_revenue' not in data.columns:
+        if "cost_of_revenue" not in data.columns:
             logger.warning("Missing cost of revenue data for margin calculation")
             return pd.Series(dtype=float)
 
-        cogs = data['cost_of_revenue'].unstack(fill_value=np.nan)
+        cogs = data["cost_of_revenue"].unstack(fill_value=np.nan)
         cogs_ttm = cogs.rolling(window=4, min_periods=4).sum()
 
         # Calculate gross margin
@@ -282,7 +282,7 @@ class OperatingMargin(Factor):
             category=FactorCategory.QUALITY,
             description="Operating profit margin (TTM)",
             formula="TTM Operating Income / TTM Revenue",
-            data_requirements=['operating_income', 'revenue'],
+            data_requirements=["operating_income", "revenue"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -290,23 +290,23 @@ class OperatingMargin(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate operating margin."""
         # Get operating income
-        if 'operating_income' not in data.columns:
+        if "operating_income" not in data.columns:
             logger.warning("Missing operating income data for margin calculation")
             return pd.Series(dtype=float)
 
-        operating_income = data['operating_income'].unstack(fill_value=np.nan)
+        operating_income = data["operating_income"].unstack(fill_value=np.nan)
         operating_income_ttm = operating_income.rolling(window=4, min_periods=4).sum()
 
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for margin calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
 
         # Calculate operating margin
@@ -335,7 +335,7 @@ class NetProfitMargin(Factor):
             category=FactorCategory.QUALITY,
             description="Net profit margin (TTM)",
             formula="TTM Net Income / TTM Revenue",
-            data_requirements=['net_income', 'revenue'],
+            data_requirements=["net_income", "revenue"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -343,23 +343,23 @@ class NetProfitMargin(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate net profit margin."""
         # Get net income
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing net income data for margin calculation")
             return pd.Series(dtype=float)
 
-        net_income = data['net_income'].unstack(fill_value=np.nan)
+        net_income = data["net_income"].unstack(fill_value=np.nan)
         net_income_ttm = net_income.rolling(window=4, min_periods=4).sum()
 
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for margin calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
 
         # Calculate net margin
@@ -388,7 +388,7 @@ class CurrentRatio(Factor):
             category=FactorCategory.QUALITY,
             description="Current ratio (liquidity measure)",
             formula="Current Assets / Current Liabilities",
-            data_requirements=['current_assets', 'current_liabilities'],
+            data_requirements=["current_assets", "current_liabilities"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -396,22 +396,22 @@ class CurrentRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate current ratio."""
         # Get current assets
-        if 'current_assets' not in data.columns:
+        if "current_assets" not in data.columns:
             logger.warning("Missing current assets data for current ratio calculation")
             return pd.Series(dtype=float)
 
-        current_assets = data['current_assets'].unstack(fill_value=np.nan)
+        current_assets = data["current_assets"].unstack(fill_value=np.nan)
 
         # Get current liabilities
-        if 'current_liabilities' not in data.columns:
+        if "current_liabilities" not in data.columns:
             logger.warning("Missing current liabilities data for current ratio calculation")
             return pd.Series(dtype=float)
 
-        current_liabilities = data['current_liabilities'].unstack(fill_value=np.nan)
+        current_liabilities = data["current_liabilities"].unstack(fill_value=np.nan)
 
         # Calculate current ratio
         current_ratio = current_assets / current_liabilities
@@ -439,7 +439,7 @@ class QuickRatio(Factor):
             category=FactorCategory.QUALITY,
             description="Quick ratio (acid test for liquidity)",
             formula="(Current Assets - Inventory) / Current Liabilities",
-            data_requirements=['current_assets', 'inventory', 'current_liabilities'],
+            data_requirements=["current_assets", "inventory", "current_liabilities"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -447,29 +447,29 @@ class QuickRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate quick ratio."""
         # Get current assets
-        if 'current_assets' not in data.columns:
+        if "current_assets" not in data.columns:
             logger.warning("Missing current assets data for quick ratio calculation")
             return pd.Series(dtype=float)
 
-        current_assets = data['current_assets'].unstack(fill_value=np.nan)
+        current_assets = data["current_assets"].unstack(fill_value=np.nan)
 
         # Get inventory
-        if 'inventory' not in data.columns:
+        if "inventory" not in data.columns:
             logger.warning("Missing inventory data for quick ratio calculation")
             return pd.Series(dtype=float)
 
-        inventory = data['inventory'].unstack(fill_value=np.nan)
+        inventory = data["inventory"].unstack(fill_value=np.nan)
 
         # Get current liabilities
-        if 'current_liabilities' not in data.columns:
+        if "current_liabilities" not in data.columns:
             logger.warning("Missing current liabilities data for quick ratio calculation")
             return pd.Series(dtype=float)
 
-        current_liabilities = data['current_liabilities'].unstack(fill_value=np.nan)
+        current_liabilities = data["current_liabilities"].unstack(fill_value=np.nan)
 
         # Calculate quick ratio
         quick_ratio = (current_assets - inventory) / current_liabilities
@@ -497,7 +497,7 @@ class DebtToEquity(Factor):
             category=FactorCategory.QUALITY,
             description="Debt-to-Equity ratio (inverted for quality signal)",
             formula="-1 * (Total Debt / Shareholders' Equity)",
-            data_requirements=['total_debt', 'shareholders_equity'],
+            data_requirements=["total_debt", "shareholders_equity"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -505,22 +505,22 @@ class DebtToEquity(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted D/E ratio."""
         # Get total debt
-        if 'total_debt' not in data.columns:
+        if "total_debt" not in data.columns:
             logger.warning("Missing total debt data for D/E calculation")
             return pd.Series(dtype=float)
 
-        debt = data['total_debt'].unstack(fill_value=np.nan)
+        debt = data["total_debt"].unstack(fill_value=np.nan)
 
         # Get shareholders' equity
-        if 'shareholders_equity' not in data.columns:
+        if "shareholders_equity" not in data.columns:
             logger.warning("Missing shareholders equity data for D/E calculation")
             return pd.Series(dtype=float)
 
-        equity = data['shareholders_equity'].unstack(fill_value=np.nan)
+        equity = data["shareholders_equity"].unstack(fill_value=np.nan)
 
         # Calculate D/E ratio and invert (lower debt = higher quality)
         de_ratio = -(debt / equity)
@@ -548,7 +548,7 @@ class InterestCoverage(Factor):
             category=FactorCategory.QUALITY,
             description="Interest coverage ratio (EBIT / Interest Expense)",
             formula="TTM EBIT / TTM Interest Expense",
-            data_requirements=['ebit', 'interest_expense'],
+            data_requirements=["ebit", "interest_expense"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -556,23 +556,23 @@ class InterestCoverage(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate interest coverage."""
         # Get EBIT
-        if 'ebit' not in data.columns:
+        if "ebit" not in data.columns:
             logger.warning("Missing EBIT data for interest coverage calculation")
             return pd.Series(dtype=float)
 
-        ebit = data['ebit'].unstack(fill_value=np.nan)
+        ebit = data["ebit"].unstack(fill_value=np.nan)
         ebit_ttm = ebit.rolling(window=4, min_periods=4).sum()
 
         # Get interest expense
-        if 'interest_expense' not in data.columns:
+        if "interest_expense" not in data.columns:
             logger.warning("Missing interest expense data for interest coverage calculation")
             return pd.Series(dtype=float)
 
-        interest = data['interest_expense'].unstack(fill_value=np.nan)
+        interest = data["interest_expense"].unstack(fill_value=np.nan)
         interest_ttm = interest.rolling(window=4, min_periods=4).sum()
 
         # Calculate interest coverage
@@ -601,7 +601,7 @@ class AccrualsRatio(Factor):
             category=FactorCategory.QUALITY,
             description="Accruals ratio (inverted for quality signal)",
             formula="-1 * (Net Income - OCF) / Total Assets",
-            data_requirements=['net_income', 'operating_cash_flow', 'total_assets'],
+            data_requirements=["net_income", "operating_cash_flow", "total_assets"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -609,31 +609,31 @@ class AccrualsRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted accruals ratio."""
         # Get net income
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing net income data for accruals calculation")
             return pd.Series(dtype=float)
 
-        net_income = data['net_income'].unstack(fill_value=np.nan)
+        net_income = data["net_income"].unstack(fill_value=np.nan)
         net_income_ttm = net_income.rolling(window=4, min_periods=4).sum()
 
         # Get operating cash flow
-        if 'operating_cash_flow' not in data.columns:
+        if "operating_cash_flow" not in data.columns:
             logger.warning("Missing operating cash flow data for accruals calculation")
             return pd.Series(dtype=float)
 
-        ocf = data['operating_cash_flow'].unstack(fill_value=np.nan)
+        ocf = data["operating_cash_flow"].unstack(fill_value=np.nan)
         ocf_ttm = ocf.rolling(window=4, min_periods=4).sum()
 
         # Get total assets
-        if 'total_assets' not in data.columns:
+        if "total_assets" not in data.columns:
             logger.warning("Missing total assets data for accruals calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
 
         # Calculate accruals and invert (lower accruals = higher quality)
         accruals = -((net_income_ttm - ocf_ttm) / assets)
@@ -661,7 +661,7 @@ class AssetQuality(Factor):
             category=FactorCategory.QUALITY,
             description="Asset quality (proportion of liquid assets)",
             formula="(Cash + Receivables + Inventory) / Total Assets",
-            data_requirements=['cash', 'receivables', 'inventory', 'total_assets'],
+            data_requirements=["cash", "receivables", "inventory", "total_assets"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -669,34 +669,34 @@ class AssetQuality(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate asset quality."""
         # Get components
-        if 'cash' not in data.columns:
+        if "cash" not in data.columns:
             logger.warning("Missing cash data for asset quality calculation")
             return pd.Series(dtype=float)
 
-        cash = data['cash'].unstack(fill_value=np.nan)
+        cash = data["cash"].unstack(fill_value=np.nan)
 
         # Receivables (optional)
-        if 'receivables' in data.columns:
-            receivables = data['receivables'].unstack(fill_value=np.nan)
+        if "receivables" in data.columns:
+            receivables = data["receivables"].unstack(fill_value=np.nan)
         else:
             receivables = 0
 
         # Inventory (optional)
-        if 'inventory' in data.columns:
-            inventory = data['inventory'].unstack(fill_value=np.nan)
+        if "inventory" in data.columns:
+            inventory = data["inventory"].unstack(fill_value=np.nan)
         else:
             inventory = 0
 
         # Get total assets
-        if 'total_assets' not in data.columns:
+        if "total_assets" not in data.columns:
             logger.warning("Missing total assets data for asset quality calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
 
         # Calculate asset quality
         quality = (cash + receivables + inventory) / assets
@@ -729,8 +729,8 @@ class PiotroskiFScore(Factor):
             description="Piotroski F-Score (9-point quality composite)",
             formula="Sum of 9 binary signals",
             data_requirements=[
-                'net_income', 'operating_cash_flow', 'roa', 'total_debt',
-                'current_ratio', 'shares_outstanding', 'gross_margin', 'asset_turnover'
+                "net_income", "operating_cash_flow", "roa", "total_debt",
+                "current_ratio", "shares_outstanding", "gross_margin", "asset_turnover"
             ],
             lookback_period=252,
         )
@@ -739,61 +739,61 @@ class PiotroskiFScore(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate Piotroski F-Score."""
-        score = pd.DataFrame(0, index=data.index, columns=data['close'].unstack().columns)
+        score = pd.DataFrame(0, index=data.index, columns=data["close"].unstack().columns)
 
         # Profitability signals
         # 1. Positive net income
-        if 'net_income' in data.columns:
-            net_income = data['net_income'].unstack(fill_value=np.nan)
+        if "net_income" in data.columns:
+            net_income = data["net_income"].unstack(fill_value=np.nan)
             score += (net_income > 0).astype(int)
 
         # 2. Positive operating cash flow
-        if 'operating_cash_flow' in data.columns:
-            ocf = data['operating_cash_flow'].unstack(fill_value=np.nan)
+        if "operating_cash_flow" in data.columns:
+            ocf = data["operating_cash_flow"].unstack(fill_value=np.nan)
             score += (ocf > 0).astype(int)
 
         # 3. Increasing ROA
-        if 'roa' in data.columns:
-            roa = data['roa'].unstack(fill_value=np.nan)
+        if "roa" in data.columns:
+            roa = data["roa"].unstack(fill_value=np.nan)
             roa_change = roa.diff(periods=4)  # YoY change
             score += (roa_change > 0).astype(int)
 
         # 4. Cash flow > Net income (quality of earnings)
-        if 'operating_cash_flow' in data.columns and 'net_income' in data.columns:
+        if "operating_cash_flow" in data.columns and "net_income" in data.columns:
             score += (ocf > net_income).astype(int)
 
         # Leverage/Liquidity signals
         # 5. Decreasing debt
-        if 'total_debt' in data.columns:
-            debt = data['total_debt'].unstack(fill_value=np.nan)
+        if "total_debt" in data.columns:
+            debt = data["total_debt"].unstack(fill_value=np.nan)
             debt_change = debt.diff(periods=4)
             score += (debt_change < 0).astype(int)
 
         # 6. Increasing current ratio
-        if 'current_ratio' in data.columns:
-            current_ratio = data['current_ratio'].unstack(fill_value=np.nan)
+        if "current_ratio" in data.columns:
+            current_ratio = data["current_ratio"].unstack(fill_value=np.nan)
             cr_change = current_ratio.diff(periods=4)
             score += (cr_change > 0).astype(int)
 
         # 7. No new shares issued
-        if 'shares_outstanding' in data.columns:
-            shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+        if "shares_outstanding" in data.columns:
+            shares = data["shares_outstanding"].unstack(fill_value=np.nan)
             shares_change = shares.diff(periods=4)
             score += (shares_change <= 0).astype(int)
 
         # Operating Efficiency signals
         # 8. Increasing gross margin
-        if 'gross_margin' in data.columns:
-            margin = data['gross_margin'].unstack(fill_value=np.nan)
+        if "gross_margin" in data.columns:
+            margin = data["gross_margin"].unstack(fill_value=np.nan)
             margin_change = margin.diff(periods=4)
             score += (margin_change > 0).astype(int)
 
         # 9. Increasing asset turnover
-        if 'asset_turnover' in data.columns:
-            turnover = data['asset_turnover'].unstack(fill_value=np.nan)
+        if "asset_turnover" in data.columns:
+            turnover = data["asset_turnover"].unstack(fill_value=np.nan)
             turnover_change = turnover.diff(periods=4)
             score += (turnover_change > 0).astype(int)
 
@@ -806,7 +806,7 @@ class PiotroskiFScore(Factor):
 
 
 # Factory function to create all quality factors
-def create_quality_factors() -> List[Factor]:
+def create_quality_factors() -> list[Factor]:
     """
     Create standard set of quality factors.
 

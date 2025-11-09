@@ -3,11 +3,12 @@
 组合多个模型进行预测
 """
 
-import torch
-import numpy as np
-from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
+
+import numpy as np
+import torch
 
 
 class EnsembleMethod(Enum):
@@ -26,21 +27,21 @@ class ModelInfo:
     model: Any
     weight: float = 1.0
     enabled: bool = True
-    performance_metrics: Dict[str, float] = None
+    performance_metrics: dict[str, float] = None
 
 
 class ModelRegistry:
     """模型注册表"""
 
     def __init__(self):
-        self._models: Dict[str, ModelInfo] = {}
+        self._models: dict[str, ModelInfo] = {}
 
     def register(
         self,
         name: str,
         model: Any,
         weight: float = 1.0,
-        performance_metrics: Optional[Dict[str, float]] = None
+        performance_metrics: dict[str, float] | None = None
     ):
         """注册模型"""
         self._models[name] = ModelInfo(
@@ -55,15 +56,15 @@ class ModelRegistry:
         if name in self._models:
             del self._models[name]
 
-    def get(self, name: str) -> Optional[ModelInfo]:
+    def get(self, name: str) -> ModelInfo | None:
         """获取模型"""
         return self._models.get(name)
 
-    def get_all(self) -> Dict[str, ModelInfo]:
+    def get_all(self) -> dict[str, ModelInfo]:
         """获取所有模型"""
         return self._models.copy()
 
-    def get_enabled(self) -> Dict[str, ModelInfo]:
+    def get_enabled(self) -> dict[str, ModelInfo]:
         """获取启用的模型"""
         return {k: v for k, v in self._models.items() if v.enabled}
 
@@ -82,7 +83,7 @@ class ModelRegistry:
         if name in self._models:
             self._models[name].weight = weight
 
-    def update_performance(self, name: str, metrics: Dict[str, float]):
+    def update_performance(self, name: str, metrics: dict[str, float]):
         """更新性能指标"""
         if name in self._models:
             self._models[name].performance_metrics = metrics
@@ -99,7 +100,7 @@ class EnsembleModel:
         self.registry = registry
         self.method = method
 
-    def predict(self, *args, **kwargs) -> Dict[str, Any]:
+    def predict(self, *args, **kwargs) -> dict[str, Any]:
         """
         集成预测
 
@@ -144,22 +145,21 @@ class EnsembleModel:
             "method": self.method.value
         }
 
-    def _average(self, predictions: Dict[str, Any]) -> Any:
+    def _average(self, predictions: dict[str, Any]) -> Any:
         """简单平均"""
         # 假设预测是数值型
         values = list(predictions.values())
 
         if isinstance(values[0], (int, float)):
             return sum(values) / len(values)
-        elif isinstance(values[0], np.ndarray):
+        if isinstance(values[0], np.ndarray):
             return np.mean(values, axis=0)
-        elif isinstance(values[0], torch.Tensor):
+        if isinstance(values[0], torch.Tensor):
             return torch.mean(torch.stack(values), dim=0)
-        else:
-            # 对于其他类型，返回第一个预测
-            return values[0]
+        # 对于其他类型，返回第一个预测
+        return values[0]
 
-    def _weighted_average(self, predictions: Dict[str, Any], weights: Dict[str, float]) -> Any:
+    def _weighted_average(self, predictions: dict[str, Any], weights: dict[str, float]) -> Any:
         """加权平均"""
         total_weight = sum(weights.values())
 
@@ -174,17 +174,7 @@ class EnsembleModel:
         for name, pred in predictions.items():
             weight = normalized_weights.get(name, 0)
 
-            if isinstance(pred, (int, float)):
-                if result is None:
-                    result = pred * weight
-                else:
-                    result += pred * weight
-            elif isinstance(pred, np.ndarray):
-                if result is None:
-                    result = pred * weight
-                else:
-                    result += pred * weight
-            elif isinstance(pred, torch.Tensor):
+            if isinstance(pred, (int, float)) or isinstance(pred, np.ndarray) or isinstance(pred, torch.Tensor):
                 if result is None:
                     result = pred * weight
                 else:
@@ -192,7 +182,7 @@ class EnsembleModel:
 
         return result
 
-    def _voting(self, predictions: Dict[str, Any]) -> Any:
+    def _voting(self, predictions: dict[str, Any]) -> Any:
         """投票法（用于分类）"""
         # 统计每个预测结果的出现次数
         votes = {}
@@ -210,10 +200,10 @@ class EnsembleModel:
 # 辅助函数
 
 def adaptive_weighting(
-    models: Dict[str, ModelInfo],
+    models: dict[str, ModelInfo],
     metric: str = "accuracy",
     method: str = "softmax"
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     根据性能指标自适应调整权重
 

@@ -5,11 +5,11 @@ Validates factor performance using walk-forward and cross-validation.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
-import pandas as pd
-import numpy as np
+from datetime import datetime
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.factors import Factor
 from src.factors.testing.backtester import FactorBacktester
@@ -29,14 +29,14 @@ class ValidationResult:
         test_periods: Number of test periods
         fold_results: Results from individual folds (for CV)
     """
-    in_sample_metrics: Dict[str, float]
-    out_of_sample_metrics: Dict[str, float]
-    degradation: Dict[str, float]
+    in_sample_metrics: dict[str, float]
+    out_of_sample_metrics: dict[str, float]
+    degradation: dict[str, float]
     validation_type: str
     train_periods: int
     test_periods: int
-    fold_results: Optional[List[Dict]] = None
-    metadata: Dict = field(default_factory=dict)
+    fold_results: list[dict] | None = None
+    metadata: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         """Generate summary report."""
@@ -79,7 +79,7 @@ class OutOfSampleValidator:
 
     def __init__(
         self,
-        backtester: Optional[FactorBacktester] = None,
+        backtester: FactorBacktester | None = None,
         train_test_split: float = 0.7,  # 70% train, 30% test
         min_train_periods: int = 252,  # 1 year minimum training
         min_test_periods: int = 63,  # 3 months minimum testing
@@ -108,7 +108,7 @@ class OutOfSampleValidator:
         end_date: datetime,
         window_size: int = 252,  # Rolling window size
         step_size: int = 63,  # Step between windows
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> ValidationResult:
         """
         Perform walk-forward validation.
@@ -156,32 +156,32 @@ class OutOfSampleValidator:
             )
 
             fold_results.append({
-                'train_start': train_start,
-                'train_end': train_end,
-                'test_start': test_start,
-                'test_end': test_end,
-                'train_sharpe': train_result.sharpe_ratio,
-                'test_sharpe': test_result.sharpe_ratio,
-                'train_ic': train_result.ic_mean,
-                'test_ic': test_result.ic_mean,
-                'train_win_rate': train_result.win_rate,
-                'test_win_rate': test_result.win_rate,
+                "train_start": train_start,
+                "train_end": train_end,
+                "test_start": test_start,
+                "test_end": test_end,
+                "train_sharpe": train_result.sharpe_ratio,
+                "test_sharpe": test_result.sharpe_ratio,
+                "train_ic": train_result.ic_mean,
+                "test_ic": test_result.ic_mean,
+                "train_win_rate": train_result.win_rate,
+                "test_win_rate": test_result.win_rate,
             })
 
         if len(fold_results) == 0:
-            return self._empty_result('walk_forward')
+            return self._empty_result("walk_forward")
 
         # Aggregate results
         in_sample_metrics = {
-            'sharpe': np.mean([f['train_sharpe'] for f in fold_results]),
-            'ic_mean': np.mean([f['train_ic'] for f in fold_results]),
-            'win_rate': np.mean([f['train_win_rate'] for f in fold_results]),
+            "sharpe": np.mean([f["train_sharpe"] for f in fold_results]),
+            "ic_mean": np.mean([f["train_ic"] for f in fold_results]),
+            "win_rate": np.mean([f["train_win_rate"] for f in fold_results]),
         }
 
         out_of_sample_metrics = {
-            'sharpe': np.mean([f['test_sharpe'] for f in fold_results]),
-            'ic_mean': np.mean([f['test_ic'] for f in fold_results]),
-            'win_rate': np.mean([f['test_win_rate'] for f in fold_results]),
+            "sharpe": np.mean([f["test_sharpe"] for f in fold_results]),
+            "ic_mean": np.mean([f["test_ic"] for f in fold_results]),
+            "win_rate": np.mean([f["test_win_rate"] for f in fold_results]),
         }
 
         degradation = self._calculate_degradation(
@@ -192,7 +192,7 @@ class OutOfSampleValidator:
             in_sample_metrics=in_sample_metrics,
             out_of_sample_metrics=out_of_sample_metrics,
             degradation=degradation,
-            validation_type='walk_forward',
+            validation_type="walk_forward",
             train_periods=window_size,
             test_periods=step_size,
             fold_results=fold_results,
@@ -212,7 +212,7 @@ class OutOfSampleValidator:
         start_date: datetime,
         end_date: datetime,
         n_folds: int = 5,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> ValidationResult:
         """
         Perform k-fold cross-validation.
@@ -277,29 +277,29 @@ class OutOfSampleValidator:
             )
 
             fold_results.append({
-                'fold': test_fold_idx,
-                'train_sharpe': train_result.sharpe_ratio,
-                'test_sharpe': test_result.sharpe_ratio,
-                'train_ic': train_result.ic_mean,
-                'test_ic': test_result.ic_mean,
-                'train_win_rate': train_result.win_rate,
-                'test_win_rate': test_result.win_rate,
+                "fold": test_fold_idx,
+                "train_sharpe": train_result.sharpe_ratio,
+                "test_sharpe": test_result.sharpe_ratio,
+                "train_ic": train_result.ic_mean,
+                "test_ic": test_result.ic_mean,
+                "train_win_rate": train_result.win_rate,
+                "test_win_rate": test_result.win_rate,
             })
 
         if len(fold_results) == 0:
-            return self._empty_result('kfold')
+            return self._empty_result("kfold")
 
         # Aggregate results
         in_sample_metrics = {
-            'sharpe': np.mean([f['train_sharpe'] for f in fold_results]),
-            'ic_mean': np.mean([f['train_ic'] for f in fold_results]),
-            'win_rate': np.mean([f['train_win_rate'] for f in fold_results]),
+            "sharpe": np.mean([f["train_sharpe"] for f in fold_results]),
+            "ic_mean": np.mean([f["train_ic"] for f in fold_results]),
+            "win_rate": np.mean([f["train_win_rate"] for f in fold_results]),
         }
 
         out_of_sample_metrics = {
-            'sharpe': np.mean([f['test_sharpe'] for f in fold_results]),
-            'ic_mean': np.mean([f['test_ic'] for f in fold_results]),
-            'win_rate': np.mean([f['test_win_rate'] for f in fold_results]),
+            "sharpe": np.mean([f["test_sharpe"] for f in fold_results]),
+            "ic_mean": np.mean([f["test_ic"] for f in fold_results]),
+            "win_rate": np.mean([f["test_win_rate"] for f in fold_results]),
         }
 
         degradation = self._calculate_degradation(
@@ -310,7 +310,7 @@ class OutOfSampleValidator:
             in_sample_metrics=in_sample_metrics,
             out_of_sample_metrics=out_of_sample_metrics,
             degradation=degradation,
-            validation_type='kfold',
+            validation_type="kfold",
             train_periods=int(len(dates) * (n_folds - 1) / n_folds),
             test_periods=int(len(dates) / n_folds),
             fold_results=fold_results,
@@ -328,7 +328,7 @@ class OutOfSampleValidator:
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> ValidationResult:
         """
         Simple train/test split validation.
@@ -367,19 +367,19 @@ class OutOfSampleValidator:
         )
 
         in_sample_metrics = {
-            'sharpe': train_result.sharpe_ratio,
-            'ic_mean': train_result.ic_mean,
-            'ic_ir': train_result.ic_ir,
-            'win_rate': train_result.win_rate,
-            'max_drawdown': train_result.max_drawdown,
+            "sharpe": train_result.sharpe_ratio,
+            "ic_mean": train_result.ic_mean,
+            "ic_ir": train_result.ic_ir,
+            "win_rate": train_result.win_rate,
+            "max_drawdown": train_result.max_drawdown,
         }
 
         out_of_sample_metrics = {
-            'sharpe': test_result.sharpe_ratio,
-            'ic_mean': test_result.ic_mean,
-            'ic_ir': test_result.ic_ir,
-            'win_rate': test_result.win_rate,
-            'max_drawdown': test_result.max_drawdown,
+            "sharpe": test_result.sharpe_ratio,
+            "ic_mean": test_result.ic_mean,
+            "ic_ir": test_result.ic_ir,
+            "win_rate": test_result.win_rate,
+            "max_drawdown": test_result.max_drawdown,
         }
 
         degradation = self._calculate_degradation(
@@ -390,7 +390,7 @@ class OutOfSampleValidator:
             in_sample_metrics=in_sample_metrics,
             out_of_sample_metrics=out_of_sample_metrics,
             degradation=degradation,
-            validation_type='simple_split',
+            validation_type="simple_split",
             train_periods=split_idx,
             test_periods=len(dates) - split_idx,
         )
@@ -409,7 +409,7 @@ class OutOfSampleValidator:
         end_date: datetime,
         window_size: int = 252,
         step_size: int = 21,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.DataFrame:
         """
         Analyze stability of factor performance over time.
@@ -442,24 +442,24 @@ class OutOfSampleValidator:
             )
 
             stability_results.append({
-                'date': window_end,
-                'sharpe': result.sharpe_ratio,
-                'ic_mean': result.ic_mean,
-                'ic_ir': result.ic_ir,
-                'win_rate': result.win_rate,
-                'max_drawdown': result.max_drawdown,
+                "date": window_end,
+                "sharpe": result.sharpe_ratio,
+                "ic_mean": result.ic_mean,
+                "ic_ir": result.ic_ir,
+                "win_rate": result.win_rate,
+                "max_drawdown": result.max_drawdown,
             })
 
-        df = pd.DataFrame(stability_results).set_index('date')
+        df = pd.DataFrame(stability_results).set_index("date")
 
         # Calculate stability metrics
         stability_metrics = {
-            'sharpe_mean': df['sharpe'].mean(),
-            'sharpe_std': df['sharpe'].std(),
-            'sharpe_cv': df['sharpe'].std() / abs(df['sharpe'].mean()) if df['sharpe'].mean() != 0 else np.inf,
-            'positive_sharpe_ratio': (df['sharpe'] > 0).mean(),
-            'ic_mean': df['ic_mean'].mean(),
-            'ic_std': df['ic_mean'].std(),
+            "sharpe_mean": df["sharpe"].mean(),
+            "sharpe_std": df["sharpe"].std(),
+            "sharpe_cv": df["sharpe"].std() / abs(df["sharpe"].mean()) if df["sharpe"].mean() != 0 else np.inf,
+            "positive_sharpe_ratio": (df["sharpe"] > 0).mean(),
+            "ic_mean": df["ic_mean"].mean(),
+            "ic_std": df["ic_mean"].std(),
         }
 
         logger.info(
@@ -474,9 +474,9 @@ class OutOfSampleValidator:
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime,
-        universe: Optional[List[str]] = None,
+        universe: list[str] | None = None,
         n_bootstrap: int = 100
-    ) -> Dict[str, pd.Series]:
+    ) -> dict[str, pd.Series]:
         """
         Test robustness using bootstrap resampling.
 
@@ -528,17 +528,17 @@ class OutOfSampleValidator:
                 )
 
                 bootstrap_results.append({
-                    'sharpe': result.sharpe_ratio,
-                    'ic_mean': result.ic_mean,
-                    'ic_ir': result.ic_ir,
-                    'win_rate': result.win_rate,
+                    "sharpe": result.sharpe_ratio,
+                    "ic_mean": result.ic_mean,
+                    "ic_ir": result.ic_ir,
+                    "win_rate": result.win_rate,
                 })
             except Exception:
                 continue
 
         # Convert to distributions
         distributions = {}
-        for metric in ['sharpe', 'ic_mean', 'ic_ir', 'win_rate']:
+        for metric in ["sharpe", "ic_mean", "ic_ir", "win_rate"]:
             distributions[metric] = pd.Series([r[metric] for r in bootstrap_results])
 
         logger.info(
@@ -551,13 +551,13 @@ class OutOfSampleValidator:
 
     def _calculate_degradation(
         self,
-        in_sample: Dict[str, float],
-        out_of_sample: Dict[str, float]
-    ) -> Dict[str, float]:
+        in_sample: dict[str, float],
+        out_of_sample: dict[str, float]
+    ) -> dict[str, float]:
         """Calculate performance degradation."""
         degradation = {}
 
-        for metric in in_sample.keys():
+        for metric in in_sample:
             if metric in out_of_sample:
                 is_val = in_sample[metric]
                 oos_val = out_of_sample[metric]

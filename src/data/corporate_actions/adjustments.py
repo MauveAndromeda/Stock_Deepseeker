@@ -5,18 +5,18 @@ Combines all corporate action adjustments into a single interface.
 """
 
 from datetime import datetime
-from typing import List, Optional, Dict
-import pandas as pd
+
 from loguru import logger
+import pandas as pd
 
 from src.data.corporate_actions.base import (
+    AdjustmentMethod,
     CorporateActionDatabase,
     CorporateActionEvent,
     CorporateActionType,
-    AdjustmentMethod,
 )
-from src.data.corporate_actions.splits import SplitAdjuster
 from src.data.corporate_actions.dividends import DividendProcessor
+from src.data.corporate_actions.splits import SplitAdjuster
 
 
 class PriceAdjuster:
@@ -71,7 +71,7 @@ class PriceAdjuster:
                 dividend_processor
             )
 
-    def add_events(self, events: List[CorporateActionEvent]) -> None:
+    def add_events(self, events: list[CorporateActionEvent]) -> None:
         """
         Add corporate action events.
 
@@ -156,7 +156,7 @@ class PriceAdjuster:
 
                 # Get processor for this event type
                 processor = self.database.processors.get(event.action_type)
-                if processor and hasattr(processor, 'get_adjustment_factor'):
+                if processor and hasattr(processor, "get_adjustment_factor"):
                     factor = processor.get_adjustment_factor(event, date.to_pydatetime())
                     cumulative_factor *= factor
 
@@ -164,7 +164,7 @@ class PriceAdjuster:
 
         return factors
 
-    def get_events_summary(self, symbol: str) -> Dict[str, any]:
+    def get_events_summary(self, symbol: str) -> dict[str, any]:
         """
         Get summary of all corporate actions for a symbol.
 
@@ -177,10 +177,10 @@ class PriceAdjuster:
         events = self.database.get_events(symbol)
 
         summary = {
-            'total_events': len(events),
-            'by_type': {},
-            'date_range': None,
-            'events': []
+            "total_events": len(events),
+            "by_type": {},
+            "date_range": None,
+            "events": []
         }
 
         if not events:
@@ -189,27 +189,27 @@ class PriceAdjuster:
         # Count by type
         for event in events:
             action_type = event.action_type.value
-            summary['by_type'][action_type] = summary['by_type'].get(action_type, 0) + 1
+            summary["by_type"][action_type] = summary["by_type"].get(action_type, 0) + 1
 
         # Date range
         sorted_events = sorted(events, key=lambda x: x.ex_date)
-        summary['date_range'] = (
+        summary["date_range"] = (
             sorted_events[0].ex_date.date(),
             sorted_events[-1].ex_date.date()
         )
 
         # Event details
         for event in sorted_events:
-            summary['events'].append({
-                'date': event.ex_date.date(),
-                'type': event.action_type.value,
-                'ratio': event.ratio,
-                'value': event.value,
+            summary["events"].append({
+                "date": event.ex_date.date(),
+                "type": event.action_type.value,
+                "ratio": event.ratio,
+                "value": event.value,
             })
 
         return summary
 
-    def export_events(self, symbol: Optional[str] = None) -> pd.DataFrame:
+    def export_events(self, symbol: str | None = None) -> pd.DataFrame:
         """
         Export events to DataFrame.
 
@@ -236,7 +236,7 @@ class PriceAdjuster:
 
 def create_fully_adjusted_prices(
     price_data: pd.DataFrame,
-    corporate_actions: List[CorporateActionEvent],
+    corporate_actions: list[CorporateActionEvent],
     symbol: str,
     method: AdjustmentMethod = AdjustmentMethod.BACKWARD
 ) -> pd.DataFrame:
@@ -260,47 +260,47 @@ def create_fully_adjusted_prices(
 # Example usage
 if __name__ == "__main__":
     # Create sample data
-    dates = pd.date_range('2020-01-01', '2023-12-31', freq='B')
+    dates = pd.date_range("2020-01-01", "2023-12-31", freq="B")
     data = pd.DataFrame({
-        'open': 100.0,
-        'high': 105.0,
-        'low': 95.0,
-        'close': 100.0,
-        'volume': 1000000,
+        "open": 100.0,
+        "high": 105.0,
+        "low": 95.0,
+        "close": 100.0,
+        "volume": 1000000,
     }, index=dates)
 
     # Create events
     events = [
         # 2-for-1 split in 2021
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.SPLIT,
             ex_date=datetime(2021, 6, 1),
             ratio=2.0,
-            source='manual',
+            source="manual",
         ),
         # Quarterly dividends in 2022
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.DIVIDEND,
             ex_date=datetime(2022, 3, 15),
             value=1.00,
-            source='manual',
+            source="manual",
         ),
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.DIVIDEND,
             ex_date=datetime(2022, 6, 15),
             value=1.00,
-            source='manual',
+            source="manual",
         ),
         # Special dividend in 2023
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.SPECIAL_DIVIDEND,
             ex_date=datetime(2023, 1, 15),
             value=5.00,
-            source='manual',
+            source="manual",
         ),
     ]
 
@@ -316,21 +316,21 @@ if __name__ == "__main__":
     adjuster.add_events(events)
 
     # Adjust prices
-    adjusted = adjuster.adjust_prices('TEST', data, AdjustmentMethod.BACKWARD)
+    adjusted = adjuster.adjust_prices("TEST", data, AdjustmentMethod.BACKWARD)
 
     # Print summary
     print("Corporate Actions Summary:")
-    summary = adjuster.get_events_summary('TEST')
+    summary = adjuster.get_events_summary("TEST")
     print(f"  Total events: {summary['total_events']}")
     print(f"  By type: {summary['by_type']}")
     print(f"  Date range: {summary['date_range']}")
 
     # Compare prices
     print("\nPrice comparison (selected dates):")
-    for date in ['2020-12-31', '2021-12-31', '2022-12-31', '2023-12-31']:
+    for date in ["2020-12-31", "2021-12-31", "2022-12-31", "2023-12-31"]:
         try:
-            orig = data.loc[date, 'close']
-            adj = adjusted.loc[date, 'close']
+            orig = data.loc[date, "close"]
+            adj = adjusted.loc[date, "close"]
             print(f"  {date}: Original=${orig:.2f}, Adjusted=${adj:.2f}")
         except KeyError:
             pass

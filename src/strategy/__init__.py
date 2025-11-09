@@ -5,6 +5,6 @@
 from src.strategy.enhanced_strategy import EnhancedTradingStrategy, StrategySignal
 
 __all__ = [
-    'EnhancedTradingStrategy',
-    'StrategySignal',
+    "EnhancedTradingStrategy",
+    "StrategySignal",
 ]

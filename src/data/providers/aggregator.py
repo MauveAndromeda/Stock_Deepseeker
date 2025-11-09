@@ -6,10 +6,11 @@ Implements failover, data validation, and quality scoring.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
-import pandas as pd
-import numpy as np
+from typing import Any
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.data.providers.base import (
     CorporateAction,
@@ -44,26 +45,26 @@ class DataQualityMetrics:
         total_checks = 0
 
         # Check high >= low
-        violations += (data['high'] < data['low']).sum()
+        violations += (data["high"] < data["low"]).sum()
         total_checks += len(data)
 
         # Check close within range
-        violations += ((data['close'] < data['low']) | (data['close'] > data['high'])).sum()
+        violations += ((data["close"] < data["low"]) | (data["close"] > data["high"])).sum()
         total_checks += len(data)
 
         # Check open within range
-        violations += ((data['open'] < data['low']) | (data['open'] > data['high'])).sum()
+        violations += ((data["open"] < data["low"]) | (data["open"] > data["high"])).sum()
         total_checks += len(data)
 
         # Check no negative prices
-        for col in ['open', 'high', 'low', 'close']:
+        for col in ["open", "high", "low", "close"]:
             violations += (data[col] < 0).sum()
             total_checks += len(data)
 
         return 1.0 - (violations / max(total_checks, 1))
 
     @staticmethod
-    def calculate_continuity(data: pd.DataFrame, expected_freq: str = 'B') -> float:
+    def calculate_continuity(data: pd.DataFrame, expected_freq: str = "B") -> float:
         """
         Calculate data continuity (no large gaps).
 
@@ -117,7 +118,7 @@ class MultiSourceAggregator:
 
     def __init__(
         self,
-        providers: List[DataProvider],
+        providers: list[DataProvider],
         quality_threshold: float = 0.85,
         enable_validation: bool = True
     ) -> None:
@@ -137,12 +138,12 @@ class MultiSourceAggregator:
         self.enable_validation = enable_validation
 
         # Statistics
-        self.fetch_stats: Dict[str, Any] = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'provider_usage': {i: 0 for i in range(len(providers))},
-            'quality_scores': [],
+        self.fetch_stats: dict[str, Any] = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "provider_usage": dict.fromkeys(range(len(providers)), 0),
+            "quality_scores": [],
         }
 
     def get_historical_prices(
@@ -169,7 +170,7 @@ class MultiSourceAggregator:
         Raises:
             DataFetchError: If all providers fail
         """
-        self.fetch_stats['total_requests'] += 1
+        self.fetch_stats["total_requests"] += 1
 
         errors = []
 
@@ -191,7 +192,7 @@ class MultiSourceAggregator:
                     quality_score = DataQualityMetrics.calculate_quality_score(
                         price_data.data
                     )
-                    self.fetch_stats['quality_scores'].append(quality_score)
+                    self.fetch_stats["quality_scores"].append(quality_score)
 
                     if quality_score < self.quality_threshold:
                         logger.warning(
@@ -201,11 +202,11 @@ class MultiSourceAggregator:
                         continue
 
                     # Add quality score to metadata
-                    price_data.metadata['quality_score'] = quality_score
+                    price_data.metadata["quality_score"] = quality_score
 
                 # Success!
-                self.fetch_stats['successful_requests'] += 1
-                self.fetch_stats['provider_usage'][idx] += 1
+                self.fetch_stats["successful_requests"] += 1
+                self.fetch_stats["provider_usage"][idx] += 1
 
                 logger.info(
                     f"Successfully fetched {symbol} from {type(provider).__name__} "
@@ -222,19 +223,19 @@ class MultiSourceAggregator:
                 continue
 
         # All providers failed
-        self.fetch_stats['failed_requests'] += 1
+        self.fetch_stats["failed_requests"] += 1
         error_msg = f"All providers failed for {symbol}. Errors: {errors}"
         logger.error(error_msg)
         raise DataFetchError(error_msg)
 
     def get_multiple_symbols(
         self,
-        symbols: List[str],
+        symbols: list[str],
         start_date: datetime,
         end_date: datetime,
         adjusted: bool = True,
         **kwargs: Any
-    ) -> Dict[str, PriceData]:
+    ) -> dict[str, PriceData]:
         """
         Fetch data for multiple symbols efficiently.
 
@@ -269,7 +270,7 @@ class MultiSourceAggregator:
     def get_fundamentals(
         self,
         symbol: str,
-        report_date: Optional[datetime] = None,
+        report_date: datetime | None = None,
         **kwargs: Any
     ) -> FundamentalData:
         """
@@ -321,7 +322,7 @@ class MultiSourceAggregator:
         start_date: datetime,
         end_date: datetime,
         **kwargs: Any
-    ) -> List[CorporateAction]:
+    ) -> list[CorporateAction]:
         """
         Fetch corporate actions with fallback.
 
@@ -371,7 +372,7 @@ class MultiSourceAggregator:
         self,
         primary: PriceData,
         secondary: PriceData,
-        strategy: str = 'primary_preferred'
+        strategy: str = "primary_preferred"
     ) -> PriceData:
         """
         Merge price data from two sources.
@@ -387,21 +388,21 @@ class MultiSourceAggregator:
         Raises:
             ValueError: If strategy is invalid
         """
-        if strategy == 'primary_preferred':
+        if strategy == "primary_preferred":
             # Use primary, fill gaps with secondary
             merged = primary.data.combine_first(secondary.data)
 
-        elif strategy == 'highest_quality':
+        elif strategy == "highest_quality":
             # Use data with better quality score
-            primary_quality = primary.metadata.get('quality_score', 0)
-            secondary_quality = secondary.metadata.get('quality_score', 0)
+            primary_quality = primary.metadata.get("quality_score", 0)
+            secondary_quality = secondary.metadata.get("quality_score", 0)
 
             if primary_quality >= secondary_quality:
                 merged = primary.data.combine_first(secondary.data)
             else:
                 merged = secondary.data.combine_first(primary.data)
 
-        elif strategy == 'average':
+        elif strategy == "average":
             # Average the two sources (for overlapping dates)
             merged = (primary.data + secondary.data) / 2
             merged = merged.combine_first(primary.data).combine_first(secondary.data)
@@ -417,14 +418,14 @@ class MultiSourceAggregator:
             adjusted=primary.adjusted,
             provider=primary.provider,
             metadata={
-                'merged': True,
-                'primary_provider': type(primary.provider).__name__,
-                'secondary_provider': type(secondary.provider).__name__,
-                'merge_strategy': strategy,
+                "merged": True,
+                "primary_provider": type(primary.provider).__name__,
+                "secondary_provider": type(secondary.provider).__name__,
+                "merge_strategy": strategy,
             }
         )
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get aggregator statistics.
 
@@ -434,26 +435,26 @@ class MultiSourceAggregator:
         stats = self.fetch_stats.copy()
 
         # Calculate additional metrics
-        if stats['total_requests'] > 0:
-            stats['success_rate'] = (
-                stats['successful_requests'] / stats['total_requests']
+        if stats["total_requests"] > 0:
+            stats["success_rate"] = (
+                stats["successful_requests"] / stats["total_requests"]
             )
 
-        if stats['quality_scores']:
-            stats['avg_quality_score'] = np.mean(stats['quality_scores'])
-            stats['min_quality_score'] = np.min(stats['quality_scores'])
-            stats['max_quality_score'] = np.max(stats['quality_scores'])
+        if stats["quality_scores"]:
+            stats["avg_quality_score"] = np.mean(stats["quality_scores"])
+            stats["min_quality_score"] = np.min(stats["quality_scores"])
+            stats["max_quality_score"] = np.max(stats["quality_scores"])
 
         return stats
 
     def reset_statistics(self) -> None:
         """Reset statistics counters."""
         self.fetch_stats = {
-            'total_requests': 0,
-            'successful_requests': 0,
-            'failed_requests': 0,
-            'provider_usage': {i: 0 for i in range(len(self.providers))},
-            'quality_scores': [],
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "provider_usage": dict.fromkeys(range(len(self.providers)), 0),
+            "quality_scores": [],
         }
 
 
@@ -483,7 +484,7 @@ if __name__ == "__main__":
 
         # Print statistics
         stats = aggregator.get_statistics()
-        print(f"\nAggregator Statistics:")
+        print("\nAggregator Statistics:")
         print(f"  Success rate: {stats.get('success_rate', 0):.2%}")
         print(f"  Avg quality: {stats.get('avg_quality_score', 0):.2f}")
 

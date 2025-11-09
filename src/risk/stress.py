@@ -3,12 +3,11 @@
 模拟极端市场情景
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+
+import numpy as np
 
 
 class ScenarioType(Enum):
@@ -46,9 +45,9 @@ class StressScenario:
     name: str
     description: str
     scenario_type: ScenarioType
-    market_shocks: Dict[str, MarketShock]  # {asset: shock}
-    probability: Optional[float] = None  # 发生概率
-    metadata: Dict = field(default_factory=dict)
+    market_shocks: dict[str, MarketShock]  # {asset: shock}
+    probability: float | None = None  # 发生概率
+    metadata: dict = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -60,8 +59,8 @@ class StressTestResult:
     stressed_portfolio_value: float
     loss: float
     loss_percentage: float
-    position_losses: Dict[str, float]  # 各持仓的损失
-    risk_metrics: Dict[str, float]  # 风险指标
+    position_losses: dict[str, float]  # 各持仓的损失
+    risk_metrics: dict[str, float]  # 风险指标
     timestamp: datetime = field(default_factory=datetime.now)
 
     @property
@@ -75,11 +74,11 @@ class StressTestEngine:
 
     def __init__(self):
         """初始化压力测试引擎"""
-        self.scenarios: Dict[str, StressScenario] = {}
+        self.scenarios: dict[str, StressScenario] = {}
         self.historical_scenarios = self._create_historical_scenarios()
-        self.test_results: List[StressTestResult] = []
+        self.test_results: list[StressTestResult] = []
 
-    def _create_historical_scenarios(self) -> Dict[str, StressScenario]:
+    def _create_historical_scenarios(self) -> dict[str, StressScenario]:
         """创建历史情景"""
         scenarios = {}
 
@@ -194,8 +193,8 @@ class StressTestEngine:
         scenario_id: str,
         name: str,
         description: str,
-        market_shocks: Dict[str, MarketShock],
-        probability: Optional[float] = None
+        market_shocks: dict[str, MarketShock],
+        probability: float | None = None
     ) -> StressScenario:
         """创建假设情景"""
         scenario = StressScenario(
@@ -213,8 +212,8 @@ class StressTestEngine:
     def create_sensitivity_scenario(
         self,
         factor: str,
-        shock_levels: List[float]
-    ) -> List[StressScenario]:
+        shock_levels: list[float]
+    ) -> list[StressScenario]:
         """
         创建敏感性分析情景
 
@@ -270,8 +269,8 @@ class StressTestEngine:
     def run_stress_test(
         self,
         scenario: StressScenario,
-        portfolio: Dict[str, Dict],
-        market_data: Dict[str, Dict]
+        portfolio: dict[str, dict],
+        market_data: dict[str, dict]
     ) -> StressTestResult:
         """
         运行压力测试
@@ -286,7 +285,7 @@ class StressTestEngine:
         """
         # 计算初始投资组合价值
         initial_value = sum(
-            pos['quantity'] * pos['price']
+            pos["quantity"] * pos["price"]
             for pos in portfolio.values()
         )
 
@@ -295,8 +294,8 @@ class StressTestEngine:
         position_losses = {}
 
         for symbol, position in portfolio.items():
-            current_price = position['price']
-            quantity = position['quantity']
+            current_price = position["price"]
+            quantity = position["quantity"]
 
             # 获取市场冲击（如果有特定的，否则使用默认）
             if symbol in scenario.market_shocks:
@@ -360,9 +359,9 @@ class StressTestEngine:
         scenario: StressScenario,
         initial_value: float,
         stressed_value: float,
-        portfolio: Dict,
-        market_data: Dict
-    ) -> Dict[str, float]:
+        portfolio: dict,
+        market_data: dict
+    ) -> dict[str, float]:
         """计算风险指标"""
 
         # 最大回撤
@@ -370,7 +369,7 @@ class StressTestEngine:
 
         # 风险集中度（最大持仓占比）
         position_values = {
-            symbol: pos['quantity'] * pos['price']
+            symbol: pos["quantity"] * pos["price"]
             for symbol, pos in portfolio.items()
         }
         max_position = max(position_values.values()) if position_values else 0
@@ -392,10 +391,10 @@ class StressTestEngine:
 
     def run_multiple_scenarios(
         self,
-        portfolio: Dict[str, Dict],
-        market_data: Dict[str, Dict],
-        scenario_ids: Optional[List[str]] = None
-    ) -> List[StressTestResult]:
+        portfolio: dict[str, dict],
+        market_data: dict[str, dict],
+        scenario_ids: list[str] | None = None
+    ) -> list[StressTestResult]:
         """
         运行多个情景的压力测试
 
@@ -430,8 +429,8 @@ class StressTestEngine:
 
     def reverse_stress_test(
         self,
-        portfolio: Dict[str, Dict],
-        market_data: Dict[str, Dict],
+        portfolio: dict[str, dict],
+        market_data: dict[str, dict],
         target_loss_percentage: float = -20.0
     ) -> StressScenario:
         """
@@ -491,7 +490,7 @@ class StressTestEngine:
         # 创建最终情景
         final_scenario = StressScenario(
             scenario_id="reverse_stress_result",
-            name=f"逆向压力测试结果",
+            name="逆向压力测试结果",
             description=f"导致{target_loss_percentage}%损失的市场冲击: {best_shock:.2%}",
             scenario_type=ScenarioType.REVERSE,
             market_shocks={
@@ -508,15 +507,15 @@ class StressTestEngine:
 
     def get_worst_case_scenario(
         self,
-        results: List[StressTestResult]
+        results: list[StressTestResult]
     ) -> StressTestResult:
         """获取最坏情景"""
         return min(results, key=lambda r: r.loss_percentage)
 
     def get_summary_statistics(
         self,
-        results: List[StressTestResult]
-    ) -> Dict[str, float]:
+        results: list[StressTestResult]
+    ) -> dict[str, float]:
         """获取汇总统计"""
         if not results:
             return {}

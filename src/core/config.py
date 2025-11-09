@@ -3,15 +3,15 @@
 支持多环境、动态配置、配置验证
 """
 
-import os
-import yaml
-import json
-from pathlib import Path
-from typing import Any, Dict, Optional, List, Union
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
+import json
+import os
+from pathlib import Path
 import threading
-from copy import deepcopy
+from typing import Any
+
+import yaml
 
 
 class Environment(Enum):
@@ -75,7 +75,7 @@ class ModelConfig:
     model_save_dir: str = "models/checkpoints"
     model_save_frequency: int = 1000
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -105,10 +105,10 @@ class DataConfig:
     """数据配置"""
     # 数据源
     primary_source: str = "yahoo"
-    backup_sources: List[str] = field(default_factory=lambda: ["alpaca", "polygon"])
+    backup_sources: list[str] = field(default_factory=lambda: ["alpaca", "polygon"])
 
     # 数据范围
-    symbols: List[str] = field(default_factory=lambda: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"])
+    symbols: list[str] = field(default_factory=lambda: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"])
     lookback_days: int = 252  # 1年交易日
 
     # 数据更新
@@ -117,7 +117,7 @@ class DataConfig:
     cache_ttl_seconds: int = 300
 
     # 特征工程
-    technical_indicators: List[str] = field(default_factory=lambda: [
+    technical_indicators: list[str] = field(default_factory=lambda: [
         "SMA_20", "SMA_50", "SMA_200",
         "EMA_12", "EMA_26",
         "RSI_14", "RSI_28",
@@ -129,14 +129,14 @@ class DataConfig:
         "Williams_R", "CCI",
     ])
 
-    fundamental_features: List[str] = field(default_factory=lambda: [
+    fundamental_features: list[str] = field(default_factory=lambda: [
         "PE_Ratio", "PB_Ratio", "PS_Ratio",
         "Debt_to_Equity", "ROE", "ROA",
         "Profit_Margin", "EPS_Growth",
         "Revenue_Growth", "Free_Cash_Flow",
     ])
 
-    sentiment_sources: List[str] = field(default_factory=lambda: [
+    sentiment_sources: list[str] = field(default_factory=lambda: [
         "twitter", "reddit", "news", "sec_filings"
     ])
 
@@ -146,7 +146,7 @@ class DataConfig:
     outlier_detection: bool = True
     outlier_method: str = "iqr"  # iqr, zscore, isolation_forest
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -197,12 +197,12 @@ class RiskConfig:
 
     # 压力测试
     stress_test_enabled: bool = True
-    stress_scenarios: List[str] = field(default_factory=lambda: [
+    stress_scenarios: list[str] = field(default_factory=lambda: [
         "market_crash", "flash_crash", "sector_rotation",
         "volatility_spike", "liquidity_crisis"
     ])
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -263,7 +263,7 @@ class ExecutionConfig:
     retry_delay_seconds: int = 1
     exponential_backoff: bool = True
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -294,7 +294,7 @@ class AgentConfig:
     num_expert_agents: int = 5
 
     # 智能体类型分布
-    retail_types: Dict[str, float] = field(default_factory=lambda: {
+    retail_types: dict[str, float] = field(default_factory=lambda: {
         "momentum_chaser": 0.25,
         "panic_seller": 0.20,
         "herd_follower": 0.20,
@@ -302,7 +302,7 @@ class AgentConfig:
         "technical_trader": 0.15,
     })
 
-    institutional_types: Dict[str, float] = field(default_factory=lambda: {
+    institutional_types: dict[str, float] = field(default_factory=lambda: {
         "quantitative": 0.30,
         "value_investor": 0.20,
         "trend_follower": 0.20,
@@ -326,7 +326,7 @@ class AgentConfig:
     institutional_weight: float = 0.50
     expert_weight: float = 0.20
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -371,7 +371,7 @@ class MonitoringConfig:
 
     # 告警
     alerting_enabled: bool = True
-    alert_channels: List[str] = field(default_factory=lambda: ["email", "slack", "pagerduty"])
+    alert_channels: list[str] = field(default_factory=lambda: ["email", "slack", "pagerduty"])
     alert_email: str = ""
     alert_slack_webhook: str = ""
 
@@ -380,7 +380,7 @@ class MonitoringConfig:
     dashboard_port: int = 8080
     dashboard_host: str = "0.0.0.0"
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证配置"""
         errors = []
 
@@ -422,7 +422,7 @@ class Config:
     async_enabled: bool = True
     cache_enabled: bool = True
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """验证所有配置"""
         errors = []
 
@@ -438,36 +438,36 @@ class Config:
 
         return errors
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Config':
+    def from_dict(cls, data: dict[str, Any]) -> "Config":
         """从字典创建配置"""
         config = cls()
 
-        if 'environment' in data:
-            config.environment = Environment(data['environment'])
-        if 'trading_mode' in data:
-            config.trading_mode = TradingMode(data['trading_mode'])
+        if "environment" in data:
+            config.environment = Environment(data["environment"])
+        if "trading_mode" in data:
+            config.trading_mode = TradingMode(data["trading_mode"])
 
-        if 'model' in data:
-            config.model = ModelConfig(**data['model'])
-        if 'data' in data:
-            config.data = DataConfig(**data['data'])
-        if 'risk' in data:
-            config.risk = RiskConfig(**data['risk'])
-        if 'execution' in data:
-            config.execution = ExecutionConfig(**data['execution'])
-        if 'agent' in data:
-            config.agent = AgentConfig(**data['agent'])
-        if 'monitoring' in data:
-            config.monitoring = MonitoringConfig(**data['monitoring'])
+        if "model" in data:
+            config.model = ModelConfig(**data["model"])
+        if "data" in data:
+            config.data = DataConfig(**data["data"])
+        if "risk" in data:
+            config.risk = RiskConfig(**data["risk"])
+        if "execution" in data:
+            config.execution = ExecutionConfig(**data["execution"])
+        if "agent" in data:
+            config.agent = AgentConfig(**data["agent"])
+        if "monitoring" in data:
+            config.monitoring = MonitoringConfig(**data["monitoring"])
 
         # 系统配置
-        for key in ['system_name', 'system_version', 'timezone', 'num_workers',
-                    'async_enabled', 'cache_enabled']:
+        for key in ["system_name", "system_version", "timezone", "num_workers",
+                    "async_enabled", "cache_enabled"]:
             if key in data:
                 setattr(config, key, data[key])
 
@@ -488,13 +488,13 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._config: Optional[Config] = None
-            self._config_path: Optional[Path] = None
-            self._watchers: List[callable] = []
+        if not hasattr(self, "_initialized"):
+            self._config: Config | None = None
+            self._config_path: Path | None = None
+            self._watchers: list[callable] = []
             self._initialized = True
 
-    def load_config(self, config_path: Union[str, Path]) -> Config:
+    def load_config(self, config_path: str | Path) -> Config:
         """
         加载配置文件
 
@@ -514,10 +514,10 @@ class ConfigManager:
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
         # 读取配置文件
-        with open(config_path, 'r', encoding='utf-8') as f:
-            if config_path.suffix in ['.yaml', '.yml']:
+        with open(config_path, encoding="utf-8") as f:
+            if config_path.suffix in [".yaml", ".yml"]:
                 data = yaml.safe_load(f)
-            elif config_path.suffix == '.json':
+            elif config_path.suffix == ".json":
                 data = json.load(f)
             else:
                 raise ValueError(f"Unsupported configuration file format: {config_path.suffix}")
@@ -531,7 +531,7 @@ class ConfigManager:
         # 验证配置
         errors = config.validate()
         if errors:
-            raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
+            raise ValueError("Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
 
         self._config = config
         self._config_path = config_path
@@ -541,29 +541,29 @@ class ConfigManager:
 
         return config
 
-    def _apply_env_overrides(self, data: Dict[str, Any]):
+    def _apply_env_overrides(self, data: dict[str, Any]):
         """应用环境变量覆盖"""
         # 环境
-        if env := os.getenv('TRADING_ENVIRONMENT'):
-            data['environment'] = env
-        if mode := os.getenv('TRADING_MODE'):
-            data['trading_mode'] = mode
+        if env := os.getenv("TRADING_ENVIRONMENT"):
+            data["environment"] = env
+        if mode := os.getenv("TRADING_MODE"):
+            data["trading_mode"] = mode
 
         # API密钥
-        if gpt5_key := os.getenv('GPT5_API_KEY'):
-            if 'model' not in data:
-                data['model'] = {}
-            data['model']['gpt5_api_key'] = gpt5_key
+        if gpt5_key := os.getenv("GPT5_API_KEY"):
+            if "model" not in data:
+                data["model"] = {}
+            data["model"]["gpt5_api_key"] = gpt5_key
 
-        if broker_key := os.getenv('BROKER_API_KEY'):
-            if 'execution' not in data:
-                data['execution'] = {}
-            data['execution']['broker_api_key'] = broker_key
+        if broker_key := os.getenv("BROKER_API_KEY"):
+            if "execution" not in data:
+                data["execution"] = {}
+            data["execution"]["broker_api_key"] = broker_key
 
-        if broker_secret := os.getenv('BROKER_SECRET_KEY'):
-            if 'execution' not in data:
-                data['execution'] = {}
-            data['execution']['broker_secret_key'] = broker_secret
+        if broker_secret := os.getenv("BROKER_SECRET_KEY"):
+            if "execution" not in data:
+                data["execution"] = {}
+            data["execution"]["broker_secret_key"] = broker_secret
 
     def get_config(self) -> Config:
         """获取当前配置"""
@@ -571,7 +571,7 @@ class ConfigManager:
             raise RuntimeError("Configuration not loaded. Call load_config() first.")
         return self._config
 
-    def update_config(self, updates: Dict[str, Any]):
+    def update_config(self, updates: dict[str, Any]):
         """
         动态更新配置
 
@@ -589,7 +589,7 @@ class ConfigManager:
         # 验证新配置
         errors = new_config.validate()
         if errors:
-            raise ValueError(f"Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
+            raise ValueError("Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors))
 
         self._config = new_config
         self._notify_watchers()
@@ -611,7 +611,7 @@ class ConfigManager:
             except Exception as e:
                 print(f"Error notifying config watcher: {e}")
 
-    def save_config(self, output_path: Optional[Union[str, Path]] = None):
+    def save_config(self, output_path: str | Path | None = None):
         """
         保存配置到文件
 
@@ -629,13 +629,13 @@ class ConfigManager:
         config_dict = self._config.to_dict()
 
         # 转换枚举为字符串
-        config_dict['environment'] = self._config.environment.value
-        config_dict['trading_mode'] = self._config.trading_mode.value
+        config_dict["environment"] = self._config.environment.value
+        config_dict["trading_mode"] = self._config.trading_mode.value
 
-        with open(output_path, 'w', encoding='utf-8') as f:
-            if output_path.suffix in ['.yaml', '.yml']:
+        with open(output_path, "w", encoding="utf-8") as f:
+            if output_path.suffix in [".yaml", ".yml"]:
                 yaml.dump(config_dict, f, default_flow_style=False, allow_unicode=True)
-            elif output_path.suffix == '.json':
+            elif output_path.suffix == ".json":
                 json.dump(config_dict, f, indent=2, ensure_ascii=False)
             else:
                 raise ValueError(f"Unsupported output format: {output_path.suffix}")

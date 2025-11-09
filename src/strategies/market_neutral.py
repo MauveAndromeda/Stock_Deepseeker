@@ -2,23 +2,20 @@
 Market neutral strategy using long/short factor exposures.
 """
 
-from typing import Dict, List, Optional, Tuple, Set
+from collections import defaultdict
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from collections import defaultdict
 
 from src.strategies.base import BaseStrategy, Signal, SignalType
-from src.factors.momentum import PriceMomentum
-from src.factors.value import PriceToBook, EarningsYield
-from src.factors.quality import ROE
 
 
 @dataclass
 class SecurityScore:
     """Container for security scoring data."""
     symbol: str
-    factor_scores: Dict[str, float]
+    factor_scores: dict[str, float]
     composite_score: float
     beta: float
     sector: str
@@ -61,7 +58,7 @@ class MarketNeutralStrategy(BaseStrategy):
         target_leverage: float = 2.0,
         maintain_beta_neutral: bool = True,
         maintain_sector_neutral: bool = True,
-        factor_weights: Optional[Dict[str, float]] = None,
+        factor_weights: dict[str, float] | None = None,
         max_single_position: float = 0.05,
         correlation_threshold: float = 0.3,
         **kwargs
@@ -79,9 +76,9 @@ class MarketNeutralStrategy(BaseStrategy):
         # Factor weights
         if factor_weights is None:
             self.factor_weights = {
-                'momentum': 0.33,
-                'value': 0.33,
-                'quality': 0.34
+                "momentum": 0.33,
+                "value": 0.33,
+                "quality": 0.34
             }
         else:
             total = sum(factor_weights.values())
@@ -89,13 +86,13 @@ class MarketNeutralStrategy(BaseStrategy):
 
         # State
         self.last_rebalance_day = 0
-        self.price_history: Dict[str, List[float]] = {}
-        self.market_prices: List[float] = []
-        self.fundamentals: Dict[str, pd.DataFrame] = {}
-        self.sectors: Dict[str, str] = {}
-        self.market_caps: Dict[str, float] = {}
-        self.long_positions: Set[str] = set()
-        self.short_positions: Set[str] = set()
+        self.price_history: dict[str, list[float]] = {}
+        self.market_prices: list[float] = []
+        self.fundamentals: dict[str, pd.DataFrame] = {}
+        self.sectors: dict[str, str] = {}
+        self.market_caps: dict[str, float] = {}
+        self.long_positions: set[str] = set()
+        self.short_positions: set[str] = set()
 
     def on_start(self) -> None:
         """Initialize strategy."""
@@ -108,7 +105,7 @@ class MarketNeutralStrategy(BaseStrategy):
             f"Sector neutral: {self.maintain_sector_neutral}"
         )
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate market neutral signals.
 
@@ -121,8 +118,8 @@ class MarketNeutralStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update data
-        if 'prices' in data:
-            for symbol, price in data['prices'].items():
+        if "prices" in data:
+            for symbol, price in data["prices"].items():
                 if symbol not in self.price_history:
                     self.price_history[symbol] = []
                 self.price_history[symbol].append(price)
@@ -130,19 +127,19 @@ class MarketNeutralStrategy(BaseStrategy):
                 if len(self.price_history[symbol]) > 252:
                     self.price_history[symbol] = self.price_history[symbol][-252:]
 
-        if 'market_price' in data:
-            self.market_prices.append(data['market_price'])
+        if "market_price" in data:
+            self.market_prices.append(data["market_price"])
             if len(self.market_prices) > 252:
                 self.market_prices = self.market_prices[-252:]
 
-        if 'fundamentals' in data:
-            self.fundamentals.update(data['fundamentals'])
+        if "fundamentals" in data:
+            self.fundamentals.update(data["fundamentals"])
 
-        if 'sectors' in data:
-            self.sectors.update(data['sectors'])
+        if "sectors" in data:
+            self.sectors.update(data["sectors"])
 
-        if 'market_caps' in data:
-            self.market_caps.update(data['market_caps'])
+        if "market_caps" in data:
+            self.market_caps.update(data["market_caps"])
 
         # Check if rebalancing is needed
         if self.days_elapsed - self.last_rebalance_day < self.rebalance_frequency:
@@ -171,7 +168,7 @@ class MarketNeutralStrategy(BaseStrategy):
 
         return signals
 
-    def _calculate_security_scores(self) -> List[SecurityScore]:
+    def _calculate_security_scores(self) -> list[SecurityScore]:
         """Calculate multi-factor scores for all securities."""
         scores = []
 
@@ -197,9 +194,9 @@ class MarketNeutralStrategy(BaseStrategy):
                 continue
 
             factor_scores = {
-                'momentum': momentum_scores.get(symbol, 0),
-                'value': value_scores.get(symbol, 0),
-                'quality': quality_scores.get(symbol, 0)
+                "momentum": momentum_scores.get(symbol, 0),
+                "value": value_scores.get(symbol, 0),
+                "quality": quality_scores.get(symbol, 0)
             }
 
             # Calculate composite score
@@ -213,13 +210,13 @@ class MarketNeutralStrategy(BaseStrategy):
                 factor_scores=factor_scores,
                 composite_score=composite,
                 beta=betas[symbol],
-                sector=self.sectors.get(symbol, 'Unknown'),
+                sector=self.sectors.get(symbol, "Unknown"),
                 market_cap=self.market_caps.get(symbol, 0)
             ))
 
         return scores
 
-    def _calculate_momentum_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_momentum_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate momentum z-scores."""
         raw_scores = {}
 
@@ -235,7 +232,7 @@ class MarketNeutralStrategy(BaseStrategy):
         # Convert to z-scores
         return self._to_z_scores(raw_scores)
 
-    def _calculate_value_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_value_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate value z-scores."""
         # Simplified - in production use actual fundamentals
         raw_scores = {}
@@ -252,7 +249,7 @@ class MarketNeutralStrategy(BaseStrategy):
 
         return self._to_z_scores(raw_scores)
 
-    def _calculate_quality_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_quality_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate quality z-scores."""
         # Simplified - in production use actual quality metrics
         raw_scores = {}
@@ -270,18 +267,18 @@ class MarketNeutralStrategy(BaseStrategy):
 
         return self._to_z_scores(raw_scores)
 
-    def _calculate_betas(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_betas(self, symbols: list[str]) -> dict[str, float]:
         """Calculate market betas."""
         betas = {}
 
         if len(self.market_prices) < 60:
-            return {symbol: 1.0 for symbol in symbols}
+            return dict.fromkeys(symbols, 1.0)
 
         market_returns = np.diff(self.market_prices[-60:]) / self.market_prices[-61:-1]
         market_var = np.var(market_returns)
 
         if market_var == 0:
-            return {symbol: 1.0 for symbol in symbols}
+            return dict.fromkeys(symbols, 1.0)
 
         for symbol in symbols:
             prices = self.price_history[symbol]
@@ -296,7 +293,7 @@ class MarketNeutralStrategy(BaseStrategy):
 
         return betas
 
-    def _to_z_scores(self, values: Dict[str, float]) -> Dict[str, float]:
+    def _to_z_scores(self, values: dict[str, float]) -> dict[str, float]:
         """Convert raw values to z-scores."""
         if len(values) == 0:
             return {}
@@ -306,7 +303,7 @@ class MarketNeutralStrategy(BaseStrategy):
         std = np.std(vals)
 
         if std == 0:
-            return {symbol: 0.0 for symbol in values}
+            return dict.fromkeys(values, 0.0)
 
         return {
             symbol: (value - mean) / std
@@ -315,8 +312,8 @@ class MarketNeutralStrategy(BaseStrategy):
 
     def _construct_portfolios(
         self,
-        security_scores: List[SecurityScore]
-    ) -> Tuple[List[str], List[str]]:
+        security_scores: list[SecurityScore]
+    ) -> tuple[list[str], list[str]]:
         """Construct long and short portfolios."""
         # Sort by composite score
         sorted_scores = sorted(security_scores, key=lambda x: x.composite_score, reverse=True)
@@ -346,12 +343,12 @@ class MarketNeutralStrategy(BaseStrategy):
 
     def _apply_sector_constraints(
         self,
-        sorted_scores: List[SecurityScore]
-    ) -> Tuple[List[str], List[str]]:
+        sorted_scores: list[SecurityScore]
+    ) -> tuple[list[str], list[str]]:
         """Apply sector neutrality constraints."""
         # Group by sector
-        sector_longs: Dict[str, List[str]] = defaultdict(list)
-        sector_shorts: Dict[str, List[str]] = defaultdict(list)
+        sector_longs: dict[str, list[str]] = defaultdict(list)
+        sector_shorts: dict[str, list[str]] = defaultdict(list)
 
         # Top half = long candidates
         for score in sorted_scores[:len(sorted_scores) // 2]:
@@ -378,10 +375,10 @@ class MarketNeutralStrategy(BaseStrategy):
 
     def _apply_beta_constraints(
         self,
-        security_scores: List[SecurityScore],
-        long_candidates: List[str],
-        short_candidates: List[str]
-    ) -> Tuple[List[str], List[str]]:
+        security_scores: list[SecurityScore],
+        long_candidates: list[str],
+        short_candidates: list[str]
+    ) -> tuple[list[str], list[str]]:
         """
         Adjust portfolios to maintain beta neutrality.
 
@@ -422,9 +419,9 @@ class MarketNeutralStrategy(BaseStrategy):
 
     def _generate_rebalance_signals(
         self,
-        long_symbols: List[str],
-        short_symbols: List[str]
-    ) -> List[Signal]:
+        long_symbols: list[str],
+        short_symbols: list[str]
+    ) -> list[Signal]:
         """Generate rebalancing signals."""
         signals = []
 
@@ -441,7 +438,7 @@ class MarketNeutralStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.SELL,
                     strength=1.0,
-                    metadata={'side': 'long_exit', 'reason': 'rebalance'}
+                    metadata={"side": "long_exit", "reason": "rebalance"}
                 ))
 
         for symbol in current_shorts:
@@ -450,7 +447,7 @@ class MarketNeutralStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.BUY,  # Cover short
                     strength=1.0,
-                    metadata={'side': 'short_cover', 'reason': 'rebalance'}
+                    metadata={"side": "short_cover", "reason": "rebalance"}
                 ))
 
         # Open new long positions
@@ -461,7 +458,7 @@ class MarketNeutralStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.BUY,
                     strength=weight,
-                    metadata={'side': 'long_entry', 'weight': weight}
+                    metadata={"side": "long_entry", "weight": weight}
                 ))
 
         # Open new short positions
@@ -472,7 +469,7 @@ class MarketNeutralStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.SELL,
                     strength=weight,
-                    metadata={'side': 'short_entry', 'weight': weight}
+                    metadata={"side": "short_entry", "weight": weight}
                 ))
 
         # Update position tracking
@@ -483,9 +480,9 @@ class MarketNeutralStrategy(BaseStrategy):
 
     def _log_portfolio_stats(
         self,
-        security_scores: List[SecurityScore],
-        long_symbols: List[str],
-        short_symbols: List[str]
+        security_scores: list[SecurityScore],
+        long_symbols: list[str],
+        short_symbols: list[str]
     ) -> None:
         """Log portfolio characteristics."""
         score_map = {s.symbol: s for s in security_scores}
@@ -498,7 +495,7 @@ class MarketNeutralStrategy(BaseStrategy):
         short_beta = np.mean(short_betas) if short_betas else 0
         net_beta = (long_beta - short_beta) / 2  # Assuming equal dollar amounts
 
-        self.logger.info(f"Portfolio rebalance:")
+        self.logger.info("Portfolio rebalance:")
         self.logger.info(f"  Long: {len(long_symbols)} positions, avg beta={long_beta:.2f}")
         self.logger.info(f"  Short: {len(short_symbols)} positions, avg beta={short_beta:.2f}")
         self.logger.info(f"  Net beta: {net_beta:.2f}")
@@ -506,7 +503,7 @@ class MarketNeutralStrategy(BaseStrategy):
     def on_signal(self, signal: Signal) -> None:
         """Handle generated signal."""
         metadata = signal.metadata
-        side = metadata.get('side', 'unknown')
+        side = metadata.get("side", "unknown")
 
         self.logger.info(
             f"Market neutral: {side} {signal.signal_type.value} {signal.symbol}"

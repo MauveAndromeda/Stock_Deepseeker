@@ -3,12 +3,13 @@ Base classes for real-time data streaming.
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, Set, Any
-from enum import Enum
+import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-import asyncio
+from enum import Enum
 import logging
+from typing import Any
 
 
 class MessageType(Enum):
@@ -29,8 +30,8 @@ class StreamingMessage:
     message_type: MessageType
     symbol: str
     timestamp: datetime
-    data: Dict[str, Any]
-    sequence: Optional[int] = None
+    data: dict[str, Any]
+    sequence: int | None = None
 
     def __repr__(self) -> str:
         return (
@@ -42,10 +43,10 @@ class StreamingMessage:
 @dataclass
 class Subscription:
     """Subscription configuration."""
-    symbols: Set[str] = field(default_factory=set)
-    message_types: Set[MessageType] = field(default_factory=set)
-    callback: Optional[Callable[[StreamingMessage], None]] = None
-    filters: Dict[str, Any] = field(default_factory=dict)
+    symbols: set[str] = field(default_factory=set)
+    message_types: set[MessageType] = field(default_factory=set)
+    callback: Callable[[StreamingMessage], None] | None = None
+    filters: dict[str, Any] = field(default_factory=dict)
 
     def matches(self, message: StreamingMessage) -> bool:
         """Check if message matches subscription criteria."""
@@ -96,8 +97,8 @@ class StreamingDataProvider(ABC):
         # State
         self._connected = False
         self._running = False
-        self._subscriptions: List[Subscription] = []
-        self._message_handlers: Dict[MessageType, List[Callable]] = {}
+        self._subscriptions: list[Subscription] = []
+        self._message_handlers: dict[MessageType, list[Callable]] = {}
         self._reconnect_count = 0
         self._message_count = 0
         self._error_count = 0
@@ -110,18 +111,16 @@ class StreamingDataProvider(ABC):
         Returns:
             True if connection successful
         """
-        pass
 
     @abstractmethod
     async def disconnect(self) -> None:
         """Close connection to data source."""
-        pass
 
     @abstractmethod
     async def subscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """
         Subscribe to real-time data for symbols.
@@ -133,13 +132,12 @@ class StreamingDataProvider(ABC):
         Returns:
             True if subscription successful
         """
-        pass
 
     @abstractmethod
     async def unsubscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """
         Unsubscribe from real-time data.
@@ -151,10 +149,9 @@ class StreamingDataProvider(ABC):
         Returns:
             True if unsubscription successful
         """
-        pass
 
     @abstractmethod
-    async def _process_message(self, raw_message: Any) -> Optional[StreamingMessage]:
+    async def _process_message(self, raw_message: Any) -> StreamingMessage | None:
         """
         Process raw message from data source.
 
@@ -164,7 +161,6 @@ class StreamingDataProvider(ABC):
         Returns:
             Parsed StreamingMessage or None
         """
-        pass
 
     async def start(self) -> None:
         """Start the streaming provider."""
@@ -300,17 +296,17 @@ class StreamingDataProvider(ABC):
                         self.logger.error(f"Error in subscription callback: {e}")
                         self._error_count += 1
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get provider statistics."""
         return {
-            'name': self.name,
-            'connected': self._connected,
-            'running': self._running,
-            'messages_received': self._message_count,
-            'errors': self._error_count,
-            'reconnect_attempts': self._reconnect_count,
-            'subscriptions': len(self._subscriptions),
-            'handlers': sum(len(h) for h in self._message_handlers.values())
+            "name": self.name,
+            "connected": self._connected,
+            "running": self._running,
+            "messages_received": self._message_count,
+            "errors": self._error_count,
+            "reconnect_attempts": self._reconnect_count,
+            "subscriptions": len(self._subscriptions),
+            "handlers": sum(len(h) for h in self._message_handlers.values())
         }
 
     @property

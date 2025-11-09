@@ -5,28 +5,26 @@ Enhanced Agent Base Classes
 Research-grade implementation (Under Development)
 """
 
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
+from abc import abstractmethod
 from datetime import datetime
-import json
-from abc import ABC, abstractmethod
+from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from loguru import logger
 from pydantic import BaseModel, Field
 
-from src.agents.base import Agent, AgentType, AgentDecision, Action, AgentState
+from src.agents.base import Action, AgentDecision, AgentState, AgentType
 from src.agents.unified_interface import (
-    BaseAgentV2,
-    MarketContext,
-    AgentDecisionOutput,
     ActionType,
-    RiskLevel,
     AgentCapability,
+    AgentDecisionOutput,
+    BaseAgentV2,
     DecisionConfidence,
+    MarketContext,
+    RiskLevel,
 )
 from src.ai.model_unified import ModelRouter, ModelTier, get_router
-from loguru import logger
 
 
 class AgentAnalysisOutput(BaseModel):
@@ -34,7 +32,7 @@ class AgentAnalysisOutput(BaseModel):
     action: str = Field(description="Trading action: BUY, SELL, or HOLD")
     confidence: float = Field(description="Confidence level 0-1", ge=0, le=1)
     reasoning: str = Field(description="Explanation for the decision")
-    key_factors: List[str] = Field(description="List of key factors considered")
+    key_factors: list[str] = Field(description="List of key factors considered")
     risk_assessment: str = Field(description="Risk assessment: LOW, MEDIUM, HIGH")
 
 
@@ -49,7 +47,7 @@ class LLMEnhancedAgent(BaseAgentV2):
         self,
         agent_id: str,
         agent_type: str,  # String type for compatibility
-        capabilities: List[AgentCapability],
+        capabilities: list[AgentCapability],
         initial_capital: float = 100000,
         risk_tolerance: float = 0.5,
         model_tier: ModelTier = ModelTier.FAST,
@@ -75,15 +73,15 @@ class LLMEnhancedAgent(BaseAgentV2):
 
         self.model_tier = model_tier
         self.use_memory = use_memory
-        self.router: Optional[ModelRouter] = None
+        self.router: ModelRouter | None = None
 
         # LangChain组件
         self.prompt_template = self._create_prompt_template()
         self.output_parser = PydanticOutputParser(pydantic_object=AgentAnalysisOutput)
 
         # 会话记忆 (both old and new style)
-        self.conversation_history: List[Dict] = []
-        self.max_conversation_history = kwargs.get('max_conversation_history', 10)
+        self.conversation_history: list[dict] = []
+        self.max_conversation_history = kwargs.get("max_conversation_history", 10)
 
     async def _ensure_router(self):
         """确保router已初始化"""
@@ -93,26 +91,24 @@ class LLMEnhancedAgent(BaseAgentV2):
     @abstractmethod
     def _create_prompt_template(self) -> ChatPromptTemplate:
         """创建prompt模板（子类实现）"""
-        pass
 
     @abstractmethod
     def _get_personality_traits(self) -> str:
         """获取智能体性格特征（子类实现）"""
-        pass
 
-    def _prepare_market_context(self, market_data: Dict[str, Any]) -> str:
+    def _prepare_market_context(self, market_data: dict[str, Any]) -> str:
         """准备市场数据上下文"""
         context_parts = []
 
         # 价格信息
-        if 'price' in market_data:
+        if "price" in market_data:
             context_parts.append(f"Current Price: ${market_data['price']:.2f}")
-        if 'change_pct' in market_data:
+        if "change_pct" in market_data:
             context_parts.append(f"Daily Change: {market_data['change_pct']:.2%}")
 
         # 技术指标
-        if 'indicators' in market_data:
-            indicators = market_data['indicators']
+        if "indicators" in market_data:
+            indicators = market_data["indicators"]
             context_parts.append("\nTechnical Indicators:")
             for key, value in indicators.items():
                 if isinstance(value, float):
@@ -121,14 +117,14 @@ class LLMEnhancedAgent(BaseAgentV2):
                     context_parts.append(f"  {key}: {value}")
 
         # 基本面
-        if 'fundamentals' in market_data:
-            fundamentals = market_data['fundamentals']
+        if "fundamentals" in market_data:
+            fundamentals = market_data["fundamentals"]
             context_parts.append("\nFundamentals:")
             for key, value in fundamentals.items():
                 context_parts.append(f"  {key}: {value}")
 
         # 市场情绪
-        if 'sentiment' in market_data:
+        if "sentiment" in market_data:
             context_parts.append(f"\nMarket Sentiment: {market_data['sentiment']}")
 
         return "\n".join(context_parts)
@@ -153,7 +149,7 @@ class LLMEnhancedAgent(BaseAgentV2):
     async def _analyze_internal(
         self,
         context: MarketContext,
-        additional_context: Optional[Dict[str, Any]]
+        additional_context: dict[str, Any] | None
     ) -> AgentDecisionOutput:
         """
         Internal analysis method (implements BaseAgentV2 interface)
@@ -176,12 +172,12 @@ class LLMEnhancedAgent(BaseAgentV2):
             # Build prompt
             messages = [
                 {
-                    'role': 'system',
-                    'content': f"You are a {self.agent_type} trader. {personality}"
+                    "role": "system",
+                    "content": f"You are a {self.agent_type} trader. {personality}"
                 },
                 {
-                    'role': 'user',
-                    'content': self.prompt_template.format(
+                    "role": "user",
+                    "content": self.prompt_template.format(
                         symbol=context.symbol,
                         market_context=market_context_str,
                         historical_context=historical_context,
@@ -206,11 +202,11 @@ class LLMEnhancedAgent(BaseAgentV2):
 
             # Map risk assessment string to RiskLevel
             risk_map = {
-                'LOW': RiskLevel.LOW,
-                'MEDIUM': RiskLevel.MEDIUM,
-                'HIGH': RiskLevel.HIGH,
-                'VERY_LOW': RiskLevel.VERY_LOW,
-                'VERY_HIGH': RiskLevel.VERY_HIGH,
+                "LOW": RiskLevel.LOW,
+                "MEDIUM": RiskLevel.MEDIUM,
+                "HIGH": RiskLevel.HIGH,
+                "VERY_LOW": RiskLevel.VERY_LOW,
+                "VERY_HIGH": RiskLevel.VERY_HIGH,
             }
             risk_level = risk_map.get(parsed.risk_assessment.upper(), RiskLevel.MEDIUM)
 
@@ -226,20 +222,20 @@ class LLMEnhancedAgent(BaseAgentV2):
                 concerns=[],
                 cost=response.cost,
                 metadata={
-                    'llm_tokens': response.tokens_used,
-                    'llm_model': response.model,
-                    'llm_latency': response.latency
+                    "llm_tokens": response.tokens_used,
+                    "llm_model": response.model,
+                    "llm_latency": response.latency
                 }
             )
 
             # Add to memory
             if self.use_memory:
                 self.conversation_history.append({
-                    'timestamp': datetime.now(),
-                    'symbol': context.symbol,
-                    'action': action.value,
-                    'confidence': parsed.confidence,
-                    'reasoning': parsed.reasoning
+                    "timestamp": datetime.now(),
+                    "symbol": context.symbol,
+                    "action": action.value,
+                    "confidence": parsed.confidence,
+                    "reasoning": parsed.reasoning
                 })
                 if len(self.conversation_history) > self.max_conversation_history:
                     self.conversation_history.pop(0)
@@ -252,8 +248,8 @@ class LLMEnhancedAgent(BaseAgentV2):
 
     async def analyze_legacy(
         self,
-        market_data: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        market_data: dict[str, Any],
+        context: dict[str, Any] | None = None
     ) -> AgentDecision:
         """
         Legacy analyze method for backward compatibility
@@ -266,13 +262,13 @@ class LLMEnhancedAgent(BaseAgentV2):
         decision_output = await self.analyze(market_context, context)
 
         # Convert back to AgentDecision
-        return self._decision_output_to_legacy(decision_output, market_data.get('symbol', 'UNKNOWN'))
+        return self._decision_output_to_legacy(decision_output, market_data.get("symbol", "UNKNOWN"))
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         """初始化参数"""
         return {
-            'model_tier': kwargs.get('model_tier', ModelTier.FAST),
-            'use_memory': kwargs.get('use_memory', True)
+            "model_tier": kwargs.get("model_tier", ModelTier.FAST),
+            "use_memory": kwargs.get("use_memory", True)
         }
 
     def _prepare_market_context_from_standard(self, context: MarketContext) -> str:
@@ -305,18 +301,18 @@ class LLMEnhancedAgent(BaseAgentV2):
 
         return "\n".join(context_parts)
 
-    def _dict_to_market_context(self, market_data: Dict[str, Any]) -> MarketContext:
+    def _dict_to_market_context(self, market_data: dict[str, Any]) -> MarketContext:
         """Convert legacy dict format to MarketContext"""
         return MarketContext(
-            symbol=market_data.get('symbol', 'UNKNOWN'),
+            symbol=market_data.get("symbol", "UNKNOWN"),
             timestamp=datetime.now(),
-            current_price=market_data.get('price', market_data.get('current_price', 0.0)),
-            price_change_pct=market_data.get('price_change_pct', market_data.get('change_pct', 0.0)),
-            volume=int(market_data.get('volume', 0)),
-            technical_indicators=market_data.get('indicators', market_data.get('technical_indicators', {})),
-            fundamentals=market_data.get('fundamentals', {}),
-            sentiment=market_data.get('sentiment'),
-            metadata=market_data.get('metadata', {})
+            current_price=market_data.get("price", market_data.get("current_price", 0.0)),
+            price_change_pct=market_data.get("price_change_pct", market_data.get("change_pct", 0.0)),
+            volume=int(market_data.get("volume", 0)),
+            technical_indicators=market_data.get("indicators", market_data.get("technical_indicators", {})),
+            fundamentals=market_data.get("fundamentals", {}),
+            sentiment=market_data.get("sentiment"),
+            metadata=market_data.get("metadata", {})
         )
 
     def _decision_output_to_legacy(self, decision: AgentDecisionOutput, symbol: str) -> AgentDecision:
@@ -337,9 +333,9 @@ class LLMEnhancedAgent(BaseAgentV2):
             confidence=decision.confidence,
             reasoning=decision.reasoning,
             metadata={
-                'key_factors': decision.key_factors,
-                'risk_level': decision.risk_level.value,
-                'confidence_level': decision.confidence_level.value,
+                "key_factors": decision.key_factors,
+                "risk_level": decision.risk_level.value,
+                "confidence_level": decision.confidence_level.value,
                 **decision.metadata
             }
         )

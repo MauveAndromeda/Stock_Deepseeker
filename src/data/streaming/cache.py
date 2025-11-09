@@ -2,14 +2,14 @@
 Market data caching for fast access to recent data.
 """
 
-from typing import Dict, List, Optional, Any
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import deque, defaultdict
 import threading
+from typing import Any
 
-from src.data.streaming.base import StreamingMessage, MessageType
 from src.data.streaming.aggregator import OHLCV
+from src.data.streaming.base import MessageType, StreamingMessage
 
 
 @dataclass
@@ -70,21 +70,21 @@ class MarketDataCache:
         self.quote_expiry = quote_expiry
 
         # Latest quotes
-        self._quotes: Dict[str, Quote] = {}
+        self._quotes: dict[str, Quote] = {}
 
         # Trade history
-        self._trades: Dict[str, deque] = defaultdict(
+        self._trades: dict[str, deque] = defaultdict(
             lambda: deque(maxlen=max_trade_history)
         )
 
         # Bar history
-        self._bars: Dict[str, deque] = defaultdict(
+        self._bars: dict[str, deque] = defaultdict(
             lambda: deque(maxlen=max_bar_history)
         )
 
         # Latest prices
-        self._last_prices: Dict[str, float] = {}
-        self._last_trade_times: Dict[str, datetime] = {}
+        self._last_prices: dict[str, float] = {}
+        self._last_trade_times: dict[str, datetime] = {}
 
         # Thread safety
         self._lock = threading.RLock()
@@ -115,10 +115,10 @@ class MarketDataCache:
         quote = Quote(
             symbol=message.symbol,
             timestamp=message.timestamp,
-            bid=data.get('bid_price', 0.0),
-            ask=data.get('ask_price', 0.0),
-            bid_size=data.get('bid_size', 0),
-            ask_size=data.get('ask_size', 0)
+            bid=data.get("bid_price", 0.0),
+            ask=data.get("ask_price", 0.0),
+            bid_size=data.get("bid_size", 0),
+            ask_size=data.get("ask_size", 0)
         )
 
         with self._lock:
@@ -132,9 +132,9 @@ class MarketDataCache:
         trade = Trade(
             symbol=message.symbol,
             timestamp=message.timestamp,
-            price=data.get('price', 0.0),
-            size=data.get('size', 0),
-            exchange=data.get('exchange', '')
+            price=data.get("price", 0.0),
+            size=data.get("size", 0),
+            exchange=data.get("exchange", "")
         )
 
         with self._lock:
@@ -150,13 +150,13 @@ class MarketDataCache:
         bar = OHLCV(
             symbol=message.symbol,
             timestamp=message.timestamp,
-            open=data.get('open', 0.0),
-            high=data.get('high', 0.0),
-            low=data.get('low', 0.0),
-            close=data.get('close', 0.0),
-            volume=data.get('volume', 0),
-            vwap=data.get('vwap'),
-            trade_count=data.get('trade_count', 0)
+            open=data.get("open", 0.0),
+            high=data.get("high", 0.0),
+            low=data.get("low", 0.0),
+            close=data.get("close", 0.0),
+            volume=data.get("volume", 0),
+            vwap=data.get("vwap"),
+            trade_count=data.get("trade_count", 0)
         )
 
         with self._lock:
@@ -173,7 +173,7 @@ class MarketDataCache:
             self._last_trade_times[bar.symbol] = bar.timestamp
             self._bar_updates += 1
 
-    def get_quote(self, symbol: str) -> Optional[Quote]:
+    def get_quote(self, symbol: str) -> Quote | None:
         """
         Get latest quote for symbol.
 
@@ -194,26 +194,26 @@ class MarketDataCache:
 
             return quote
 
-    def get_last_price(self, symbol: str) -> Optional[float]:
+    def get_last_price(self, symbol: str) -> float | None:
         """Get last trade price for symbol."""
         with self._lock:
             return self._last_prices.get(symbol)
 
-    def get_mid_price(self, symbol: str) -> Optional[float]:
+    def get_mid_price(self, symbol: str) -> float | None:
         """Get mid price (average of bid/ask)."""
         quote = self.get_quote(symbol)
         if quote:
             return quote.mid
         return None
 
-    def get_spread(self, symbol: str) -> Optional[float]:
+    def get_spread(self, symbol: str) -> float | None:
         """Get bid-ask spread."""
         quote = self.get_quote(symbol)
         if quote:
             return quote.spread
         return None
 
-    def get_recent_trades(self, symbol: str, n: Optional[int] = None) -> List[Trade]:
+    def get_recent_trades(self, symbol: str, n: int | None = None) -> list[Trade]:
         """
         Get recent trades for symbol.
 
@@ -231,7 +231,7 @@ class MarketDataCache:
                 return trades[-n:]
             return trades
 
-    def get_recent_bars(self, symbol: str, n: Optional[int] = None) -> List[OHLCV]:
+    def get_recent_bars(self, symbol: str, n: int | None = None) -> list[OHLCV]:
         """
         Get recent bars for symbol.
 
@@ -249,7 +249,7 @@ class MarketDataCache:
                 return bars[-n:]
             return bars
 
-    def get_vwap(self, symbol: str, lookback_bars: int = 20) -> Optional[float]:
+    def get_vwap(self, symbol: str, lookback_bars: int = 20) -> float | None:
         """
         Calculate VWAP over recent bars.
 
@@ -277,7 +277,7 @@ class MarketDataCache:
         self,
         symbol: str,
         lookback_bars: int = 20
-    ) -> Dict[float, int]:
+    ) -> dict[float, int]:
         """
         Get volume profile (volume at each price level).
 
@@ -305,7 +305,7 @@ class MarketDataCache:
 
         return dict(profile)
 
-    def get_symbols(self) -> List[str]:
+    def get_symbols(self) -> list[str]:
         """Get all symbols in cache."""
         with self._lock:
             symbols = set()
@@ -332,15 +332,15 @@ class MarketDataCache:
             self._last_prices.clear()
             self._last_trade_times.clear()
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         with self._lock:
             return {
-                'symbols': len(self.get_symbols()),
-                'quotes': len(self._quotes),
-                'quote_updates': self._quote_updates,
-                'trade_updates': self._trade_updates,
-                'bar_updates': self._bar_updates,
-                'total_trades': sum(len(t) for t in self._trades.values()),
-                'total_bars': sum(len(b) for b in self._bars.values())
+                "symbols": len(self.get_symbols()),
+                "quotes": len(self._quotes),
+                "quote_updates": self._quote_updates,
+                "trade_updates": self._trade_updates,
+                "bar_updates": self._bar_updates,
+                "total_trades": sum(len(t) for t in self._trades.values()),
+                "total_bars": sum(len(b) for b in self._bars.values())
             }

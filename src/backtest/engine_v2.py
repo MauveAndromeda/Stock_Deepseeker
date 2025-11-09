@@ -9,24 +9,25 @@ Strictly enforces no lookahead bias through:
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Any, Callable
-import pandas as pd
-import numpy as np
+from typing import Any
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.backtest.events import (
     Event,
     EventType,
-    MarketEvent,
-    SignalEvent,
-    OrderEvent,
     FillEvent,
+    MarketEvent,
+    OrderEvent,
+    SignalEvent,
 )
-from src.backtest.portfolio_v2 import PortfolioV2
 from src.backtest.execution import ExecutionHandler
+from src.backtest.portfolio_v2 import PortfolioV2
 from src.data.providers.base import PriceData
 
 
@@ -94,9 +95,9 @@ class Strategy(ABC):
     def generate_signals(
         self,
         date: datetime,
-        data: Dict[str, pd.DataFrame],
-        portfolio: 'PortfolioV2'
-    ) -> List[SignalEvent]:
+        data: dict[str, pd.DataFrame],
+        portfolio: "PortfolioV2"
+    ) -> list[SignalEvent]:
         """
         Generate trading signals.
 
@@ -112,9 +113,8 @@ class Strategy(ABC):
         Returns:
             List of signal events
         """
-        pass
 
-    def on_market_open(self, date: datetime, portfolio: 'PortfolioV2') -> None:
+    def on_market_open(self, date: datetime, portfolio: "PortfolioV2") -> None:
         """
         Called at market open.
 
@@ -122,9 +122,8 @@ class Strategy(ABC):
             date: Current date
             portfolio: Portfolio state
         """
-        pass
 
-    def on_market_close(self, date: datetime, portfolio: 'PortfolioV2') -> None:
+    def on_market_close(self, date: datetime, portfolio: "PortfolioV2") -> None:
         """
         Called at market close.
 
@@ -132,7 +131,6 @@ class Strategy(ABC):
             date: Current date
             portfolio: Portfolio state
         """
-        pass
 
 
 class BacktestEngineV2:
@@ -155,37 +153,37 @@ class BacktestEngineV2:
             config: Backtest configuration
         """
         self.config = config
-        self.current_date: Optional[datetime] = None
+        self.current_date: datetime | None = None
         self.phase = BacktestPhase.INITIALIZATION
 
         # Event queue (sorted by time)
-        self.events: List[Event] = []
+        self.events: list[Event] = []
 
         # Data storage
-        self.price_data: Dict[str, pd.DataFrame] = {}
-        self.trading_calendar: List[datetime] = []
+        self.price_data: dict[str, pd.DataFrame] = {}
+        self.trading_calendar: list[datetime] = []
 
         # Components
-        self.portfolio: Optional[PortfolioV2] = None
-        self.execution: Optional[ExecutionHandler] = None
-        self.strategy: Optional[Strategy] = None
+        self.portfolio: PortfolioV2 | None = None
+        self.execution: ExecutionHandler | None = None
+        self.strategy: Strategy | None = None
 
         # Signals awaiting execution
-        self.pending_signals: List[SignalEvent] = []
+        self.pending_signals: list[SignalEvent] = []
 
         # Statistics
         self.stats = {
-            'total_events': 0,
-            'market_events': 0,
-            'signal_events': 0,
-            'order_events': 0,
-            'fill_events': 0,
-            'rejected_orders': 0,
+            "total_events": 0,
+            "market_events": 0,
+            "signal_events": 0,
+            "order_events": 0,
+            "fill_events": 0,
+            "rejected_orders": 0,
         }
 
         logger.info(f"Initialized BacktestEngineV2: {config.start_date.date()} to {config.end_date.date()}")
 
-    def load_data(self, price_data: Dict[str, PriceData]) -> None:
+    def load_data(self, price_data: dict[str, PriceData]) -> None:
         """
         Load price data for backtest.
 
@@ -222,7 +220,7 @@ class BacktestEngineV2:
             df.columns = df.columns.str.lower()
 
             # Validate required columns
-            required = ['open', 'high', 'low', 'close', 'volume']
+            required = ["open", "high", "low", "close", "volume"]
             missing = set(required) - set(df.columns)
             if missing:
                 raise ValueError(f"Missing columns for {symbol}: {missing}")
@@ -251,7 +249,7 @@ class BacktestEngineV2:
         self.strategy = strategy
         logger.info(f"Set strategy: {strategy.name}")
 
-    def _get_available_data(self, date: datetime) -> Dict[str, pd.DataFrame]:
+    def _get_available_data(self, date: datetime) -> dict[str, pd.DataFrame]:
         """
         Get data available up to (and including) a specific date.
 
@@ -283,8 +281,8 @@ class BacktestEngineV2:
             MarketEvent
         """
         return MarketEvent(timestamp=date, data={
-            'date': date,
-            'symbols': list(self.price_data.keys())
+            "date": date,
+            "symbols": list(self.price_data.keys())
         })
 
     def _process_market_event(self, event: MarketEvent) -> None:
@@ -298,7 +296,7 @@ class BacktestEngineV2:
         Args:
             event: Market event
         """
-        self.stats['market_events'] += 1
+        self.stats["market_events"] += 1
         date = event.timestamp
 
         logger.debug(f"Processing market event: {date.date()}")
@@ -326,7 +324,7 @@ class BacktestEngineV2:
         for symbol, df in self.price_data.items():
             if date in df.index:
                 # Use close price for valuation
-                current_prices[symbol] = df.loc[date, 'close']
+                current_prices[symbol] = df.loc[date, "close"]
 
         if self.portfolio:
             self.portfolio.update_prices(date, current_prices)
@@ -340,7 +338,7 @@ class BacktestEngineV2:
             if signals:
                 logger.debug(f"Generated {len(signals)} signals for next day")
                 self.pending_signals.extend(signals)
-                self.stats['signal_events'] += len(signals)
+                self.stats["signal_events"] += len(signals)
 
         # Call strategy market close hook
         if self.strategy:
@@ -350,7 +348,7 @@ class BacktestEngineV2:
         self,
         signal: SignalEvent,
         execution_date: datetime
-    ) -> Optional[OrderEvent]:
+    ) -> OrderEvent | None:
         """
         Convert signal to order with risk checks.
 
@@ -374,9 +372,9 @@ class BacktestEngineV2:
         # Use open price for execution (assuming trade at open)
         # Or close price if trade_on_close=True
         if self.config.trade_on_close:
-            execution_price = df.loc[execution_date, 'close']
+            execution_price = df.loc[execution_date, "close"]
         else:
-            execution_price = df.loc[execution_date, 'open']
+            execution_price = df.loc[execution_date, "open"]
 
         # Calculate order quantity
         quantity = self._calculate_order_quantity(signal, execution_price)
@@ -389,13 +387,13 @@ class BacktestEngineV2:
         order = OrderEvent(
             timestamp=execution_date,
             symbol=signal.symbol,
-            order_type='MARKET',
+            order_type="MARKET",
             quantity=quantity,
-            direction='BUY' if quantity > 0 else 'SELL',
+            direction="BUY" if quantity > 0 else "SELL",
             price=execution_price,
         )
 
-        self.stats['order_events'] += 1
+        self.stats["order_events"] += 1
         return order
 
     def _calculate_order_quantity(
@@ -420,13 +418,13 @@ class BacktestEngineV2:
         current_position = self.portfolio.get_position(signal.symbol)
 
         # Calculate target position
-        if signal.signal_type == 'LONG':
+        if signal.signal_type == "LONG":
             target_value = self.portfolio.total_value * signal.strength
-        elif signal.signal_type == 'SHORT':
+        elif signal.signal_type == "SHORT":
             if not self.config.enable_short_selling:
                 return 0
             target_value = -self.portfolio.total_value * signal.strength
-        elif signal.signal_type == 'EXIT':
+        elif signal.signal_type == "EXIT":
             target_value = 0
         else:
             return 0
@@ -448,7 +446,7 @@ class BacktestEngineV2:
 
         return quantity
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> dict[str, Any]:
         """
         Run the backtest.
 
@@ -501,7 +499,7 @@ class BacktestEngineV2:
             # Just update data, don't trade
             available_data = self._get_available_data(date)
             # Strategy can use this to build factor history
-            if self.strategy and hasattr(self.strategy, 'on_warmup'):
+            if self.strategy and hasattr(self.strategy, "on_warmup"):
                 self.strategy.on_warmup(date, available_data)
 
     def _run_trading(self) -> None:
@@ -525,7 +523,7 @@ class BacktestEngineV2:
             # Process all events for this date
             while self.events:
                 event = self.events.pop(0)
-                self.stats['total_events'] += 1
+                self.stats["total_events"] += 1
 
                 if event.event_type == EventType.MARKET:
                     self._process_market_event(event)
@@ -566,7 +564,7 @@ class BacktestEngineV2:
         if fill_event:
             self.events.append(fill_event)
         else:
-            self.stats['rejected_orders'] += 1
+            self.stats["rejected_orders"] += 1
 
     def _process_fill_event(self, event: FillEvent) -> None:
         """
@@ -579,9 +577,9 @@ class BacktestEngineV2:
             return
 
         self.portfolio.update_fill(event)
-        self.stats['fill_events'] += 1
+        self.stats["fill_events"] += 1
 
-    def _collect_results(self) -> Dict[str, Any]:
+    def _collect_results(self) -> dict[str, Any]:
         """
         Collect backtest results.
 
@@ -592,19 +590,19 @@ class BacktestEngineV2:
             return {}
 
         results = {
-            'config': self.config,
-            'statistics': self.stats,
-            'portfolio': {
-                'final_value': self.portfolio.total_value,
-                'total_return': (
+            "config": self.config,
+            "statistics": self.stats,
+            "portfolio": {
+                "final_value": self.portfolio.total_value,
+                "total_return": (
                     (self.portfolio.total_value - self.config.initial_capital)
                     / self.config.initial_capital
                 ),
-                'positions': self.portfolio.get_all_positions(),
-                'trades': self.portfolio.get_trade_history(),
+                "positions": self.portfolio.get_all_positions(),
+                "trades": self.portfolio.get_trade_history(),
             },
-            'equity_curve': self.portfolio.get_equity_curve(),
-            'strategy': self.strategy.name if self.strategy else None,
+            "equity_curve": self.portfolio.get_equity_curve(),
+            "strategy": self.strategy.name if self.strategy else None,
         }
 
         return results

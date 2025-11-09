@@ -7,9 +7,9 @@ Handles dynamic universe construction without survivorship bias.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
-import pandas as pd
+
 from loguru import logger
+import pandas as pd
 
 
 class DelistingReason(Enum):
@@ -44,12 +44,12 @@ class UniverseConstituent:
     symbol: str
     name: str
     list_date: datetime
-    delist_date: Optional[datetime] = None
-    delist_reason: Optional[DelistingReason] = None
-    sector: Optional[str] = None
-    industry: Optional[str] = None
-    market_cap: Optional[float] = None
-    metadata: Dict[str, any] = field(default_factory=dict)
+    delist_date: datetime | None = None
+    delist_reason: DelistingReason | None = None
+    sector: str | None = None
+    industry: str | None = None
+    market_cap: float | None = None
+    metadata: dict[str, any] = field(default_factory=dict)
 
     def is_active(self, date: datetime) -> bool:
         """
@@ -69,7 +69,7 @@ class UniverseConstituent:
 
         return True
 
-    def get_final_return(self) -> Optional[float]:
+    def get_final_return(self) -> float | None:
         """
         Get final return for delisted stock.
 
@@ -83,7 +83,7 @@ class UniverseConstituent:
             return -1.0  # Total loss
 
         # For other reasons, return from metadata if available
-        return self.metadata.get('final_return', 0.0)
+        return self.metadata.get("final_return", 0.0)
 
 
 @dataclass
@@ -97,8 +97,8 @@ class PointInTimeUniverse:
         metadata: Additional metadata about the universe
     """
     date: datetime
-    constituents: Set[str]
-    metadata: Dict[str, any] = field(default_factory=dict)
+    constituents: set[str]
+    metadata: dict[str, any] = field(default_factory=dict)
 
     def __len__(self) -> int:
         """Return number of constituents."""
@@ -108,7 +108,7 @@ class PointInTimeUniverse:
         """Check if symbol is in universe."""
         return symbol in self.constituents
 
-    def to_list(self) -> List[str]:
+    def to_list(self) -> list[str]:
         """Return constituents as sorted list."""
         return sorted(self.constituents)
 
@@ -126,11 +126,11 @@ class UniverseManager:
 
     def __init__(self) -> None:
         """Initialize universe manager."""
-        self.constituents: Dict[str, UniverseConstituent] = {}
-        self.symbol_history: Dict[str, List[str]] = {}  # old_symbol -> [new_symbols]
+        self.constituents: dict[str, UniverseConstituent] = {}
+        self.symbol_history: dict[str, list[str]] = {}  # old_symbol -> [new_symbols]
 
         # Cache for performance
-        self._universe_cache: Dict[datetime, PointInTimeUniverse] = {}
+        self._universe_cache: dict[datetime, PointInTimeUniverse] = {}
 
     def add_constituent(self, constituent: UniverseConstituent) -> None:
         """
@@ -142,7 +142,7 @@ class UniverseManager:
         self.constituents[constituent.symbol] = constituent
         logger.debug(f"Added constituent: {constituent.symbol}")
 
-    def add_constituents(self, constituents: List[UniverseConstituent]) -> None:
+    def add_constituents(self, constituents: list[UniverseConstituent]) -> None:
         """
         Add multiple constituents.
 
@@ -157,7 +157,7 @@ class UniverseManager:
         symbol: str,
         delist_date: datetime,
         reason: DelistingReason,
-        final_return: Optional[float] = None
+        final_return: float | None = None
     ) -> None:
         """
         Mark a stock as delisted.
@@ -177,7 +177,7 @@ class UniverseManager:
         constituent.delist_reason = reason
 
         if final_return is not None:
-            constituent.metadata['final_return'] = final_return
+            constituent.metadata["final_return"] = final_return
 
         logger.info(
             f"Delisted {symbol} on {delist_date.date()}: {reason.value}"
@@ -204,8 +204,8 @@ class UniverseManager:
     def get_universe_at(
         self,
         date: datetime,
-        min_market_cap: Optional[float] = None,
-        sectors: Optional[List[str]] = None,
+        min_market_cap: float | None = None,
+        sectors: list[str] | None = None,
         use_cache: bool = True
     ) -> PointInTimeUniverse:
         """
@@ -252,8 +252,8 @@ class UniverseManager:
             date=date,
             constituents=active_symbols,
             metadata={
-                'min_market_cap': min_market_cap,
-                'sectors': sectors,
+                "min_market_cap": min_market_cap,
+                "sectors": sectors,
             }
         )
 
@@ -271,7 +271,7 @@ class UniverseManager:
         self,
         start_date: datetime,
         end_date: datetime
-    ) -> Dict[str, Dict[str, List[str]]]:
+    ) -> dict[str, dict[str, list[str]]]:
         """
         Get universe changes over a date range.
 
@@ -282,7 +282,7 @@ class UniverseManager:
         Returns:
             Dict with 'additions' and 'removals' lists per date
         """
-        changes: Dict[str, Dict[str, List[str]]] = {}
+        changes: dict[str, dict[str, list[str]]] = {}
 
         # Track universe at start
         prev_universe = self.get_universe_at(start_date)
@@ -298,8 +298,8 @@ class UniverseManager:
 
             if additions or removals:
                 changes[current_date.isoformat()] = {
-                    'additions': sorted(additions),
-                    'removals': sorted(removals),
+                    "additions": sorted(additions),
+                    "removals": sorted(removals),
                 }
 
             prev_universe = curr_universe
@@ -309,10 +309,10 @@ class UniverseManager:
 
     def get_delisted_stocks(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        reason: Optional[DelistingReason] = None
-    ) -> List[UniverseConstituent]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        reason: DelistingReason | None = None
+    ) -> list[UniverseConstituent]:
         """
         Get delisted stocks in a date range.
 
@@ -349,7 +349,7 @@ class UniverseManager:
         self,
         start_date: datetime,
         end_date: datetime
-    ) -> Dict[str, any]:
+    ) -> dict[str, any]:
         """
         Calculate survivorship statistics.
 
@@ -382,12 +382,12 @@ class UniverseManager:
                     delist_reasons[reason_str] = delist_reasons.get(reason_str, 0) + 1
 
         return {
-            'start_count': len(start_symbols),
-            'end_count': len(survived),
-            'delisted_count': len(delisted),
-            'survival_rate': survival_rate,
-            'delisting_reasons': delist_reasons,
-            'delisted_symbols': sorted(delisted),
+            "start_count": len(start_symbols),
+            "end_count": len(survived),
+            "delisted_count": len(delisted),
+            "survival_rate": survival_rate,
+            "delisting_reasons": delist_reasons,
+            "delisted_symbols": sorted(delisted),
         }
 
     def export_to_dataframe(self) -> pd.DataFrame:
@@ -401,14 +401,14 @@ class UniverseManager:
 
         for constituent in self.constituents.values():
             data.append({
-                'symbol': constituent.symbol,
-                'name': constituent.name,
-                'list_date': constituent.list_date,
-                'delist_date': constituent.delist_date,
-                'delist_reason': constituent.delist_reason.value if constituent.delist_reason else None,
-                'sector': constituent.sector,
-                'industry': constituent.industry,
-                'market_cap': constituent.market_cap,
+                "symbol": constituent.symbol,
+                "name": constituent.name,
+                "list_date": constituent.list_date,
+                "delist_date": constituent.delist_date,
+                "delist_reason": constituent.delist_reason.value if constituent.delist_reason else None,
+                "sector": constituent.sector,
+                "industry": constituent.industry,
+                "market_cap": constituent.market_cap,
             })
 
         return pd.DataFrame(data)
@@ -428,14 +428,14 @@ class UniverseManager:
         for _, row in df.iterrows():
             try:
                 constituent = UniverseConstituent(
-                    symbol=row['symbol'],
-                    name=row['name'],
-                    list_date=pd.to_datetime(row['list_date']).to_pydatetime(),
-                    delist_date=pd.to_datetime(row['delist_date']).to_pydatetime() if pd.notna(row.get('delist_date')) else None,
-                    delist_reason=DelistingReason(row['delist_reason']) if pd.notna(row.get('delist_reason')) else None,
-                    sector=row.get('sector'),
-                    industry=row.get('industry'),
-                    market_cap=row.get('market_cap'),
+                    symbol=row["symbol"],
+                    name=row["name"],
+                    list_date=pd.to_datetime(row["list_date"]).to_pydatetime(),
+                    delist_date=pd.to_datetime(row["delist_date"]).to_pydatetime() if pd.notna(row.get("delist_date")) else None,
+                    delist_reason=DelistingReason(row["delist_reason"]) if pd.notna(row.get("delist_reason")) else None,
+                    sector=row.get("sector"),
+                    industry=row.get("industry"),
+                    market_cap=row.get("market_cap"),
                 )
                 self.add_constituent(constituent)
                 count += 1
@@ -453,20 +453,20 @@ if __name__ == "__main__":
 
     # Add some constituents
     manager.add_constituent(UniverseConstituent(
-        symbol='AAPL',
-        name='Apple Inc.',
+        symbol="AAPL",
+        name="Apple Inc.",
         list_date=datetime(1980, 12, 12),
-        sector='Technology',
+        sector="Technology",
         market_cap=3000000000000,
     ))
 
     manager.add_constituent(UniverseConstituent(
-        symbol='LEHMAN',  # Example: Lehman Brothers
-        name='Lehman Brothers',
+        symbol="LEHMAN",  # Example: Lehman Brothers
+        name="Lehman Brothers",
         list_date=datetime(1994, 5, 26),
         delist_date=datetime(2008, 9, 15),
         delist_reason=DelistingReason.BANKRUPTCY,
-        sector='Financials',
+        sector="Financials",
         market_cap=60000000000,
     ))
 

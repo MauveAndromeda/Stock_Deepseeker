@@ -10,16 +10,17 @@ Features:
 """
 
 from __future__ import annotations
-from datetime import datetime
-from typing import Optional, Dict, TYPE_CHECKING, Any
-import pandas as pd
-from loguru import logger
 
-from src.backtest.events import OrderEvent, FillEvent
+from typing import TYPE_CHECKING, Any
+
+from loguru import logger
+import pandas as pd
+
+from src.backtest.events import FillEvent, OrderEvent
 from src.backtest.portfolio_v2 import PortfolioV2
 
 if TYPE_CHECKING:
-    from src.backtest.engine_v2 import BacktestConfig
+    pass
 
 
 class ExecutionHandler:
@@ -36,7 +37,7 @@ class ExecutionHandler:
     def __init__(
         self,
         portfolio: PortfolioV2,
-        price_data: Dict[str, pd.DataFrame],
+        price_data: dict[str, pd.DataFrame],
         config: Any  # BacktestConfig - use Any to avoid circular import at runtime
     ) -> None:
         """
@@ -56,7 +57,7 @@ class ExecutionHandler:
         self.filled_orders = 0
         self.rejected_orders = 0
 
-    def execute_order(self, order: OrderEvent) -> Optional[FillEvent]:
+    def execute_order(self, order: OrderEvent) -> FillEvent | None:
         """
         Execute an order.
 
@@ -85,7 +86,7 @@ class ExecutionHandler:
         slippage = self._calculate_slippage(order, execution_price)
 
         # Check if we have enough cash (for buys)
-        if order.direction == 'BUY':
+        if order.direction == "BUY":
             total_cost = order.quantity * execution_price + commission + slippage
             if total_cost > self.portfolio.cash:
                 logger.warning(
@@ -105,8 +106,8 @@ class ExecutionHandler:
             slippage=slippage,
             direction=order.direction,
             metadata={
-                'order_type': order.order_type,
-                'original_price': order.price,
+                "order_type": order.order_type,
+                "original_price": order.price,
             }
         )
 
@@ -147,7 +148,7 @@ class ExecutionHandler:
             return False
 
         # Check for short selling restrictions
-        if order.direction == 'SELL':
+        if order.direction == "SELL":
             position = self.portfolio.get_position(order.symbol)
             if position is None or position.quantity < order.quantity:
                 if not self.config.enable_short_selling:
@@ -158,7 +159,7 @@ class ExecutionHandler:
 
         return True
 
-    def _get_execution_price(self, order: OrderEvent) -> Optional[float]:
+    def _get_execution_price(self, order: OrderEvent) -> float | None:
         """
         Get execution price for order.
 
@@ -175,42 +176,39 @@ class ExecutionHandler:
 
         row = df.loc[order.timestamp]
 
-        if order.order_type == 'MARKET':
+        if order.order_type == "MARKET":
             # Use close price if trade_on_close, otherwise open
             if self.config.trade_on_close:
-                return row['close']
-            else:
-                return row['open']
+                return row["close"]
+            return row["open"]
 
-        elif order.order_type == 'LIMIT':
+        if order.order_type == "LIMIT":
             # For limit orders, check if limit price would have been filled
             if order.price is None:
                 return None
 
-            if order.direction == 'BUY':
+            if order.direction == "BUY":
                 # Buy limit: execute if low <= limit price
-                if row['low'] <= order.price:
-                    return min(order.price, row['open'])
-            else:
-                # Sell limit: execute if high >= limit price
-                if row['high'] >= order.price:
-                    return max(order.price, row['open'])
+                if row["low"] <= order.price:
+                    return min(order.price, row["open"])
+            # Sell limit: execute if high >= limit price
+            elif row["high"] >= order.price:
+                return max(order.price, row["open"])
 
             return None  # Limit not hit
 
-        elif order.order_type == 'STOP':
+        if order.order_type == "STOP":
             # For stop orders
             if order.price is None:
                 return None
 
-            if order.direction == 'BUY':
+            if order.direction == "BUY":
                 # Buy stop: execute if high >= stop price
-                if row['high'] >= order.price:
-                    return max(order.price, row['open'])
-            else:
-                # Sell stop: execute if low <= stop price
-                if row['low'] <= order.price:
-                    return min(order.price, row['open'])
+                if row["high"] >= order.price:
+                    return max(order.price, row["open"])
+            # Sell stop: execute if low <= stop price
+            elif row["low"] <= order.price:
+                return min(order.price, row["open"])
 
             return None  # Stop not hit
 
@@ -253,7 +251,7 @@ class ExecutionHandler:
 
         return slippage
 
-    def get_statistics(self) -> Dict:
+    def get_statistics(self) -> dict:
         """
         Get execution statistics.
 
@@ -261,10 +259,10 @@ class ExecutionHandler:
             Dict with statistics
         """
         return {
-            'total_orders': self.total_orders,
-            'filled_orders': self.filled_orders,
-            'rejected_orders': self.rejected_orders,
-            'fill_rate': (
+            "total_orders": self.total_orders,
+            "filled_orders": self.filled_orders,
+            "rejected_orders": self.rejected_orders,
+            "fill_rate": (
                 self.filled_orders / self.total_orders
                 if self.total_orders > 0 else 0
             ),

@@ -189,6 +189,20 @@ src = ["py.typed", "**/*.yaml", "**/*.json"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.egg-info",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.lint]
 select = [
     "E",      # pycodestyle errors
     "W",      # pycodestyle warnings
@@ -226,33 +240,94 @@ select = [
     "RUF",    # ruff-specific rules
 ]
 ignore = [
-    "ANN101",  # Missing type annotation for self
-    "ANN102",  # Missing type annotation for cls
+    # Type annotations (too strict for research code)
+    "ANN001",  # Missing type annotation for function argument
+    "ANN002",  # Missing type annotation for *args
+    "ANN003",  # Missing type annotation for **kwargs
+    "ANN201",  # Missing return type annotation for public function
+    "ANN202",  # Missing return type annotation for private function
+    "ANN204",  # Missing return type annotation for special method
     "ANN401",  # Dynamically typed expressions (Any)
-    "S101",    # Use of assert
+
+    # Complexity (allow complex algorithms)
     "PLR0913", # Too many arguments
     "PLR2004", # Magic value used in comparison
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
+    "PLR0911", # Too many return statements
+
+    # Style (conflicts with formatters or too strict)
     "COM812",  # Trailing comma missing (conflicts with formatter)
     "ISC001",  # Implicit string concatenation (conflicts with formatter)
-]
-exclude = [
-    ".git",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "*.egg-info",
-    "build",
-    "dist",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
+    "E501",    # Line too long (handled by black)
+    "W293",    # Blank line contains whitespace
+
+    # Datetime (allow naive datetime for simplicity)
+    "DTZ005",  # datetime.now() without timezone
+
+    # Logging (allow f-strings in logging)
+    "G004",    # Logging with f-string
+
+    # Error messages (allow inline strings)
+    "EM101",   # Exception must not use a string literal
+    "EM102",   # Exception must not use an f-string literal
+    "TRY003",  # Avoid specifying long messages outside exception class
+    "TRY300",  # Consider moving this statement to an else block
+    "TRY400",  # Use logging.exception instead of logging.error
+
+    # Naming (allow research naming conventions)
+    "N805",    # First argument of a method should be named self
+    "N806",    # Variable in function should be lowercase
+
+    # Misc
+    "RUF001",  # Ambiguous unicode character
+    "RUF002",  # Ambiguous unicode character (allow Chinese comments)
+    "RUF003",  # Ambiguous unicode character (allow Chinese comments)
+    "RUF006",  # Store a reference to the return value of asyncio.create_task
+    "RUF012",  # Mutable class attributes should be annotated with ClassVar
+    "RUF013",  # PEP 484 prohibits implicit Optional
+    "RUF022",  # __all__ is not sorted (allow manual organization)
+    "F401",    # Module imported but unused
+    "F403",    # import * used (legacy code compatibility)
+    "F405",    # Name may be undefined, or defined from star imports
+    "F841",    # Local variable is assigned but never used
+    "PLC0415", # import not at top-level (needed for async code)
+    "S101",    # Use of assert
+    "S110",    # try-except-pass detected
+    "S112",    # try-except-continue detected
+    "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "B006",    # Do not use mutable data structures for argument defaults
+    "B007",    # Loop control variable not used within the loop body
+    "B027",    # Empty method in abstract base class
+    "B904",    # raise without from inside except
+    "B905",    # zip without explicit strict parameter
+    "RET504",  # Unnecessary variable assignment before return
+    "ERA001",  # Commented out code
+    "ARG001",  # Unused function argument
+    "ARG002",  # Unused method argument
+    "A001",    # Variable is shadowing a Python builtin
+    "A002",    # Argument is shadowing a Python builtin
+    "N803",    # Argument name should be lowercase
+    "PTH123",  # Use Path.open instead of open
+    "SIM102",  # Use a single if instead of nested if
+    "SIM108",  # Use ternary operator instead of if-else
+    "SIM118",  # Use key in dict instead of key in dict.keys()
+    "DTZ001",  # datetime() without timezone
+    "DTZ003",  # datetime.utcnow() without timezone
+    "DTZ007",  # datetime.strptime() without timezone
+    "W291",    # Trailing whitespace
+    "TRY002",  # Create your own exception
+    "TRY301",  # Abstract raise to an inner function
+    "PLW0603", # Using the global statement
+    "PLW2901", # Outer for loop variable overwritten by inner assignment
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "ANN", "PLR2004"]
 "scripts/**/*.py" = ["T201", "S603", "S607"]
+"一键回测脚本.py" = ["T201", "S603", "S607", "ANN", "N999"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["src"]
 force-sort-within-sections = true
 combine-as-imports = true

@@ -7,10 +7,10 @@ Performance analysis module - backward compatibility.
 
 class PerformanceAnalyzer:
     """Stub class for backward compatibility."""
-    
+
     def __init__(self, *args, **kwargs):
         pass
-    
+
     def analyze(self, *args, **kwargs):
         return {}
 

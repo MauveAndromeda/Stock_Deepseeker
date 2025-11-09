@@ -3,14 +3,14 @@
 用于生产环境的模型预测
 """
 
-import torch
-import torch.nn as nn
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-import pickle
+from typing import Any
+
+import numpy as np
+import torch
+from torch import nn
 
 
 @dataclass
@@ -20,7 +20,7 @@ class PredictionResult:
     confidence: np.ndarray
     timestamp: datetime = field(default_factory=datetime.now)
     model_version: str = "1.0.0"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ModelInference:
@@ -96,13 +96,13 @@ class ModelInference:
             confidence=confidence.flatten() if confidence.ndim > 1 else confidence,
             model_version=self.model_version,
             metadata={
-                'inference_time': inference_time,
-                'batch_size': len(X),
-                'device': str(self.device)
+                "inference_time": inference_time,
+                "batch_size": len(X),
+                "device": str(self.device)
             }
         )
 
-    def predict_single(self, x: np.ndarray) -> Tuple[float, float]:
+    def predict_single(self, x: np.ndarray) -> tuple[float, float]:
         """
         单个样本预测
 
@@ -148,7 +148,7 @@ class ModelInference:
         self,
         X: np.ndarray,
         batch_size: int = 32
-    ) -> List[PredictionResult]:
+    ) -> list[PredictionResult]:
         """
         流式批量预测（用于大规模数据）
 
@@ -168,16 +168,16 @@ class ModelInference:
 
         return results
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """获取推理统计"""
         avg_time = self.total_inference_time / self.inference_count if self.inference_count > 0 else 0
 
         return {
-            'total_inferences': self.inference_count,
-            'total_time': self.total_inference_time,
-            'avg_inference_time': avg_time,
-            'throughput': self.inference_count / self.total_inference_time if self.total_inference_time > 0 else 0,
-            'model_version': self.model_version
+            "total_inferences": self.inference_count,
+            "total_time": self.total_inference_time,
+            "avg_inference_time": avg_time,
+            "throughput": self.inference_count / self.total_inference_time if self.total_inference_time > 0 else 0,
+            "model_version": self.model_version
         }
 
 
@@ -186,8 +186,8 @@ class EnsembleInference:
 
     def __init__(
         self,
-        models: List[nn.Module],
-        weights: Optional[List[float]] = None,
+        models: list[nn.Module],
+        weights: list[float] | None = None,
         device: str = "cpu",
         aggregation: str = "average"
     ):
@@ -268,8 +268,8 @@ class EnsembleInference:
             confidence=confidence.flatten() if confidence.ndim > 1 else confidence,
             model_version="ensemble",
             metadata={
-                'num_models': len(self.models),
-                'aggregation': self.aggregation
+                "num_models": len(self.models),
+                "aggregation": self.aggregation
             }
         )
 
@@ -281,7 +281,7 @@ class ModelLoader:
     def load_pytorch_model(
         model_path: str,
         model_class: type,
-        model_kwargs: Optional[Dict] = None
+        model_kwargs: dict | None = None
     ) -> nn.Module:
         """
         加载PyTorch模型
@@ -300,13 +300,13 @@ class ModelLoader:
         model = model_class(**model_kwargs)
 
         # 加载权重
-        checkpoint = torch.load(model_path, map_location='cpu')
+        checkpoint = torch.load(model_path, map_location="cpu")
 
         if isinstance(checkpoint, dict):
-            if 'model_state_dict' in checkpoint:
-                model.load_state_dict(checkpoint['model_state_dict'])
-            elif 'state_dict' in checkpoint:
-                model.load_state_dict(checkpoint['state_dict'])
+            if "model_state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+            elif "state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["state_dict"])
             else:
                 model.load_state_dict(checkpoint)
         else:
@@ -317,7 +317,7 @@ class ModelLoader:
         return model
 
     @staticmethod
-    def load_checkpoint(checkpoint_path: str) -> Dict:
+    def load_checkpoint(checkpoint_path: str) -> dict:
         """
         加载完整的检查点
 
@@ -327,13 +327,13 @@ class ModelLoader:
         Returns:
             检查点字典
         """
-        return torch.load(checkpoint_path, map_location='cpu')
+        return torch.load(checkpoint_path, map_location="cpu")
 
     @staticmethod
     def save_model(
         model: nn.Module,
         save_path: str,
-        metadata: Optional[Dict] = None
+        metadata: dict | None = None
     ):
         """
         保存模型
@@ -347,12 +347,12 @@ class ModelLoader:
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
         checkpoint = {
-            'model_state_dict': model.state_dict(),
-            'timestamp': datetime.now().isoformat()
+            "model_state_dict": model.state_dict(),
+            "timestamp": datetime.now().isoformat()
         }
 
         if metadata:
-            checkpoint['metadata'] = metadata
+            checkpoint["metadata"] = metadata
 
         torch.save(checkpoint, save_path)
 
@@ -368,14 +368,14 @@ class InferenceCache:
             max_size: 最大缓存大小
         """
         self.max_size = max_size
-        self.cache: Dict[str, PredictionResult] = {}
-        self.access_count: Dict[str, int] = {}
+        self.cache: dict[str, PredictionResult] = {}
+        self.access_count: dict[str, int] = {}
 
     def _get_key(self, X: np.ndarray) -> str:
         """生成缓存键"""
         return str(hash(X.tobytes()))
 
-    def get(self, X: np.ndarray) -> Optional[PredictionResult]:
+    def get(self, X: np.ndarray) -> PredictionResult | None:
         """
         获取缓存的预测
 
@@ -417,12 +417,12 @@ class InferenceCache:
         self.cache.clear()
         self.access_count.clear()
 
-    def get_statistics(self) -> Dict[str, int]:
+    def get_statistics(self) -> dict[str, int]:
         """获取缓存统计"""
         return {
-            'size': len(self.cache),
-            'max_size': self.max_size,
-            'total_accesses': sum(self.access_count.values())
+            "size": len(self.cache),
+            "max_size": self.max_size,
+            "total_accesses": sum(self.access_count.values())
         }
 
 
@@ -486,14 +486,14 @@ class CachedModelInference(ModelInference):
 
         return result
 
-    def get_cache_statistics(self) -> Dict[str, Any]:
+    def get_cache_statistics(self) -> dict[str, Any]:
         """获取缓存统计"""
         total_requests = self.cache_hits + self.cache_misses
         hit_rate = self.cache_hits / total_requests if total_requests > 0 else 0
 
         return {
             **self.cache.get_statistics(),
-            'cache_hits': self.cache_hits,
-            'cache_misses': self.cache_misses,
-            'hit_rate': hit_rate
+            "cache_hits": self.cache_hits,
+            "cache_misses": self.cache_misses,
+            "hit_rate": hit_rate
         }

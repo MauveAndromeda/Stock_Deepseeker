@@ -6,25 +6,20 @@ Research-grade implementation (Under Development)
 Ensures no lookahead bias when using multi-agent decisions
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
-import pandas as pd
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
-from src.backtest.engine_v2 import Strategy, BacktestEngineV2, BacktestConfig
-from src.backtest.events import SignalEvent
-from src.backtest.portfolio_v2 import PortfolioV2
+from loguru import logger
+import pandas as pd
+
 from src.agents.enhanced_base import LLMEnhancedAgent
 from src.agents.langgraph_workflow import ExpertPanelWorkflow
-from src.agents.base import Action
-from src.agents.unified_interface import (
-    MarketContext,
-    AgentDecisionOutput,
-    ActionType,
-    IAgent
-)
-from src.risk import RiskManager, RiskLimit, RiskCheckResult
-from loguru import logger
+from src.agents.unified_interface import MarketContext
+from src.backtest.engine_v2 import Strategy
+from src.backtest.events import SignalEvent
+from src.backtest.portfolio_v2 import PortfolioV2
+from src.risk import RiskLimit, RiskManager
 
 
 @dataclass
@@ -32,12 +27,12 @@ class MultiAgentDecisionRecord:
     """多智能体决策记录"""
     timestamp: datetime
     symbol: str
-    agent_decisions: List[Dict]
-    expert_panel_decision: Optional[Dict]
+    agent_decisions: list[dict]
+    expert_panel_decision: dict | None
     final_action: str
     final_confidence: float
     consensus_method: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class MultiAgentStrategy(Strategy):
@@ -49,12 +44,12 @@ class MultiAgentStrategy(Strategy):
     def __init__(
         self,
         name: str = "MultiAgent",
-        agents: Optional[List[LLMEnhancedAgent]] = None,
+        agents: list[LLMEnhancedAgent] | None = None,
         use_expert_panel: bool = True,
         expert_panel_rounds: int = 2,
         consensus_threshold: float = 0.7,
         min_confidence: float = 0.6,
-        risk_limits: Optional[RiskLimit] = None,
+        risk_limits: RiskLimit | None = None,
         enable_risk_management: bool = True
     ):
         super().__init__(name)
@@ -66,19 +61,19 @@ class MultiAgentStrategy(Strategy):
         self.min_confidence = min_confidence
 
         # 专家面板
-        self.expert_panel: Optional[ExpertPanelWorkflow] = None
+        self.expert_panel: ExpertPanelWorkflow | None = None
         if self.use_expert_panel:
             self.expert_panel = ExpertPanelWorkflow(max_rounds=expert_panel_rounds)
 
         # 风险管理器
         self.enable_risk_management = enable_risk_management
-        self.risk_manager: Optional[RiskManager] = None
+        self.risk_manager: RiskManager | None = None
         if self.enable_risk_management:
             self.risk_manager = RiskManager(risk_limits=risk_limits)
             logger.info("Risk management enabled with limits")
 
         # 决策历史
-        self.decision_history: List[MultiAgentDecisionRecord] = []
+        self.decision_history: list[MultiAgentDecisionRecord] = []
 
         # 统计
         self.total_signals = 0
@@ -88,9 +83,9 @@ class MultiAgentStrategy(Strategy):
     def generate_signals(
         self,
         date: datetime,
-        data: Dict[str, pd.DataFrame],
+        data: dict[str, pd.DataFrame],
         portfolio: PortfolioV2
-    ) -> List[SignalEvent]:
+    ) -> list[SignalEvent]:
         """
         生成交易信号（使用多智能体）
 
@@ -122,9 +117,9 @@ class MultiAgentStrategy(Strategy):
     async def _generate_signals_async(
         self,
         date: datetime,
-        data: Dict[str, pd.DataFrame],
+        data: dict[str, pd.DataFrame],
         portfolio: PortfolioV2
-    ) -> List[SignalEvent]:
+    ) -> list[SignalEvent]:
         """异步生成信号"""
         signals = []
 
@@ -151,9 +146,9 @@ class MultiAgentStrategy(Strategy):
                     expert_result = await self.expert_panel.discuss(
                         symbol=symbol,
                         market_data=market_data_dict,
-                        metadata={'agent_decisions': agent_decisions}
+                        metadata={"agent_decisions": agent_decisions}
                     )
-                    expert_decision = expert_result['final_decision']
+                    expert_decision = expert_result["final_decision"]
 
                 # 3. 综合决策
                 final_action, final_confidence = self._synthesize_decisions(
@@ -162,8 +157,8 @@ class MultiAgentStrategy(Strategy):
                 )
 
                 # 4. 如果置信度足够，生成信号
-                if final_confidence >= self.min_confidence and final_action != 'HOLD':
-                    current_price = df['close'].iloc[-1]
+                if final_confidence >= self.min_confidence and final_action != "HOLD":
+                    current_price = df["close"].iloc[-1]
                     position_obj = portfolio.get_position(symbol)
                     current_position = 0 if position_obj is None else position_obj.quantity
 
@@ -173,9 +168,9 @@ class MultiAgentStrategy(Strategy):
                     position_value = 0.0
                     risk_adjustment = None
 
-                    if final_action == 'BUY' and current_position == 0:
+                    if final_action == "BUY" and current_position == 0:
                         should_signal = True
-                        signal_type = 'LONG'
+                        signal_type = "LONG"
                         # 计算拟议仓位大小（基础仓位 = 10%组合价值，根据置信度调整）
                         base_position_pct = 0.10
                         confidence_adjusted_pct = base_position_pct * final_confidence
@@ -185,21 +180,21 @@ class MultiAgentStrategy(Strategy):
                         if self.enable_risk_management and self.risk_manager:
                             # 获取当前持仓
                             current_positions = {}
-                            for pos_symbol in data.keys():
+                            for pos_symbol in data:
                                 pos_obj = portfolio.get_position(pos_symbol)
                                 if pos_obj and pos_obj.quantity > 0:
-                                    pos_price = data[pos_symbol]['close'].iloc[-1]
+                                    pos_price = data[pos_symbol]["close"].iloc[-1]
                                     current_positions[pos_symbol] = pos_obj.quantity * pos_price
 
                             # 风险验证
                             approved, adjustment = self.risk_manager.validate_trade(
                                 symbol=symbol,
-                                action='BUY',
+                                action="BUY",
                                 proposed_size=position_value,
                                 current_price=current_price,
                                 portfolio_value=portfolio.total_value,
                                 current_positions=current_positions,
-                                price_history=df['close'] if len(df) >= 20 else None
+                                price_history=df["close"] if len(df) >= 20 else None
                             )
 
                             if not approved:
@@ -213,14 +208,14 @@ class MultiAgentStrategy(Strategy):
                                     f"{adjustment.original_size:.2f} -> {adjustment.adjusted_size:.2f}"
                                 )
 
-                    elif final_action == 'SELL' and current_position > 0:
+                    elif final_action == "SELL" and current_position > 0:
                         should_signal = True
-                        signal_type = 'EXIT'
+                        signal_type = "EXIT"
                         position_value = current_position * current_price
 
                     if should_signal and position_value > 0:
                         # 计算股数（如果是买入）
-                        quantity = int(position_value / current_price) if signal_type == 'LONG' else current_position
+                        quantity = int(position_value / current_price) if signal_type == "LONG" else current_position
 
                         signal = SignalEvent(
                             timestamp=date,
@@ -228,18 +223,18 @@ class MultiAgentStrategy(Strategy):
                             signal_type=signal_type,
                             strength=final_confidence,
                             metadata={
-                                'agent_count': len(agent_decisions),
-                                'expert_panel_used': expert_decision is not None,
-                                'consensus_confidence': final_confidence,
-                                'price_at_signal': current_price,
-                                'suggested_quantity': quantity,
-                                'suggested_value': position_value,
-                                'risk_adjusted': risk_adjustment is not None,
-                                'risk_adjustment': {
-                                    'original_size': risk_adjustment.original_size,
-                                    'adjusted_size': risk_adjustment.adjusted_size,
-                                    'reason': risk_adjustment.adjustment_reason,
-                                    'risk_score': risk_adjustment.risk_score
+                                "agent_count": len(agent_decisions),
+                                "expert_panel_used": expert_decision is not None,
+                                "consensus_confidence": final_confidence,
+                                "price_at_signal": current_price,
+                                "suggested_quantity": quantity,
+                                "suggested_value": position_value,
+                                "risk_adjusted": risk_adjustment is not None,
+                                "risk_adjustment": {
+                                    "original_size": risk_adjustment.original_size,
+                                    "adjusted_size": risk_adjustment.adjusted_size,
+                                    "reason": risk_adjustment.adjustment_reason,
+                                    "risk_score": risk_adjustment.risk_score
                                 } if risk_adjustment else None
                             }
                         )
@@ -253,7 +248,7 @@ class MultiAgentStrategy(Strategy):
 
                 # 记录决策
                 current_pos_for_record = 0
-                if 'current_position' in locals():
+                if "current_position" in locals():
                     current_pos_for_record = current_position
                 else:
                     position_obj = portfolio.get_position(symbol)
@@ -267,10 +262,10 @@ class MultiAgentStrategy(Strategy):
                         expert_panel_decision=expert_decision,
                         final_action=final_action,
                         final_confidence=final_confidence,
-                        consensus_method='expert_panel' if expert_decision else 'agent_voting',
+                        consensus_method="expert_panel" if expert_decision else "agent_voting",
                         metadata={
-                            'signal_generated': len(signals) > 0,
-                            'current_position': current_pos_for_record
+                            "signal_generated": len(signals) > 0,
+                            "current_position": current_pos_for_record
                         }
                     )
                 )
@@ -285,7 +280,7 @@ class MultiAgentStrategy(Strategy):
         self,
         symbol: str,
         market_data: MarketContext
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         收集所有智能体的决策
         Uses unified interface (MarketContext -> AgentDecisionOutput)
@@ -299,14 +294,14 @@ class MultiAgentStrategy(Strategy):
 
                 # Convert AgentDecisionOutput to dict for compatibility
                 decisions.append({
-                    'agent_id': decision.agent_id,
-                    'agent_type': decision.agent_type,
-                    'action': decision.action.value,
-                    'confidence': decision.confidence,
-                    'reasoning': decision.reasoning,
-                    'metadata': decision.metadata,
-                    'risk_level': decision.risk_level.value,
-                    'key_factors': decision.key_factors
+                    "agent_id": decision.agent_id,
+                    "agent_type": decision.agent_type,
+                    "action": decision.action.value,
+                    "confidence": decision.confidence,
+                    "reasoning": decision.reasoning,
+                    "metadata": decision.metadata,
+                    "risk_level": decision.risk_level.value,
+                    "key_factors": decision.key_factors
                 })
             except Exception as e:
                 logger.warning(f"Agent {agent.agent_id} failed: {e}")
@@ -316,8 +311,8 @@ class MultiAgentStrategy(Strategy):
 
     def _synthesize_decisions(
         self,
-        agent_decisions: List[Dict],
-        expert_decision: Optional[Dict]
+        agent_decisions: list[dict],
+        expert_decision: dict | None
     ) -> tuple[str, float]:
         """
         综合决策
@@ -326,37 +321,37 @@ class MultiAgentStrategy(Strategy):
         否则基于智能体投票
         """
         if expert_decision:
-            return expert_decision['action'], expert_decision['confidence']
+            return expert_decision["action"], expert_decision["confidence"]
 
         if not agent_decisions:
-            return 'HOLD', 0.5
+            return "HOLD", 0.5
 
         # 投票
         action_votes = {}
         total_confidence = 0
 
         for decision in agent_decisions:
-            action = decision['action']
-            confidence = decision['confidence']
+            action = decision["action"]
+            confidence = decision["confidence"]
 
             if action not in action_votes:
-                action_votes[action] = {'count': 0, 'confidence_sum': 0}
+                action_votes[action] = {"count": 0, "confidence_sum": 0}
 
-            action_votes[action]['count'] += 1
-            action_votes[action]['confidence_sum'] += confidence
+            action_votes[action]["count"] += 1
+            action_votes[action]["confidence_sum"] += confidence
             total_confidence += confidence
 
         # 选择得票最多的动作
         best_action = max(
             action_votes.items(),
-            key=lambda x: (x[1]['count'], x[1]['confidence_sum'])
+            key=lambda x: (x[1]["count"], x[1]["confidence_sum"])
         )[0]
 
         # 计算平均置信度
-        avg_confidence = action_votes[best_action]['confidence_sum'] / action_votes[best_action]['count']
+        avg_confidence = action_votes[best_action]["confidence_sum"] / action_votes[best_action]["count"]
 
         # 如果共识不够强，降低置信度
-        agreement_ratio = action_votes[best_action]['count'] / len(agent_decisions)
+        agreement_ratio = action_votes[best_action]["count"] / len(agent_decisions)
         if agreement_ratio < self.consensus_threshold:
             avg_confidence *= agreement_ratio
 
@@ -377,64 +372,64 @@ class MultiAgentStrategy(Strategy):
         prev = df.iloc[-2] if len(df) > 1 else latest
 
         # 计算技术指标
-        close_prices = df['close'].values
+        close_prices = df["close"].values
         sma_20 = float(close_prices[-20:].mean() if len(close_prices) >= 20 else close_prices.mean())
         sma_50 = float(close_prices[-50:].mean() if len(close_prices) >= 50 else close_prices.mean())
 
         # 计算变化
-        price_change = (latest['close'] - prev['close']) / prev['close'] if prev['close'] > 0 else 0
-        volume_change = (latest['volume'] - prev['volume']) / prev['volume'] if prev['volume'] > 0 else 0
+        price_change = (latest["close"] - prev["close"]) / prev["close"] if prev["close"] > 0 else 0
+        volume_change = (latest["volume"] - prev["volume"]) / prev["volume"] if prev["volume"] > 0 else 0
 
         # Create standardized MarketContext
         return MarketContext(
             symbol=symbol,
             timestamp=date,
-            current_price=float(latest['close']),
+            current_price=float(latest["close"]),
             price_change_pct=float(price_change),
-            volume=int(latest['volume']),
+            volume=int(latest["volume"]),
             technical_indicators={
-                'SMA_20': sma_20,
-                'SMA_50': sma_50,
-                'above_sma_20': 1.0 if float(latest['close']) > sma_20 else 0.0,
-                'above_sma_50': 1.0 if float(latest['close']) > sma_50 else 0.0,
-                'trend_score': 1.0 if sma_20 > sma_50 else -1.0,  # 1.0 = bullish, -1.0 = bearish
-                'volume_change_pct': float(volume_change)
+                "SMA_20": sma_20,
+                "SMA_50": sma_50,
+                "above_sma_20": 1.0 if float(latest["close"]) > sma_20 else 0.0,
+                "above_sma_50": 1.0 if float(latest["close"]) > sma_50 else 0.0,
+                "trend_score": 1.0 if sma_20 > sma_50 else -1.0,  # 1.0 = bullish, -1.0 = bearish
+                "volume_change_pct": float(volume_change)
             },
             fundamentals={},
             sentiment=None,
             metadata={
-                'trend': 'bullish' if sma_20 > sma_50 else 'bearish',  # Move string to metadata
-                'ohlc': {
-                    'open': float(latest['open']),
-                    'high': float(latest['high']),
-                    'low': float(latest['low']),
-                    'close': float(latest['close'])
+                "trend": "bullish" if sma_20 > sma_50 else "bearish",  # Move string to metadata
+                "ohlc": {
+                    "open": float(latest["open"]),
+                    "high": float(latest["high"]),
+                    "low": float(latest["low"]),
+                    "close": float(latest["close"])
                 }
             }
         )
 
-    def _market_context_to_dict(self, context: MarketContext) -> Dict[str, Any]:
+    def _market_context_to_dict(self, context: MarketContext) -> dict[str, Any]:
         """Convert MarketContext to dict for legacy compatibility"""
         return {
-            'symbol': context.symbol,
-            'date': context.timestamp,
-            'price': context.current_price,
-            'change_pct': context.price_change_pct,
-            'volume': context.volume,
-            'indicators': context.technical_indicators,
-            'fundamentals': context.fundamentals,
-            'sentiment': context.sentiment,
+            "symbol": context.symbol,
+            "date": context.timestamp,
+            "price": context.current_price,
+            "change_pct": context.price_change_pct,
+            "volume": context.volume,
+            "indicators": context.technical_indicators,
+            "fundamentals": context.fundamentals,
+            "sentiment": context.sentiment,
             **context.metadata
         }
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """获取策略表现总结"""
         if self.total_signals == 0:
             return {
-                'total_signals': 0,
-                'success_rate': 0,
-                'avg_confidence': 0,
-                'decision_count': len(self.decision_history)
+                "total_signals": 0,
+                "success_rate": 0,
+                "avg_confidence": 0,
+                "decision_count": len(self.decision_history)
             }
 
         # 计算平均置信度
@@ -443,13 +438,13 @@ class MultiAgentStrategy(Strategy):
         ) / len(self.decision_history) if self.decision_history else 0
 
         return {
-            'total_signals': self.total_signals,
-            'successful_signals': self.successful_signals,
-            'failed_signals': self.failed_signals,
-            'success_rate': self.successful_signals / self.total_signals if self.total_signals > 0 else 0,
-            'avg_confidence': avg_confidence,
-            'decision_count': len(self.decision_history),
-            'agent_count': len(self.agents)
+            "total_signals": self.total_signals,
+            "successful_signals": self.successful_signals,
+            "failed_signals": self.failed_signals,
+            "success_rate": self.successful_signals / self.total_signals if self.total_signals > 0 else 0,
+            "avg_confidence": avg_confidence,
+            "decision_count": len(self.decision_history),
+            "agent_count": len(self.agents)
         }
 
 
@@ -471,9 +466,9 @@ async def create_default_multi_agent_strategy(
     """
     from src.agents.enhanced_base import (
         MomentumChaserAgent,
-        ValueSeekerAgent,
+        QuantitativeAgent,
         TechnicalTraderAgent,
-        QuantitativeAgent
+        ValueSeekerAgent,
     )
     from src.agents.unified_interface import get_agent_registry
     from src.ai.model_unified import ModelTier

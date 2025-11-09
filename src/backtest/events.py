@@ -7,7 +7,7 @@ All events are timestamped and ordered chronologically.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Any
 
 
 class EventType(Enum):
@@ -44,7 +44,7 @@ class Event:
     event_type: EventType
     timestamp: datetime
 
-    def __lt__(self, other: 'Event') -> bool:
+    def __lt__(self, other: "Event") -> bool:
         """Compare events by timestamp for sorting."""
         return self.timestamp < other.timestamp
 
@@ -63,9 +63,9 @@ class MarketEvent(Event):
     Attributes:
         data: Market data for this timestamp
     """
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
-    def __init__(self, timestamp: datetime, data: Dict[str, Any]) -> None:
+    def __init__(self, timestamp: datetime, data: dict[str, Any]) -> None:
         """Initialize market event."""
         super().__init__(event_type=EventType.MARKET, timestamp=timestamp)
         self.data = data
@@ -87,7 +87,7 @@ class SignalEvent(Event):
     symbol: str
     signal_type: str  # 'LONG', 'SHORT', 'EXIT'
     strength: float = 1.0  # 0.0 to 1.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
@@ -95,7 +95,7 @@ class SignalEvent(Event):
         symbol: str,
         signal_type: str,
         strength: float = 1.0,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize signal event."""
         super().__init__(event_type=EventType.SIGNAL, timestamp=timestamp)
@@ -124,8 +124,8 @@ class OrderEvent(Event):
     order_type: str  # 'MARKET', 'LIMIT', 'STOP'
     quantity: float
     direction: str  # 'BUY' or 'SELL'
-    price: Optional[float] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    price: float | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
@@ -134,8 +134,8 @@ class OrderEvent(Event):
         order_type: str,
         quantity: float,
         direction: str,
-        price: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        price: float | None = None,
+        metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize order event."""
         super().__init__(event_type=EventType.ORDER, timestamp=timestamp)
@@ -169,7 +169,7 @@ class FillEvent(Event):
     commission: float
     slippage: float
     direction: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
@@ -180,7 +180,7 @@ class FillEvent(Event):
         commission: float,
         slippage: float,
         direction: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize fill event."""
         super().__init__(event_type=EventType.FILL, timestamp=timestamp)
@@ -215,7 +215,7 @@ class RiskEvent(Event):
     risk_type: str
     severity: str
     message: str
-    data: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
@@ -223,7 +223,7 @@ class RiskEvent(Event):
         risk_type: str,
         severity: str,
         message: str,
-        data: Optional[Dict[str, Any]] = None
+        data: dict[str, Any] | None = None
     ) -> None:
         """Initialize risk event."""
         super().__init__(event_type=EventType.RISK, timestamp=timestamp)
@@ -246,15 +246,15 @@ class RebalanceEvent(Event):
         metadata: Additional rebalancing data
     """
     reason: str
-    target_weights: Dict[str, float]
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    target_weights: dict[str, float]
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
         self,
         timestamp: datetime,
         reason: str,
-        target_weights: Dict[str, float],
-        metadata: Optional[Dict[str, Any]] = None
+        target_weights: dict[str, float],
+        metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize rebalance event."""
         super().__init__(event_type=EventType.REBALANCE, timestamp=timestamp)

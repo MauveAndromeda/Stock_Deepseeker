@@ -2,13 +2,14 @@
 Data aggregation for converting ticks to bars.
 """
 
-from typing import Dict, List, Optional, Callable
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from collections import defaultdict, deque
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+
 import numpy as np
 
-from src.data.streaming.base import StreamingMessage, MessageType
+from src.data.streaming.base import MessageType, StreamingMessage
 
 
 @dataclass
@@ -21,7 +22,7 @@ class OHLCV:
     low: float
     close: float
     volume: int
-    vwap: Optional[float] = None
+    vwap: float | None = None
     trade_count: int = 0
 
     def __repr__(self) -> str:
@@ -47,7 +48,7 @@ class DataAggregator:
         self,
         bar_size: timedelta = timedelta(minutes=1),
         aggregation_type: str = "time",  # "time", "volume", "tick", "dollar"
-        callback: Optional[Callable[[OHLCV], None]] = None
+        callback: Callable[[OHLCV], None] | None = None
     ):
         """
         Initialize data aggregator.
@@ -62,22 +63,22 @@ class DataAggregator:
         self.callback = callback
 
         # Current bars being built
-        self._current_bars: Dict[str, OHLCV] = {}
-        self._current_bar_start: Dict[str, datetime] = {}
+        self._current_bars: dict[str, OHLCV] = {}
+        self._current_bar_start: dict[str, datetime] = {}
 
         # Trade data for current bar
-        self._bar_prices: Dict[str, List[float]] = defaultdict(list)
-        self._bar_volumes: Dict[str, List[int]] = defaultdict(list)
-        self._bar_trade_counts: Dict[str, int] = defaultdict(int)
+        self._bar_prices: dict[str, list[float]] = defaultdict(list)
+        self._bar_volumes: dict[str, list[int]] = defaultdict(list)
+        self._bar_trade_counts: dict[str, int] = defaultdict(int)
 
         # Completed bars history
-        self._bar_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self._bar_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
 
         # Stats
         self._bars_completed = 0
         self._ticks_processed = 0
 
-    def process_message(self, message: StreamingMessage) -> Optional[OHLCV]:
+    def process_message(self, message: StreamingMessage) -> OHLCV | None:
         """
         Process streaming message and update bars.
 
@@ -89,31 +90,29 @@ class DataAggregator:
         """
         if message.message_type == MessageType.TRADE:
             return self._process_trade(message)
-        elif message.message_type == MessageType.BAR:
+        if message.message_type == MessageType.BAR:
             return self._process_bar(message)
-        else:
-            return None
+        return None
 
-    def _process_trade(self, message: StreamingMessage) -> Optional[OHLCV]:
+    def _process_trade(self, message: StreamingMessage) -> OHLCV | None:
         """Process a trade message."""
         symbol = message.symbol
         timestamp = message.timestamp
-        price = message.data.get('price', 0.0)
-        size = message.data.get('size', 0)
+        price = message.data.get("price", 0.0)
+        size = message.data.get("size", 0)
 
         self._ticks_processed += 1
 
         # Determine if we need to start a new bar
         if self.aggregation_type == "time":
             return self._process_time_bar(symbol, timestamp, price, size)
-        elif self.aggregation_type == "volume":
+        if self.aggregation_type == "volume":
             return self._process_volume_bar(symbol, timestamp, price, size)
-        elif self.aggregation_type == "tick":
+        if self.aggregation_type == "tick":
             return self._process_tick_bar(symbol, timestamp, price, size)
-        elif self.aggregation_type == "dollar":
+        if self.aggregation_type == "dollar":
             return self._process_dollar_bar(symbol, timestamp, price, size)
-        else:
-            return None
+        return None
 
     def _process_time_bar(
         self,
@@ -121,7 +120,7 @@ class DataAggregator:
         timestamp: datetime,
         price: float,
         size: int
-    ) -> Optional[OHLCV]:
+    ) -> OHLCV | None:
         """Process time-based bar aggregation."""
         completed_bar = None
 
@@ -152,7 +151,7 @@ class DataAggregator:
         timestamp: datetime,
         price: float,
         size: int
-    ) -> Optional[OHLCV]:
+    ) -> OHLCV | None:
         """Process volume-based bar aggregation."""
         # Define volume threshold (e.g., 10,000 shares)
         volume_threshold = 10000
@@ -180,7 +179,7 @@ class DataAggregator:
         timestamp: datetime,
         price: float,
         size: int
-    ) -> Optional[OHLCV]:
+    ) -> OHLCV | None:
         """Process tick-based bar aggregation."""
         # Define tick threshold (e.g., 100 ticks)
         tick_threshold = 100
@@ -208,7 +207,7 @@ class DataAggregator:
         timestamp: datetime,
         price: float,
         size: int
-    ) -> Optional[OHLCV]:
+    ) -> OHLCV | None:
         """Process dollar volume-based bar aggregation."""
         # Define dollar threshold (e.g., $1 million)
         dollar_threshold = 1_000_000
@@ -238,20 +237,20 @@ class DataAggregator:
 
         return completed_bar
 
-    def _process_bar(self, message: StreamingMessage) -> Optional[OHLCV]:
+    def _process_bar(self, message: StreamingMessage) -> OHLCV | None:
         """Process a pre-aggregated bar message."""
         data = message.data
 
         bar = OHLCV(
             symbol=message.symbol,
             timestamp=message.timestamp,
-            open=data.get('open', 0.0),
-            high=data.get('high', 0.0),
-            low=data.get('low', 0.0),
-            close=data.get('close', 0.0),
-            volume=data.get('volume', 0),
-            vwap=data.get('vwap'),
-            trade_count=data.get('trade_count', 0)
+            open=data.get("open", 0.0),
+            high=data.get("high", 0.0),
+            low=data.get("low", 0.0),
+            close=data.get("close", 0.0),
+            volume=data.get("volume", 0),
+            vwap=data.get("vwap"),
+            trade_count=data.get("trade_count", 0)
         )
 
         # Store in history
@@ -334,7 +333,7 @@ class DataAggregator:
 
         return aligned
 
-    def get_bar_history(self, symbol: str, n_bars: Optional[int] = None) -> List[OHLCV]:
+    def get_bar_history(self, symbol: str, n_bars: int | None = None) -> list[OHLCV]:
         """
         Get historical bars for a symbol.
 
@@ -351,17 +350,17 @@ class DataAggregator:
             return history[-n_bars:]
         return history
 
-    def get_current_bar(self, symbol: str) -> Optional[OHLCV]:
+    def get_current_bar(self, symbol: str) -> OHLCV | None:
         """Get the current incomplete bar for a symbol."""
         return self._current_bars.get(symbol)
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """Get aggregator statistics."""
         return {
-            'aggregation_type': self.aggregation_type,
-            'bar_size': str(self.bar_size),
-            'ticks_processed': self._ticks_processed,
-            'bars_completed': self._bars_completed,
-            'symbols_tracked': len(self._current_bars),
-            'bars_in_history': sum(len(h) for h in self._bar_history.values())
+            "aggregation_type": self.aggregation_type,
+            "bar_size": str(self.bar_size),
+            "ticks_processed": self._ticks_processed,
+            "bars_completed": self._bars_completed,
+            "symbols_tracked": len(self._current_bars),
+            "bars_in_history": sum(len(h) for h in self._bar_history.values())
         }

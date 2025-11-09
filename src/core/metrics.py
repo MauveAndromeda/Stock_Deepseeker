@@ -3,14 +3,14 @@
 支持实时指标收集、聚合、导出
 """
 
-import time
-import threading
-from typing import Dict, List, Optional, Any, Callable
+from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from collections import defaultdict, deque
+from datetime import datetime
 from enum import Enum
-import statistics
+import threading
+import time
+from typing import Any
 
 
 class MetricType(Enum):
@@ -28,10 +28,10 @@ class Metric:
     metric_type: MetricType
     value: float
     timestamp: datetime = field(default_factory=datetime.now)
-    labels: Dict[str, str] = field(default_factory=dict)
+    labels: dict[str, str] = field(default_factory=dict)
     help_text: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "name": self.name,
@@ -67,7 +67,7 @@ class Counter:
         with self._lock:
             self._value = 0.0
 
-    def to_metric(self, labels: Optional[Dict[str, str]] = None) -> Metric:
+    def to_metric(self, labels: dict[str, str] | None = None) -> Metric:
         """转换为指标"""
         return Metric(
             name=self.name,
@@ -107,7 +107,7 @@ class Gauge:
         with self._lock:
             return self._value
 
-    def to_metric(self, labels: Optional[Dict[str, str]] = None) -> Metric:
+    def to_metric(self, labels: dict[str, str] | None = None) -> Metric:
         """转换为指标"""
         return Metric(
             name=self.name,
@@ -125,7 +125,7 @@ class Histogram:
         self,
         name: str,
         help_text: str = "",
-        buckets: Optional[List[float]] = None
+        buckets: list[float] | None = None
     ):
         self.name = name
         self.help_text = help_text
@@ -142,7 +142,7 @@ class Histogram:
             self._sum += value
             self._count += 1
 
-    def get_stats(self) -> Dict[str, float]:
+    def get_stats(self) -> dict[str, float]:
         """获取统计信息"""
         with self._lock:
             if not self._observations:
@@ -171,11 +171,11 @@ class Histogram:
                 "p99": observations[int(count * 0.99)] if count > 0 else 0.0,
             }
 
-    def get_buckets(self) -> Dict[float, int]:
+    def get_buckets(self) -> dict[float, int]:
         """获取桶计数"""
         with self._lock:
-            bucket_counts = {b: 0 for b in self.buckets}
-            bucket_counts[float('inf')] = 0
+            bucket_counts = dict.fromkeys(self.buckets, 0)
+            bucket_counts[float("inf")] = 0
 
             for obs in self._observations:
                 for bucket in self.buckets:
@@ -183,7 +183,7 @@ class Histogram:
                         bucket_counts[bucket] += 1
                         break
                 else:
-                    bucket_counts[float('inf')] += 1
+                    bucket_counts[float("inf")] += 1
 
             return bucket_counts
 
@@ -219,10 +219,10 @@ class MetricsCollector:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._counters: Dict[str, Counter] = {}
-            self._gauges: Dict[str, Gauge] = {}
-            self._histograms: Dict[str, Histogram] = {}
+        if not hasattr(self, "_initialized"):
+            self._counters: dict[str, Counter] = {}
+            self._gauges: dict[str, Gauge] = {}
+            self._histograms: dict[str, Histogram] = {}
             self._lock = threading.Lock()
 
             # 内置系统指标
@@ -278,7 +278,7 @@ class MetricsCollector:
         self,
         name: str,
         help_text: str = "",
-        buckets: Optional[List[float]] = None
+        buckets: list[float] | None = None
     ) -> Histogram:
         """注册直方图"""
         with self._lock:
@@ -286,19 +286,19 @@ class MetricsCollector:
                 self._histograms[name] = Histogram(name, help_text, buckets)
             return self._histograms[name]
 
-    def get_counter(self, name: str) -> Optional[Counter]:
+    def get_counter(self, name: str) -> Counter | None:
         """获取计数器"""
         return self._counters.get(name)
 
-    def get_gauge(self, name: str) -> Optional[Gauge]:
+    def get_gauge(self, name: str) -> Gauge | None:
         """获取仪表"""
         return self._gauges.get(name)
 
-    def get_histogram(self, name: str) -> Optional[Histogram]:
+    def get_histogram(self, name: str) -> Histogram | None:
         """获取直方图"""
         return self._histograms.get(name)
 
-    def get_all_metrics(self, labels: Optional[Dict[str, str]] = None) -> List[Metric]:
+    def get_all_metrics(self, labels: dict[str, str] | None = None) -> list[Metric]:
         """获取所有指标"""
         metrics = []
 
@@ -357,12 +357,12 @@ class MetricsCollector:
             cumulative = 0
             for bucket, count in sorted(buckets.items()):
                 cumulative += count
-                le = "+Inf" if bucket == float('inf') else str(bucket)
+                le = "+Inf" if bucket == float("inf") else str(bucket)
                 lines.append(f'{histogram.name}_bucket{{le="{le}"}} {cumulative}')
 
         return "\n".join(lines)
 
-    def export_json(self) -> Dict[str, Any]:
+    def export_json(self) -> dict[str, Any]:
         """导出为JSON格式"""
         result = {
             "timestamp": datetime.now().isoformat(),
@@ -430,7 +430,7 @@ def gauge(name: str, help_text: str = "") -> Gauge:
     return _global_metrics.register_gauge(name, help_text)
 
 
-def histogram(name: str, help_text: str = "", buckets: Optional[List[float]] = None) -> Histogram:
+def histogram(name: str, help_text: str = "", buckets: list[float] | None = None) -> Histogram:
     """获取或创建直方图"""
     return _global_metrics.register_histogram(name, help_text, buckets)
 

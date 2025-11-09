@@ -4,12 +4,12 @@ Value factors.
 Traditional and modern value factors for cross-sectional ranking.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+from loguru import logger
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class PriceToBook(Factor):
@@ -27,7 +27,7 @@ class PriceToBook(Factor):
             category=FactorCategory.VALUE,
             description="Price-to-Book ratio (inverted for value signal)",
             formula="Book Value / Market Cap (inverted P/B)",
-            data_requirements=['close', 'shares_outstanding', 'book_value'],
+            data_requirements=["close", "shares_outstanding", "book_value"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -35,28 +35,28 @@ class PriceToBook(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted P/B ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
             # Calculate from price and shares
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap or shares data for P/B calculation")
                 return pd.Series(dtype=float)
 
         # Get book value
-        if 'book_value' not in data.columns:
+        if "book_value" not in data.columns:
             logger.warning("Missing book value data for P/B calculation")
             return pd.Series(dtype=float)
 
-        book_value = data['book_value'].unstack(fill_value=np.nan)
+        book_value = data["book_value"].unstack(fill_value=np.nan)
 
         # Calculate B/P (inverted P/B for value signal)
         # Higher B/P = lower P/B = more value
@@ -90,7 +90,7 @@ class PriceToEarnings(Factor):
             category=FactorCategory.VALUE,
             description=f"Price-to-Earnings ratio ({'forward' if use_forward else 'trailing'}, inverted)",
             formula="Earnings / Market Cap (inverted P/E)",
-            data_requirements=['close', 'earnings', 'market_cap'],
+            data_requirements=["close", "earnings", "market_cap"],
             lookback_period=252,  # Use TTM earnings
         )
         super().__init__(metadata)
@@ -99,23 +99,23 @@ class PriceToEarnings(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted P/E ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for P/E calculation")
                 return pd.Series(dtype=float)
 
         # Get earnings
-        earnings_col = 'forward_earnings' if self.use_forward else 'earnings'
+        earnings_col = "forward_earnings" if self.use_forward else "earnings"
         if earnings_col not in data.columns:
             logger.warning(f"Missing {earnings_col} data for P/E calculation")
             return pd.Series(dtype=float)
@@ -153,7 +153,7 @@ class PriceToSales(Factor):
             category=FactorCategory.VALUE,
             description="Price-to-Sales ratio (inverted for value signal)",
             formula="Revenue / Market Cap (inverted P/S)",
-            data_requirements=['close', 'revenue', 'market_cap'],
+            data_requirements=["close", "revenue", "market_cap"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -161,27 +161,27 @@ class PriceToSales(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted P/S ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for P/S calculation")
                 return pd.Series(dtype=float)
 
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for P/S calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
@@ -218,7 +218,7 @@ class PriceToCashFlow(Factor):
             category=FactorCategory.VALUE,
             description=f"Price-to-{'Free' if use_free_cash_flow else 'Operating'} Cash Flow ratio (inverted)",
             formula=f"{cf_type.replace('_', ' ').title()} / Market Cap",
-            data_requirements=['close', cf_type, 'market_cap'],
+            data_requirements=["close", cf_type, "market_cap"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -228,16 +228,16 @@ class PriceToCashFlow(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted P/CF ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for P/CF calculation")
@@ -279,7 +279,7 @@ class EVToEBITDA(Factor):
             category=FactorCategory.VALUE,
             description="Enterprise Value to EBITDA ratio (inverted)",
             formula="EBITDA / (Market Cap + Debt - Cash)",
-            data_requirements=['close', 'ebitda', 'total_debt', 'cash', 'market_cap'],
+            data_requirements=["close", "ebitda", "total_debt", "cash", "market_cap"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -287,38 +287,38 @@ class EVToEBITDA(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted EV/EBITDA ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for EV/EBITDA calculation")
                 return pd.Series(dtype=float)
 
         # Get debt and cash
-        if 'total_debt' not in data.columns or 'cash' not in data.columns:
+        if "total_debt" not in data.columns or "cash" not in data.columns:
             logger.warning("Missing debt or cash data for EV/EBITDA calculation")
             return pd.Series(dtype=float)
 
-        debt = data['total_debt'].unstack(fill_value=np.nan)
-        cash = data['cash'].unstack(fill_value=np.nan)
+        debt = data["total_debt"].unstack(fill_value=np.nan)
+        cash = data["cash"].unstack(fill_value=np.nan)
 
         # Calculate Enterprise Value
         enterprise_value = market_cap + debt - cash
 
         # Get EBITDA
-        if 'ebitda' not in data.columns:
+        if "ebitda" not in data.columns:
             logger.warning("Missing EBITDA data for EV/EBITDA calculation")
             return pd.Series(dtype=float)
 
-        ebitda = data['ebitda'].unstack(fill_value=np.nan)
+        ebitda = data["ebitda"].unstack(fill_value=np.nan)
 
         # Calculate TTM EBITDA
         ebitda_ttm = ebitda.rolling(window=4, min_periods=4).sum()
@@ -349,7 +349,7 @@ class EVToSales(Factor):
             category=FactorCategory.VALUE,
             description="Enterprise Value to Sales ratio (inverted)",
             formula="Revenue / (Market Cap + Debt - Cash)",
-            data_requirements=['close', 'revenue', 'total_debt', 'cash', 'market_cap'],
+            data_requirements=["close", "revenue", "total_debt", "cash", "market_cap"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -357,38 +357,38 @@ class EVToSales(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted EV/Sales ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for EV/Sales calculation")
                 return pd.Series(dtype=float)
 
         # Get debt and cash
-        if 'total_debt' not in data.columns or 'cash' not in data.columns:
+        if "total_debt" not in data.columns or "cash" not in data.columns:
             logger.warning("Missing debt or cash data for EV/Sales calculation")
             return pd.Series(dtype=float)
 
-        debt = data['total_debt'].unstack(fill_value=np.nan)
-        cash = data['cash'].unstack(fill_value=np.nan)
+        debt = data["total_debt"].unstack(fill_value=np.nan)
+        cash = data["cash"].unstack(fill_value=np.nan)
 
         # Calculate Enterprise Value
         enterprise_value = market_cap + debt - cash
 
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for EV/Sales calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
@@ -424,7 +424,7 @@ class DividendYield(Factor):
             category=FactorCategory.VALUE,
             description=f"{lookback}-day trailing dividend yield",
             formula="Sum of dividends over period / Current Price",
-            data_requirements=['close', 'dividends'],
+            data_requirements=["close", "dividends"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -433,17 +433,17 @@ class DividendYield(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate dividend yield."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Get dividends
-        if 'dividends' not in data.columns:
+        if "dividends" not in data.columns:
             logger.warning("Missing dividends data for dividend yield calculation")
             return pd.Series(dtype=float)
 
-        dividends = data['dividends'].unstack(fill_value=np.nan)
+        dividends = data["dividends"].unstack(fill_value=np.nan)
 
         # Calculate trailing annual dividends
         annual_dividends = dividends.rolling(window=self.lookback).sum()
@@ -475,7 +475,7 @@ class EarningsYield(Factor):
             category=FactorCategory.VALUE,
             description="Trailing twelve month earnings yield",
             formula="TTM EPS / Current Price",
-            data_requirements=['close', 'earnings', 'shares_outstanding'],
+            data_requirements=["close", "earnings", "shares_outstanding"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -483,24 +483,24 @@ class EarningsYield(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate earnings yield."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Get earnings
-        if 'earnings' not in data.columns:
+        if "earnings" not in data.columns:
             logger.warning("Missing earnings data for earnings yield calculation")
             return pd.Series(dtype=float)
 
-        earnings = data['earnings'].unstack(fill_value=np.nan)
+        earnings = data["earnings"].unstack(fill_value=np.nan)
 
         # Calculate TTM earnings
         earnings_ttm = earnings.rolling(window=4, min_periods=4).sum()
 
         # Get shares outstanding
-        if 'shares_outstanding' in data.columns:
-            shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+        if "shares_outstanding" in data.columns:
+            shares = data["shares_outstanding"].unstack(fill_value=np.nan)
             # Calculate EPS
             eps = earnings_ttm / shares
         else:
@@ -533,7 +533,7 @@ class FreeCashFlowYield(Factor):
             category=FactorCategory.VALUE,
             description="Trailing twelve month free cash flow yield",
             formula="TTM FCF per Share / Current Price",
-            data_requirements=['close', 'free_cash_flow', 'shares_outstanding'],
+            data_requirements=["close", "free_cash_flow", "shares_outstanding"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -541,24 +541,24 @@ class FreeCashFlowYield(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate FCF yield."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Get free cash flow
-        if 'free_cash_flow' not in data.columns:
+        if "free_cash_flow" not in data.columns:
             logger.warning("Missing free cash flow data for FCF yield calculation")
             return pd.Series(dtype=float)
 
-        fcf = data['free_cash_flow'].unstack(fill_value=np.nan)
+        fcf = data["free_cash_flow"].unstack(fill_value=np.nan)
 
         # Calculate TTM FCF
         fcf_ttm = fcf.rolling(window=4, min_periods=4).sum()
 
         # Get shares outstanding
-        if 'shares_outstanding' in data.columns:
-            shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+        if "shares_outstanding" in data.columns:
+            shares = data["shares_outstanding"].unstack(fill_value=np.nan)
             # Calculate FCF per share
             fcf_per_share = fcf_ttm / shares
         else:
@@ -592,7 +592,7 @@ class BookToMarket(Factor):
             category=FactorCategory.VALUE,
             description="Book-to-Market ratio (Fama-French HML factor)",
             formula="Book Value of Equity / Market Cap",
-            data_requirements=['close', 'book_value', 'shares_outstanding'],
+            data_requirements=["close", "book_value", "shares_outstanding"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -600,27 +600,27 @@ class BookToMarket(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate B/M ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for B/M calculation")
                 return pd.Series(dtype=float)
 
         # Get book value
-        if 'book_value' not in data.columns:
+        if "book_value" not in data.columns:
             logger.warning("Missing book value data for B/M calculation")
             return pd.Series(dtype=float)
 
-        book_value = data['book_value'].unstack(fill_value=np.nan)
+        book_value = data["book_value"].unstack(fill_value=np.nan)
 
         # Calculate B/M ratio
         bm_ratio = book_value / market_cap
@@ -648,7 +648,7 @@ class SalesToPrice(Factor):
             category=FactorCategory.VALUE,
             description="Sales-to-Price ratio (inverted P/S)",
             formula="TTM Revenue / Market Cap",
-            data_requirements=['close', 'revenue', 'market_cap'],
+            data_requirements=["close", "revenue", "market_cap"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -656,27 +656,27 @@ class SalesToPrice(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate S/P ratio."""
         # Get market cap
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
-            if 'shares_outstanding' in data.columns:
-                shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
+            if "shares_outstanding" in data.columns:
+                shares = data["shares_outstanding"].unstack(fill_value=np.nan)
                 market_cap = closes * shares
             else:
                 logger.warning("Missing market cap data for S/P calculation")
                 return pd.Series(dtype=float)
 
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for S/P calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
@@ -707,7 +707,7 @@ class AssetTurnover(Factor):
             category=FactorCategory.VALUE,
             description="Asset turnover ratio (capital efficiency)",
             formula="TTM Revenue / Total Assets",
-            data_requirements=['revenue', 'total_assets'],
+            data_requirements=["revenue", "total_assets"],
             lookback_period=252,
         )
         super().__init__(metadata)
@@ -715,25 +715,25 @@ class AssetTurnover(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate asset turnover."""
         # Get revenue
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for asset turnover calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
 
         # Get total assets
-        if 'total_assets' not in data.columns:
+        if "total_assets" not in data.columns:
             logger.warning("Missing total assets data for asset turnover calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
 
         # Calculate asset turnover
         turnover = revenue_ttm / assets
@@ -747,7 +747,7 @@ class AssetTurnover(Factor):
 
 
 # Factory function to create all value factors
-def create_value_factors() -> List[Factor]:
+def create_value_factors() -> list[Factor]:
     """
     Create standard set of value factors.
 

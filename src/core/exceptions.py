@@ -3,8 +3,8 @@
 定义所有系统异常类型
 """
 
-from typing import Optional, Any, Dict
 from datetime import datetime
+from typing import Any
 
 
 class TradingSystemError(Exception):
@@ -13,9 +13,9 @@ class TradingSystemError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
-        cause: Optional[Exception] = None
+        error_code: str | None = None,
+        details: dict[str, Any] | None = None,
+        cause: Exception | None = None
     ):
         """
         Args:
@@ -31,7 +31,7 @@ class TradingSystemError(Exception):
         self.cause = cause
         self.timestamp = datetime.now()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "error_type": self.__class__.__name__,
@@ -55,167 +55,134 @@ class TradingSystemError(Exception):
 
 class ConfigurationError(TradingSystemError):
     """配置错误"""
-    pass
 
 
 class DataError(TradingSystemError):
     """数据相关错误"""
-    pass
 
 
 class DataSourceError(DataError):
     """数据源错误"""
-    pass
 
 
 class DataQualityError(DataError):
     """数据质量错误"""
-    pass
 
 
 class DataValidationError(DataError):
     """数据验证错误"""
-    pass
 
 
 class ModelError(TradingSystemError):
     """模型相关错误"""
-    pass
 
 
 class ModelLoadError(ModelError):
     """模型加载错误"""
-    pass
 
 
 class ModelTrainingError(ModelError):
     """模型训练错误"""
-    pass
 
 
 class ModelPredictionError(ModelError):
     """模型预测错误"""
-    pass
 
 
 class ExecutionError(TradingSystemError):
     """执行相关错误"""
-    pass
 
 
 class OrderError(ExecutionError):
     """订单错误"""
-    pass
 
 
 class BrokerError(ExecutionError):
     """经纪商错误"""
-    pass
 
 
 class ConnectionError(ExecutionError):
     """连接错误"""
-    pass
 
 
 class RiskError(TradingSystemError):
     """风险相关错误"""
-    pass
 
 
 class RiskLimitExceededError(RiskError):
     """风险限额超出"""
-    pass
 
 
 class CircuitBreakerTriggeredError(RiskError):
     """熔断触发"""
-    pass
 
 
 class PositionLimitError(RiskError):
     """持仓限额错误"""
-    pass
 
 
 class AgentError(TradingSystemError):
     """智能体相关错误"""
-    pass
 
 
 class AgentCommunicationError(AgentError):
     """智能体通信错误"""
-    pass
 
 
 class AgentDecisionError(AgentError):
     """智能体决策错误"""
-    pass
 
 
 class BacktestError(TradingSystemError):
     """回测相关错误"""
-    pass
 
 
 class BacktestDataError(BacktestError):
     """回测数据错误"""
-    pass
 
 
 class BacktestExecutionError(BacktestError):
     """回测执行错误"""
-    pass
 
 
 class MonitoringError(TradingSystemError):
     """监控相关错误"""
-    pass
 
 
 class MetricsError(MonitoringError):
     """指标收集错误"""
-    pass
 
 
 class AlertError(MonitoringError):
     """告警错误"""
-    pass
 
 
 class APIError(TradingSystemError):
     """API相关错误"""
-    pass
 
 
 class AuthenticationError(APIError):
     """认证错误"""
-    pass
 
 
 class RateLimitError(APIError):
     """频率限制错误"""
-    pass
 
 
 class TimeoutError(TradingSystemError):
     """超时错误"""
-    pass
 
 
 class ValidationError(TradingSystemError):
     """验证错误"""
-    pass
 
 
 class StateError(TradingSystemError):
     """状态错误 - 系统在不正确的状态下执行操作"""
-    pass
 
 
 class ResourceError(TradingSystemError):
     """资源错误 - 系统资源不足"""
-    pass
 
 
 # 错误代码定义
@@ -288,7 +255,7 @@ def error_handler(func):
             raise
         except Exception as e:
             raise TradingSystemError(
-                message=f"Unexpected error in {func.__name__}: {str(e)}",
+                message=f"Unexpected error in {func.__name__}: {e!s}",
                 cause=e
             )
     return wrapper

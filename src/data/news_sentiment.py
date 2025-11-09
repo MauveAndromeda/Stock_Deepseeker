@@ -5,11 +5,8 @@
 """
 
 import asyncio
-import aiohttp
-from typing import List, Dict, Optional
-from datetime import datetime, timedelta
 from dataclasses import dataclass
-import json
+from datetime import datetime, timedelta
 
 from src.core.logging import get_logger
 
@@ -23,8 +20,8 @@ class NewsArticle:
     summary: str
     source: str
     timestamp: datetime
-    url: Optional[str] = None
-    symbols: List[str] = None
+    url: str | None = None
+    symbols: list[str] = None
 
 
 @dataclass
@@ -33,7 +30,7 @@ class SentimentAnalysis:
     sentiment: str  # 'bullish', 'bearish', 'neutral'
     confidence: float  # 0-1
     score: float  # -1 to 1
-    key_factors: List[str]
+    key_factors: list[str]
     timestamp: datetime
 
 
@@ -58,7 +55,7 @@ class NewsSentimentAnalyzer:
         symbol: str,
         hours: int = 24,
         max_articles: int = 10
-    ) -> List[NewsArticle]:
+    ) -> list[NewsArticle]:
         """
         获取最新新闻
 
@@ -101,7 +98,7 @@ class NewsSentimentAnalyzer:
         symbol: str,
         hours: int,
         max_articles: int
-    ) -> List[NewsArticle]:
+    ) -> list[NewsArticle]:
         """从NewsAPI获取新闻"""
         # 简化实现
         # 实际应该调用真实的NewsAPI
@@ -112,7 +109,7 @@ class NewsSentimentAnalyzer:
         symbol: str,
         hours: int,
         max_articles: int
-    ) -> List[NewsArticle]:
+    ) -> list[NewsArticle]:
         """从Yahoo Finance获取新闻"""
         import yfinance as yf
 
@@ -124,15 +121,15 @@ class NewsSentimentAnalyzer:
             cutoff_time = datetime.now() - timedelta(hours=hours)
 
             for item in news_data[:max_articles]:
-                pub_time = datetime.fromtimestamp(item.get('providerPublishTime', 0))
+                pub_time = datetime.fromtimestamp(item.get("providerPublishTime", 0))
 
                 if pub_time > cutoff_time:
                     article = NewsArticle(
-                        title=item.get('title', ''),
-                        summary=item.get('summary', item.get('title', '')),
-                        source='Yahoo Finance',
+                        title=item.get("title", ""),
+                        summary=item.get("summary", item.get("title", "")),
+                        source="Yahoo Finance",
                         timestamp=pub_time,
-                        url=item.get('link'),
+                        url=item.get("link"),
                         symbols=[symbol]
                     )
                     articles.append(article)
@@ -145,7 +142,7 @@ class NewsSentimentAnalyzer:
 
     def analyze_sentiment_simple(
         self,
-        news: List[NewsArticle]
+        news: list[NewsArticle]
     ) -> SentimentAnalysis:
         """
         简单的情绪分析（基于关键词）
@@ -154,7 +151,7 @@ class NewsSentimentAnalyzer:
         """
         if not news:
             return SentimentAnalysis(
-                sentiment='neutral',
+                sentiment="neutral",
                 confidence=0.5,
                 score=0.0,
                 key_factors=[],
@@ -163,15 +160,15 @@ class NewsSentimentAnalyzer:
 
         # 情绪关键词
         bullish_keywords = [
-            'surge', 'soar', 'rally', 'gain', 'rise', 'up', 'beat',
-            'strong', 'growth', 'increase', 'positive', 'bull',
-            'outperform', 'upgrade', 'buy', 'profit', 'revenue'
+            "surge", "soar", "rally", "gain", "rise", "up", "beat",
+            "strong", "growth", "increase", "positive", "bull",
+            "outperform", "upgrade", "buy", "profit", "revenue"
         ]
 
         bearish_keywords = [
-            'plunge', 'drop', 'fall', 'decline', 'down', 'loss',
-            'weak', 'concern', 'warning', 'miss', 'negative', 'bear',
-            'underperform', 'downgrade', 'sell', 'risk', 'worry'
+            "plunge", "drop", "fall", "decline", "down", "loss",
+            "weak", "concern", "warning", "miss", "negative", "bear",
+            "underperform", "downgrade", "sell", "risk", "worry"
         ]
 
         bullish_count = 0
@@ -179,7 +176,7 @@ class NewsSentimentAnalyzer:
         key_factors = []
 
         for article in news:
-            text = (article.title + ' ' + article.summary).lower()
+            text = (article.title + " " + article.summary).lower()
 
             # 计数
             for word in bullish_keywords:
@@ -198,18 +195,18 @@ class NewsSentimentAnalyzer:
         total_count = bullish_count + bearish_count
         if total_count == 0:
             score = 0.0
-            sentiment = 'neutral'
+            sentiment = "neutral"
             confidence = 0.5
         else:
             score = (bullish_count - bearish_count) / total_count
             confidence = min(total_count / (len(news) * 3), 0.9)
 
             if score > 0.2:
-                sentiment = 'bullish'
+                sentiment = "bullish"
             elif score < -0.2:
-                sentiment = 'bearish'
+                sentiment = "bearish"
             else:
-                sentiment = 'neutral'
+                sentiment = "neutral"
 
         return SentimentAnalysis(
             sentiment=sentiment,
@@ -221,7 +218,7 @@ class NewsSentimentAnalyzer:
 
     async def analyze_sentiment_ai(
         self,
-        news: List[NewsArticle],
+        news: list[NewsArticle],
         ai_client=None
     ) -> SentimentAnalysis:
         """
@@ -248,7 +245,7 @@ class NewsSentimentAnalyzer:
                 market_data={},
                 news=[f"{a.title}: {a.summary}" for a in news[:5]],
                 provider=AIProvider.OPENAI,
-                model='gpt-4o-mini'
+                model="gpt-4o-mini"
             )
 
             # 解析响应
@@ -256,19 +253,19 @@ class NewsSentimentAnalyzer:
                 result = ai_client.parse_json_response(response.content)
 
                 sentiment_map = {
-                    'bullish': 'bullish',
-                    'bearish': 'bearish',
-                    'neutral': 'neutral'
+                    "bullish": "bullish",
+                    "bearish": "bearish",
+                    "neutral": "neutral"
                 }
 
-                sentiment = sentiment_map.get(result.get('sentiment', 'neutral'), 'neutral')
-                confidence = result.get('confidence', 0.5)
+                sentiment = sentiment_map.get(result.get("sentiment", "neutral"), "neutral")
+                confidence = result.get("confidence", 0.5)
 
                 # 转换为-1到1的得分
                 score_map = {
-                    'bullish': 0.7,
-                    'neutral': 0.0,
-                    'bearish': -0.7
+                    "bullish": 0.7,
+                    "neutral": 0.0,
+                    "bearish": -0.7
                 }
                 score = score_map.get(sentiment, 0.0)
 
@@ -276,7 +273,7 @@ class NewsSentimentAnalyzer:
                     sentiment=sentiment,
                     confidence=confidence,
                     score=score,
-                    key_factors=result.get('key_factors', []),
+                    key_factors=result.get("key_factors", []),
                     timestamp=datetime.now()
                 )
 
@@ -292,7 +289,7 @@ class NewsSentimentAnalyzer:
         self,
         analysis: SentimentAnalysis,
         threshold: float = 0.6
-    ) -> Dict:
+    ) -> dict:
         """
         将情绪分析转换为交易信号
 
@@ -306,38 +303,37 @@ class NewsSentimentAnalyzer:
         # 只有高置信度的信号才采纳
         if analysis.confidence < threshold:
             return {
-                'action': 'HOLD',
-                'confidence': analysis.confidence,
-                'reason': '情绪信号置信度不足'
+                "action": "HOLD",
+                "confidence": analysis.confidence,
+                "reason": "情绪信号置信度不足"
             }
 
-        if analysis.sentiment == 'bullish':
+        if analysis.sentiment == "bullish":
             return {
-                'action': 'BUY',
-                'confidence': analysis.confidence,
-                'score': analysis.score,
-                'reason': f"积极新闻情绪: {', '.join(analysis.key_factors)}"
+                "action": "BUY",
+                "confidence": analysis.confidence,
+                "score": analysis.score,
+                "reason": f"积极新闻情绪: {', '.join(analysis.key_factors)}"
             }
-        elif analysis.sentiment == 'bearish':
+        if analysis.sentiment == "bearish":
             return {
-                'action': 'SELL',
-                'confidence': analysis.confidence,
-                'score': analysis.score,
-                'reason': f"消极新闻情绪: {', '.join(analysis.key_factors)}"
+                "action": "SELL",
+                "confidence": analysis.confidence,
+                "score": analysis.score,
+                "reason": f"消极新闻情绪: {', '.join(analysis.key_factors)}"
             }
-        else:
-            return {
-                'action': 'HOLD',
-                'confidence': analysis.confidence,
-                'score': analysis.score,
-                'reason': '新闻情绪中性'
-            }
+        return {
+            "action": "HOLD",
+            "confidence": analysis.confidence,
+            "score": analysis.score,
+            "reason": "新闻情绪中性"
+        }
 
     def get_sentiment_history(
         self,
         symbol: str,
         days: int = 7
-    ) -> List[SentimentAnalysis]:
+    ) -> list[SentimentAnalysis]:
         """
         获取历史情绪记录
 
@@ -360,8 +356,8 @@ class NewsSentimentAnalyzer:
 
     def calculate_sentiment_trend(
         self,
-        history: List[SentimentAnalysis]
-    ) -> Dict:
+        history: list[SentimentAnalysis]
+    ) -> dict:
         """
         计算情绪趋势
 
@@ -373,9 +369,9 @@ class NewsSentimentAnalyzer:
         """
         if len(history) < 2:
             return {
-                'trend': 'neutral',
-                'strength': 0.0,
-                'improving': False
+                "trend": "neutral",
+                "strength": 0.0,
+                "improving": False
             }
 
         # 计算趋势
@@ -385,21 +381,21 @@ class NewsSentimentAnalyzer:
         trend_slope = (scores[-1] - scores[0]) / len(scores)
 
         if trend_slope > 0.1:
-            trend = 'improving'
+            trend = "improving"
             improving = True
         elif trend_slope < -0.1:
-            trend = 'deteriorating'
+            trend = "deteriorating"
             improving = False
         else:
-            trend = 'stable'
+            trend = "stable"
             improving = False
 
         return {
-            'trend': trend,
-            'strength': abs(trend_slope),
-            'improving': improving,
-            'current_score': scores[-1],
-            'average_score': sum(scores) / len(scores)
+            "trend": trend,
+            "strength": abs(trend_slope),
+            "improving": improving,
+            "current_score": scores[-1],
+            "average_score": sum(scores) / len(scores)
         }
 
 
@@ -409,7 +405,7 @@ async def main():
     analyzer = NewsSentimentAnalyzer()
 
     # 获取新闻
-    news = await analyzer.get_latest_news('AAPL', hours=24, max_articles=10)
+    news = await analyzer.get_latest_news("AAPL", hours=24, max_articles=10)
 
     print(f"获取到 {len(news)} 篇新闻")
     for article in news[:3]:
@@ -420,7 +416,7 @@ async def main():
     # 简单情绪分析
     sentiment = analyzer.analyze_sentiment_simple(news)
 
-    print(f"\n情绪分析结果:")
+    print("\n情绪分析结果:")
     print(f"  情绪: {sentiment.sentiment}")
     print(f"  得分: {sentiment.score:.2f}")
     print(f"  置信度: {sentiment.confidence:.2%}")
@@ -429,7 +425,7 @@ async def main():
     # 生成交易信号
     signal = analyzer.get_sentiment_signal(sentiment)
 
-    print(f"\n交易信号:")
+    print("\n交易信号:")
     print(f"  动作: {signal['action']}")
     print(f"  置信度: {signal['confidence']:.2%}")
     print(f"  理由: {signal['reason']}")

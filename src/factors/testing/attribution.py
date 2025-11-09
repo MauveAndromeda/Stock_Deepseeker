@@ -6,10 +6,10 @@ Decomposes portfolio returns into factor contributions.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.factors import Factor
 
@@ -32,16 +32,16 @@ class AttributionResult:
         end_date: Attribution end date
     """
     total_return: float
-    factor_contributions: Dict[str, float]
+    factor_contributions: dict[str, float]
     residual_return: float
-    factor_exposures: Dict[str, float]
-    factor_returns: Dict[str, float]
+    factor_exposures: dict[str, float]
+    factor_returns: dict[str, float]
     r_squared: float
     active_risk: float
     information_ratio: float
     start_date: datetime
     end_date: datetime
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         """Generate summary report."""
@@ -78,8 +78,8 @@ class PerformanceAttributor:
 
     def __init__(
         self,
-        factors: List[Factor],
-        attribution_frequency: str = 'monthly',  # 'daily', 'weekly', 'monthly'
+        factors: list[Factor],
+        attribution_frequency: str = "monthly",  # 'daily', 'weekly', 'monthly'
         min_periods: int = 20,  # Minimum periods for regression
     ) -> None:
         """
@@ -102,7 +102,7 @@ class PerformanceAttributor:
         self,
         portfolio_returns: pd.Series,
         holdings: pd.DataFrame,  # date x symbol
-        factor_values: Dict[str, pd.Series],  # factor_name -> (date, symbol) values
+        factor_values: dict[str, pd.Series],  # factor_name -> (date, symbol) values
         start_date: datetime,
         end_date: datetime
     ) -> AttributionResult:
@@ -142,12 +142,12 @@ class PerformanceAttributor:
 
         # Calculate metrics
         total_return = returns.sum()
-        factor_contributions = attribution['factor_contributions']
-        residual_return = attribution['alpha']
-        r_squared = attribution['r_squared']
+        factor_contributions = attribution["factor_contributions"]
+        residual_return = attribution["alpha"]
+        r_squared = attribution["r_squared"]
 
         # Calculate risk metrics
-        residual_returns = attribution['residual_returns']
+        residual_returns = attribution["residual_returns"]
         active_risk = residual_returns.std() * np.sqrt(252)
         information_ratio = (
             residual_return / active_risk if active_risk > 0 else 0
@@ -157,7 +157,7 @@ class PerformanceAttributor:
             total_return=total_return,
             factor_contributions=factor_contributions,
             residual_return=residual_return,
-            factor_exposures=attribution['factor_exposures'],
+            factor_exposures=attribution["factor_exposures"],
             factor_returns=factor_rets,
             r_squared=r_squared,
             active_risk=active_risk,
@@ -173,7 +173,7 @@ class PerformanceAttributor:
     def _calculate_portfolio_exposures(
         self,
         holdings: pd.DataFrame,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         start_date: datetime,
         end_date: datetime
     ) -> pd.DataFrame:
@@ -227,18 +227,18 @@ class PerformanceAttributor:
                     date_exposures[factor_name] = np.nan
 
             exposures_list.append({
-                'date': date,
+                "date": date,
                 **date_exposures
             })
 
-        return pd.DataFrame(exposures_list).set_index('date')
+        return pd.DataFrame(exposures_list).set_index("date")
 
     def _calculate_factor_returns(
         self,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         start_date: datetime,
         end_date: datetime
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate factor returns (long top quintile, short bottom).
 
@@ -283,8 +283,8 @@ class PerformanceAttributor:
         self,
         returns: pd.Series,
         exposures: pd.DataFrame,
-        factor_returns: Dict[str, float]
-    ) -> Dict:
+        factor_returns: dict[str, float]
+    ) -> dict:
         """
         Run attribution regression.
 
@@ -311,7 +311,7 @@ class PerformanceAttributor:
         exposures_aligned = exposures.loc[common_dates]
 
         # Drop any NaN columns
-        exposures_aligned = exposures_aligned.dropna(axis=1, how='all')
+        exposures_aligned = exposures_aligned.dropna(axis=1, how="all")
 
         if exposures_aligned.shape[1] == 0:
             return self._empty_attribution()
@@ -351,28 +351,28 @@ class PerformanceAttributor:
         r_squared = model.score(X, y)
 
         return {
-            'alpha': alpha,
-            'factor_contributions': factor_contributions,
-            'factor_exposures': avg_exposures.to_dict(),
-            'residual_returns': residual_returns,
-            'r_squared': r_squared,
+            "alpha": alpha,
+            "factor_contributions": factor_contributions,
+            "factor_exposures": avg_exposures.to_dict(),
+            "residual_returns": residual_returns,
+            "r_squared": r_squared,
         }
 
-    def _empty_attribution(self) -> Dict:
+    def _empty_attribution(self) -> dict:
         """Return empty attribution result."""
         return {
-            'alpha': 0.0,
-            'factor_contributions': {},
-            'factor_exposures': {},
-            'residual_returns': pd.Series(),
-            'r_squared': 0.0,
+            "alpha": 0.0,
+            "factor_contributions": {},
+            "factor_exposures": {},
+            "residual_returns": pd.Series(),
+            "r_squared": 0.0,
         }
 
     def rolling_attribution(
         self,
         portfolio_returns: pd.Series,
         holdings: pd.DataFrame,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         window: int = 252
     ) -> pd.DataFrame:
         """
@@ -405,24 +405,24 @@ class PerformanceAttributor:
             )
 
             result_row = {
-                'date': end_date,
-                'total_return': attribution.total_return,
-                'alpha': attribution.residual_return,
-                'r_squared': attribution.r_squared,
-                'information_ratio': attribution.information_ratio,
+                "date": end_date,
+                "total_return": attribution.total_return,
+                "alpha": attribution.residual_return,
+                "r_squared": attribution.r_squared,
+                "information_ratio": attribution.information_ratio,
                 **attribution.factor_contributions
             }
 
             results.append(result_row)
 
-        return pd.DataFrame(results).set_index('date')
+        return pd.DataFrame(results).set_index("date")
 
     def factor_timing_analysis(
         self,
         portfolio_returns: pd.Series,
         holdings: pd.DataFrame,
-        factor_values: Dict[str, pd.Series],
-        periods: List[int] = None
+        factor_values: dict[str, pd.Series],
+        periods: list[int] = None
     ) -> pd.DataFrame:
         """
         Analyze factor timing ability across periods.
@@ -463,11 +463,11 @@ class PerformanceAttributor:
                 period_irs.append(attribution.information_ratio)
 
             timing_results.append({
-                'period': period,
-                'mean_alpha': np.mean(period_alphas),
-                'alpha_volatility': np.std(period_alphas),
-                'mean_ir': np.mean(period_irs),
-                'positive_alpha_ratio': (np.array(period_alphas) > 0).mean(),
+                "period": period,
+                "mean_alpha": np.mean(period_alphas),
+                "alpha_volatility": np.std(period_alphas),
+                "mean_ir": np.mean(period_irs),
+                "positive_alpha_ratio": (np.array(period_alphas) > 0).mean(),
             })
 
         return pd.DataFrame(timing_results)
@@ -476,7 +476,7 @@ class PerformanceAttributor:
         self,
         portfolio_returns: pd.Series,
         holdings: pd.DataFrame,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         start_date: datetime,
         end_date: datetime
     ) -> pd.DataFrame:
@@ -505,7 +505,7 @@ class PerformanceAttributor:
 
         marginal_results = []
 
-        for factor_to_remove in factor_values.keys():
+        for factor_to_remove in factor_values:
             # Create reduced factor set
             reduced_factors = {
                 k: v for k, v in factor_values.items()
@@ -523,10 +523,10 @@ class PerformanceAttributor:
             marginal_alpha = baseline.residual_return - reduced_attribution.residual_return
 
             marginal_results.append({
-                'factor': factor_to_remove,
-                'marginal_r_squared': marginal_r2,
-                'marginal_alpha': marginal_alpha,
-                'baseline_contribution': baseline.factor_contributions.get(factor_to_remove, 0),
+                "factor": factor_to_remove,
+                "marginal_r_squared": marginal_r2,
+                "marginal_alpha": marginal_alpha,
+                "baseline_contribution": baseline.factor_contributions.get(factor_to_remove, 0),
             })
 
         return pd.DataFrame(marginal_results)

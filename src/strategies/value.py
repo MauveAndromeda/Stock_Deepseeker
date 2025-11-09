@@ -2,20 +2,19 @@
 Value investing strategy based on fundamental factors.
 """
 
-from typing import Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from datetime import datetime
 
-from src.strategies.base import BaseStrategy, Signal, SignalType
 from src.factors.value import (
+    DividendYield,
+    EarningsYield,
+    FCFYield,
     PriceToBook,
     PriceToEarnings,
     PriceToSales,
-    EarningsYield,
-    FCFYield,
-    DividendYield
 )
+from src.strategies.base import BaseStrategy, Signal, SignalType
 
 
 class ValueStrategy(BaseStrategy):
@@ -39,7 +38,7 @@ class ValueStrategy(BaseStrategy):
         n_positions: int = 20,
         rebalance_frequency: int = 21,  # Monthly
         min_market_cap: float = 1000,  # $1B
-        factor_weights: Optional[Dict[str, float]] = None,
+        factor_weights: dict[str, float] | None = None,
         exclude_financials: bool = True,
         value_threshold: float = 0.2,
         **kwargs
@@ -53,12 +52,12 @@ class ValueStrategy(BaseStrategy):
 
         # Initialize value factors
         self.factors = {
-            'pb': PriceToBook(),
-            'pe': PriceToEarnings(),
-            'ps': PriceToSales(),
-            'earnings_yield': EarningsYield(),
-            'fcf_yield': FCFYield(),
-            'dividend_yield': DividendYield()
+            "pb": PriceToBook(),
+            "pe": PriceToEarnings(),
+            "ps": PriceToSales(),
+            "earnings_yield": EarningsYield(),
+            "fcf_yield": FCFYield(),
+            "dividend_yield": DividendYield()
         }
 
         # Factor weights (default to equal weight)
@@ -72,9 +71,9 @@ class ValueStrategy(BaseStrategy):
 
         # State
         self.last_rebalance_day = 0
-        self.fundamental_data: Dict[str, pd.DataFrame] = {}
-        self.market_caps: Dict[str, float] = {}
-        self.sectors: Dict[str, str] = {}
+        self.fundamental_data: dict[str, pd.DataFrame] = {}
+        self.market_caps: dict[str, float] = {}
+        self.sectors: dict[str, str] = {}
 
     def on_start(self) -> None:
         """Initialize strategy."""
@@ -84,7 +83,7 @@ class ValueStrategy(BaseStrategy):
         )
         self.logger.info(f"Factor weights: {self.factor_weights}")
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate trading signals based on value factors.
 
@@ -101,12 +100,12 @@ class ValueStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update fundamental data
-        if 'fundamentals' in data:
-            self.fundamental_data.update(data['fundamentals'])
-        if 'market_caps' in data:
-            self.market_caps.update(data['market_caps'])
-        if 'sectors' in data:
-            self.sectors.update(data['sectors'])
+        if "fundamentals" in data:
+            self.fundamental_data.update(data["fundamentals"])
+        if "market_caps" in data:
+            self.market_caps.update(data["market_caps"])
+        if "sectors" in data:
+            self.sectors.update(data["sectors"])
 
         # Check if rebalancing is needed
         if self.days_elapsed - self.last_rebalance_day < self.rebalance_frequency:
@@ -131,7 +130,7 @@ class ValueStrategy(BaseStrategy):
 
         return signals
 
-    def _calculate_value_scores(self) -> Dict[str, float]:
+    def _calculate_value_scores(self) -> dict[str, float]:
         """Calculate composite value score for each symbol."""
         value_scores = {}
 
@@ -164,7 +163,7 @@ class ValueStrategy(BaseStrategy):
             for factor_name, value in factor_values.items():
                 weight = self.factor_weights.get(factor_name, 0.0)
                 # Lower is better for valuation ratios, so invert
-                if factor_name in ['pb', 'pe', 'ps']:
+                if factor_name in ["pb", "pe", "ps"]:
                     score = -value  # Lower P/B, P/E, P/S is better
                 else:
                     score = value  # Higher yields are better
@@ -188,12 +187,12 @@ class ValueStrategy(BaseStrategy):
 
         return value_scores
 
-    def _calculate_factor(self, factor, fund_data: pd.DataFrame) -> Optional[float]:
+    def _calculate_factor(self, factor, fund_data: pd.DataFrame) -> float | None:
         """Calculate a single factor value from fundamental data."""
         # This is a simplified version - in production, you'd have
         # proper fundamental data structures
         try:
-            if hasattr(factor, 'calculate'):
+            if hasattr(factor, "calculate"):
                 result = factor.calculate(fund_data)
                 if isinstance(result, pd.Series):
                     return result.iloc[-1] if len(result) > 0 else None
@@ -202,7 +201,7 @@ class ValueStrategy(BaseStrategy):
         except Exception:
             return None
 
-    def _apply_filters(self, value_scores: Dict[str, float]) -> Dict[str, float]:
+    def _apply_filters(self, value_scores: dict[str, float]) -> dict[str, float]:
         """Apply market cap and sector filters."""
         filtered = {}
 
@@ -214,14 +213,14 @@ class ValueStrategy(BaseStrategy):
 
             # Sector filter
             if self.exclude_financials and symbol in self.sectors:
-                if self.sectors[symbol] in ['Financials', 'Financial Services']:
+                if self.sectors[symbol] in ["Financials", "Financial Services"]:
                     continue
 
             filtered[symbol] = score
 
         return filtered
 
-    def _generate_rebalance_signals(self, value_scores: Dict[str, float]) -> List[Signal]:
+    def _generate_rebalance_signals(self, value_scores: dict[str, float]) -> list[Signal]:
         """Generate signals to rebalance portfolio."""
         signals = []
 
@@ -249,7 +248,7 @@ class ValueStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.SELL,
                     strength=1.0,
-                    metadata={'reason': 'rebalance_exit'}
+                    metadata={"reason": "rebalance_exit"}
                 ))
 
         # Open new positions
@@ -263,7 +262,7 @@ class ValueStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.BUY,
                     strength=strength,
-                    metadata={'value_score': value_scores[symbol]}
+                    metadata={"value_score": value_scores[symbol]}
                 ))
 
         return signals

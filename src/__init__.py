@@ -21,12 +21,12 @@ __version__ = "3.0.0"
 __author__ = "MauveAndromeda"
 
 from src.core.config import Config
-from src.core.logging import Logger
 from src.core.exceptions import *
+from src.core.logging import Logger
 
 __all__ = [
     "Config",
     "Logger",
-    "__version__",
     "__author__",
+    "__version__",
 ]

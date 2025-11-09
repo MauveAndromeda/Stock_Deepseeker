@@ -4,18 +4,18 @@ Yahoo Finance data provider implementation.
 Provides access to Yahoo Finance data with proper error handling.
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
+
+from loguru import logger
 import pandas as pd
 import yfinance as yf
-from loguru import logger
 
 from src.data.providers.base import (
     CorporateAction,
     DataFetchError,
     DataProvider,
     DataProviderType,
-    DataValidationError,
     FundamentalData,
     PriceData,
 )
@@ -83,8 +83,8 @@ class YahooFinanceProvider(DataProvider):
                 adjusted=adjusted,
                 provider=self.provider_type,
                 metadata={
-                    'source': 'yahoo_finance',
-                    'interval': kwargs.get('interval', '1d'),
+                    "source": "yahoo_finance",
+                    "interval": kwargs.get("interval", "1d"),
                 }
             )
 
@@ -95,7 +95,7 @@ class YahooFinanceProvider(DataProvider):
     def get_fundamentals(
         self,
         symbol: str,
-        report_date: Optional[datetime] = None,
+        report_date: datetime | None = None,
         **kwargs: Any
     ) -> FundamentalData:
         """
@@ -119,55 +119,55 @@ class YahooFinanceProvider(DataProvider):
             # Extract key fundamental metrics
             fundamentals = {
                 # Valuation
-                'market_cap': info.get('marketCap'),
-                'enterprise_value': info.get('enterpriseValue'),
-                'pe_ratio': info.get('trailingPE'),
-                'forward_pe': info.get('forwardPE'),
-                'peg_ratio': info.get('pegRatio'),
-                'price_to_book': info.get('priceToBook'),
-                'price_to_sales': info.get('priceToSalesTrailing12Months'),
-                'ev_to_revenue': info.get('enterpriseToRevenue'),
-                'ev_to_ebitda': info.get('enterpriseToEbitda'),
+                "market_cap": info.get("marketCap"),
+                "enterprise_value": info.get("enterpriseValue"),
+                "pe_ratio": info.get("trailingPE"),
+                "forward_pe": info.get("forwardPE"),
+                "peg_ratio": info.get("pegRatio"),
+                "price_to_book": info.get("priceToBook"),
+                "price_to_sales": info.get("priceToSalesTrailing12Months"),
+                "ev_to_revenue": info.get("enterpriseToRevenue"),
+                "ev_to_ebitda": info.get("enterpriseToEbitda"),
 
                 # Profitability
-                'profit_margin': info.get('profitMargins'),
-                'operating_margin': info.get('operatingMargins'),
-                'gross_margin': info.get('grossMargins'),
-                'roe': info.get('returnOnEquity'),
-                'roa': info.get('returnOnAssets'),
-                'roic': info.get('returnOnCapital'),
+                "profit_margin": info.get("profitMargins"),
+                "operating_margin": info.get("operatingMargins"),
+                "gross_margin": info.get("grossMargins"),
+                "roe": info.get("returnOnEquity"),
+                "roa": info.get("returnOnAssets"),
+                "roic": info.get("returnOnCapital"),
 
                 # Financial Health
-                'debt_to_equity': info.get('debtToEquity'),
-                'current_ratio': info.get('currentRatio'),
-                'quick_ratio': info.get('quickRatio'),
-                'total_cash': info.get('totalCash'),
-                'total_debt': info.get('totalDebt'),
-                'free_cash_flow': info.get('freeCashflow'),
+                "debt_to_equity": info.get("debtToEquity"),
+                "current_ratio": info.get("currentRatio"),
+                "quick_ratio": info.get("quickRatio"),
+                "total_cash": info.get("totalCash"),
+                "total_debt": info.get("totalDebt"),
+                "free_cash_flow": info.get("freeCashflow"),
 
                 # Growth
-                'revenue_growth': info.get('revenueGrowth'),
-                'earnings_growth': info.get('earningsGrowth'),
-                'revenue_per_share': info.get('revenuePerShare'),
-                'eps': info.get('trailingEps'),
-                'forward_eps': info.get('forwardEps'),
+                "revenue_growth": info.get("revenueGrowth"),
+                "earnings_growth": info.get("earningsGrowth"),
+                "revenue_per_share": info.get("revenuePerShare"),
+                "eps": info.get("trailingEps"),
+                "forward_eps": info.get("forwardEps"),
 
                 # Dividends
-                'dividend_rate': info.get('dividendRate'),
-                'dividend_yield': info.get('dividendYield'),
-                'payout_ratio': info.get('payoutRatio'),
+                "dividend_rate": info.get("dividendRate"),
+                "dividend_yield": info.get("dividendYield"),
+                "payout_ratio": info.get("payoutRatio"),
 
                 # Other
-                'shares_outstanding': info.get('sharesOutstanding'),
-                'float_shares': info.get('floatShares'),
-                'beta': info.get('beta'),
-                'fifty_two_week_high': info.get('fiftyTwoWeekHigh'),
-                'fifty_two_week_low': info.get('fiftyTwoWeekLow'),
+                "shares_outstanding": info.get("sharesOutstanding"),
+                "float_shares": info.get("floatShares"),
+                "beta": info.get("beta"),
+                "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
+                "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
 
                 # Company info
-                'sector': info.get('sector'),
-                'industry': info.get('industry'),
-                'country': info.get('country'),
+                "sector": info.get("sector"),
+                "industry": info.get("industry"),
+                "country": info.get("country"),
             }
 
             # Remove None values
@@ -181,7 +181,7 @@ class YahooFinanceProvider(DataProvider):
                 symbol=symbol,
                 data=fundamentals,
                 report_date=report_date,
-                period_type='quarterly',  # Yahoo provides latest available
+                period_type="quarterly",  # Yahoo provides latest available
                 provider=self.provider_type,
             )
 
@@ -195,7 +195,7 @@ class YahooFinanceProvider(DataProvider):
         start_date: datetime,
         end_date: datetime,
         **kwargs: Any
-    ) -> List[CorporateAction]:
+    ) -> list[CorporateAction]:
         """
         Fetch corporate actions from Yahoo Finance.
 
@@ -226,28 +226,28 @@ class YahooFinanceProvider(DataProvider):
             corporate_actions = []
 
             # Process dividends
-            if 'Dividends' in actions.columns:
-                dividends = actions[actions['Dividends'] > 0]['Dividends']
+            if "Dividends" in actions.columns:
+                dividends = actions[actions["Dividends"] > 0]["Dividends"]
                 for date, value in dividends.items():
                     corporate_actions.append(CorporateAction(
                         symbol=symbol,
-                        action_type='dividend',
+                        action_type="dividend",
                         ex_date=date.to_pydatetime(),
                         value=float(value),
-                        currency='USD',
-                        metadata={'source': 'yahoo_finance'}
+                        currency="USD",
+                        metadata={"source": "yahoo_finance"}
                     ))
 
             # Process splits
-            if 'Stock Splits' in actions.columns:
-                splits = actions[actions['Stock Splits'] > 0]['Stock Splits']
+            if "Stock Splits" in actions.columns:
+                splits = actions[actions["Stock Splits"] > 0]["Stock Splits"]
                 for date, value in splits.items():
                     corporate_actions.append(CorporateAction(
                         symbol=symbol,
-                        action_type='split',
+                        action_type="split",
                         ex_date=date.to_pydatetime(),
                         value=float(value),
-                        metadata={'source': 'yahoo_finance'}
+                        metadata={"source": "yahoo_finance"}
                     ))
 
             return sorted(corporate_actions, key=lambda x: x.ex_date)
@@ -261,7 +261,7 @@ class YahooFinanceProvider(DataProvider):
         query: str,
         limit: int = 10,
         **kwargs: Any
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for symbols using Yahoo Finance.
 
@@ -291,14 +291,14 @@ class YahooFinanceProvider(DataProvider):
                 ticker = yf.Ticker(query.upper())
                 info = ticker.info
 
-                if info.get('symbol'):
+                if info.get("symbol"):
                     results.append({
-                        'symbol': info.get('symbol'),
-                        'name': info.get('longName', ''),
-                        'exchange': info.get('exchange', ''),
-                        'type': info.get('quoteType', ''),
-                        'sector': info.get('sector', ''),
-                        'industry': info.get('industry', ''),
+                        "symbol": info.get("symbol"),
+                        "name": info.get("longName", ""),
+                        "exchange": info.get("exchange", ""),
+                        "type": info.get("quoteType", ""),
+                        "sector": info.get("sector", ""),
+                        "industry": info.get("industry", ""),
                     })
             except Exception:
                 pass
@@ -320,15 +320,15 @@ class YahooFinanceProvider(DataProvider):
             # Try to fetch a simple quote
             ticker = yf.Ticker("SPY")
             info = ticker.info
-            return bool(info.get('symbol'))
+            return bool(info.get("symbol"))
         except Exception:
             return False
 
     def get_option_chain(
         self,
         symbol: str,
-        expiration: Optional[datetime] = None
-    ) -> Dict[str, pd.DataFrame]:
+        expiration: datetime | None = None
+    ) -> dict[str, pd.DataFrame]:
         """
         Get option chain data.
 
@@ -352,14 +352,14 @@ class YahooFinanceProvider(DataProvider):
                     raise DataFetchError(f"No options available for {symbol}")
                 expiration_str = expirations[0]
             else:
-                expiration_str = expiration.strftime('%Y-%m-%d')
+                expiration_str = expiration.strftime("%Y-%m-%d")
 
             opt = ticker.option_chain(expiration_str)
 
             return {
-                'calls': opt.calls,
-                'puts': opt.puts,
-                'expiration': expiration_str,
+                "calls": opt.calls,
+                "puts": opt.puts,
+                "expiration": expiration_str,
             }
 
         except Exception as e:

@@ -2,17 +2,15 @@
 Multi-factor strategy combining momentum, value, and quality.
 """
 
-from typing import Dict, List, Optional, Tuple
-import numpy as np
-import pandas as pd
-from datetime import datetime
 from dataclasses import dataclass
 
-from src.strategies.base import BaseStrategy, Signal, SignalType
-from src.factors.momentum import PriceMomentum, RSI
-from src.factors.value import PriceToBook, EarningsYield
+import numpy as np
+
+from src.factors.momentum import RSI, PriceMomentum
 from src.factors.quality import ROE, DebtToEquity
+from src.factors.value import EarningsYield, PriceToBook
 from src.factors.volatility import Volatility
+from src.strategies.base import BaseStrategy, Signal, SignalType
 
 
 @dataclass
@@ -57,7 +55,7 @@ class MultiFactorStrategy(BaseStrategy):
         self,
         n_positions: int = 30,
         rebalance_frequency: int = 21,  # Monthly
-        factor_weights: Optional[Dict[str, float]] = None,
+        factor_weights: dict[str, float] | None = None,
         use_factor_timing: bool = True,
         timing_lookback: int = 63,  # ~3 months
         long_only: bool = True,
@@ -77,10 +75,10 @@ class MultiFactorStrategy(BaseStrategy):
         # Default factor weights
         if factor_weights is None:
             self.base_factor_weights = {
-                'momentum': 0.25,
-                'value': 0.25,
-                'quality': 0.25,
-                'low_volatility': 0.25
+                "momentum": 0.25,
+                "value": 0.25,
+                "quality": 0.25,
+                "low_volatility": 0.25
             }
         else:
             total = sum(factor_weights.values())
@@ -93,34 +91,34 @@ class MultiFactorStrategy(BaseStrategy):
 
         # State
         self.last_rebalance_day = 0
-        self.price_history: Dict[str, List[float]] = {}
-        self.factor_performance_history: Dict[str, List[float]] = {}
-        self.sectors: Dict[str, str] = {}
-        self.volumes: Dict[str, float] = {}
+        self.price_history: dict[str, list[float]] = {}
+        self.factor_performance_history: dict[str, list[float]] = {}
+        self.sectors: dict[str, str] = {}
+        self.volumes: dict[str, float] = {}
 
     def _init_factors(self) -> None:
         """Initialize all factors."""
         # Momentum factors
         self.momentum_factors = {
-            'momentum_12m': PriceMomentum(lookback=252, skip=21),
-            'rsi': RSI(period=14)
+            "momentum_12m": PriceMomentum(lookback=252, skip=21),
+            "rsi": RSI(period=14)
         }
 
         # Value factors
         self.value_factors = {
-            'pb': PriceToBook(),
-            'earnings_yield': EarningsYield()
+            "pb": PriceToBook(),
+            "earnings_yield": EarningsYield()
         }
 
         # Quality factors
         self.quality_factors = {
-            'roe': ROE(),
-            'debt_to_equity': DebtToEquity()
+            "roe": ROE(),
+            "debt_to_equity": DebtToEquity()
         }
 
         # Volatility factors
         self.volatility_factors = {
-            'volatility': Volatility(window=60)
+            "volatility": Volatility(window=60)
         }
 
     def on_start(self) -> None:
@@ -131,7 +129,7 @@ class MultiFactorStrategy(BaseStrategy):
         self.logger.info(f"Base factor weights: {self.base_factor_weights}")
         self.logger.info(f"Factor timing: {'enabled' if self.use_factor_timing else 'disabled'}")
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate trading signals based on multi-factor scores.
 
@@ -144,8 +142,8 @@ class MultiFactorStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update price history
-        if 'prices' in data:
-            for symbol, price in data['prices'].items():
+        if "prices" in data:
+            for symbol, price in data["prices"].items():
                 if symbol not in self.price_history:
                     self.price_history[symbol] = []
                 self.price_history[symbol].append(price)
@@ -154,10 +152,10 @@ class MultiFactorStrategy(BaseStrategy):
                     self.price_history[symbol] = self.price_history[symbol][-500:]
 
         # Update metadata
-        if 'sectors' in data:
-            self.sectors.update(data['sectors'])
-        if 'volumes' in data:
-            self.volumes.update(data['volumes'])
+        if "sectors" in data:
+            self.sectors.update(data["sectors"])
+        if "volumes" in data:
+            self.volumes.update(data["volumes"])
 
         # Check if rebalancing is needed
         if self.days_elapsed - self.last_rebalance_day < self.rebalance_frequency:
@@ -180,7 +178,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return signals
 
-    def _calculate_factor_scores(self) -> List[FactorScore]:
+    def _calculate_factor_scores(self) -> list[FactorScore]:
         """Calculate multi-factor scores for all symbols."""
         scores = []
 
@@ -219,10 +217,10 @@ class MultiFactorStrategy(BaseStrategy):
                     continue
 
             composite = (
-                self.current_factor_weights['momentum'] * momentum_z[symbol] +
-                self.current_factor_weights['value'] * value_z[symbol] +
-                self.current_factor_weights['quality'] * quality_z[symbol] +
-                self.current_factor_weights['low_volatility'] * volatility_z[symbol]
+                self.current_factor_weights["momentum"] * momentum_z[symbol] +
+                self.current_factor_weights["value"] * value_z[symbol] +
+                self.current_factor_weights["quality"] * quality_z[symbol] +
+                self.current_factor_weights["low_volatility"] * volatility_z[symbol]
             )
 
             scores.append(FactorScore(
@@ -236,7 +234,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return scores
 
-    def _calculate_momentum_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_momentum_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate momentum scores."""
         scores = {}
         for symbol in symbols:
@@ -262,7 +260,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return scores
 
-    def _calculate_value_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_value_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate value scores."""
         # This is simplified - in production, you'd use actual fundamental data
         scores = {}
@@ -279,7 +277,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return scores
 
-    def _calculate_quality_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_quality_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate quality scores."""
         # This is simplified - in production, you'd use actual fundamental data
         scores = {}
@@ -296,7 +294,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return scores
 
-    def _calculate_volatility_scores(self, symbols: List[str]) -> Dict[str, float]:
+    def _calculate_volatility_scores(self, symbols: list[str]) -> dict[str, float]:
         """Calculate volatility scores (lower is better)."""
         scores = {}
         for symbol in symbols:
@@ -310,7 +308,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         return scores
 
-    def _to_z_scores(self, values: Dict[str, float]) -> Dict[str, float]:
+    def _to_z_scores(self, values: dict[str, float]) -> dict[str, float]:
         """Convert raw values to z-scores."""
         if len(values) == 0:
             return {}
@@ -320,7 +318,7 @@ class MultiFactorStrategy(BaseStrategy):
         std = np.std(vals)
 
         if std == 0:
-            return {symbol: 0.0 for symbol in values}
+            return dict.fromkeys(values, 0.0)
 
         return {
             symbol: (value - mean) / std
@@ -341,7 +339,7 @@ class MultiFactorStrategy(BaseStrategy):
 
         self.logger.info(f"Updated factor weights: {self.current_factor_weights}")
 
-    def _generate_rebalance_signals(self, factor_scores: List[FactorScore]) -> List[Signal]:
+    def _generate_rebalance_signals(self, factor_scores: list[FactorScore]) -> list[Signal]:
         """Generate rebalancing signals."""
         signals = []
 
@@ -357,7 +355,7 @@ class MultiFactorStrategy(BaseStrategy):
                 break
 
             # Check sector weight
-            sector = self.sectors.get(score.symbol, 'Unknown')
+            sector = self.sectors.get(score.symbol, "Unknown")
             current_sector_weight = sector_weights.get(sector, 0.0)
             target_weight = 1.0 / self.n_positions
 
@@ -376,7 +374,7 @@ class MultiFactorStrategy(BaseStrategy):
                     symbol=symbol,
                     signal_type=SignalType.SELL,
                     strength=1.0,
-                    metadata={'reason': 'rebalance_exit'}
+                    metadata={"reason": "rebalance_exit"}
                 ))
 
         # Open new positions
@@ -389,14 +387,14 @@ class MultiFactorStrategy(BaseStrategy):
                         symbol=symbol,
                         signal_type=SignalType.BUY,
                         strength=min(1.0, max(0.1, score.composite_score / 2.0)),
-                        metadata={'factor_score': score}
+                        metadata={"factor_score": score}
                     ))
 
         return signals
 
     def on_signal(self, signal: Signal) -> None:
         """Handle generated signal."""
-        score = signal.metadata.get('factor_score')
+        score = signal.metadata.get("factor_score")
         if score:
             self.logger.info(f"Multi-factor signal: {signal.signal_type.value} {signal.symbol}")
             self.logger.info(f"  {score}")

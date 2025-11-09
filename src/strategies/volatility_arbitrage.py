@@ -2,11 +2,9 @@
 Volatility arbitrage strategy trading realized vs implied volatility.
 """
 
-from typing import Dict, List, Optional, Tuple
-import numpy as np
-import pandas as pd
-from datetime import datetime
 from collections import deque
+
+import numpy as np
 
 from src.strategies.base import BaseStrategy, Signal, SignalType
 
@@ -55,11 +53,11 @@ class VolatilityArbitrageStrategy(BaseStrategy):
         self.hedge_frequency = hedge_frequency
 
         # State
-        self.price_history: Dict[str, deque] = {}
-        self.implied_vol_history: Dict[str, deque] = {}
-        self.realized_vol: Dict[str, float] = {}
-        self.forecasted_vol: Dict[str, float] = {}
-        self.vol_positions: Dict[str, Tuple[float, float]] = {}  # symbol -> (entry_spread, entry_day)
+        self.price_history: dict[str, deque] = {}
+        self.implied_vol_history: dict[str, deque] = {}
+        self.realized_vol: dict[str, float] = {}
+        self.forecasted_vol: dict[str, float] = {}
+        self.vol_positions: dict[str, tuple[float, float]] = {}  # symbol -> (entry_spread, entry_day)
         self.last_hedge_day = 0
 
     def on_start(self) -> None:
@@ -72,7 +70,7 @@ class VolatilityArbitrageStrategy(BaseStrategy):
             f"Vol lookback: {self.vol_lookback} days"
         )
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate volatility arbitrage signals.
 
@@ -88,15 +86,15 @@ class VolatilityArbitrageStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update price history
-        if 'prices' in data:
-            for symbol, price in data['prices'].items():
+        if "prices" in data:
+            for symbol, price in data["prices"].items():
                 if symbol not in self.price_history:
                     self.price_history[symbol] = deque(maxlen=self.vol_lookback * 2)
                 self.price_history[symbol].append(price)
 
         # Update implied volatility
-        if 'implied_vols' in data:
-            for symbol, iv in data['implied_vols'].items():
+        if "implied_vols" in data:
+            for symbol, iv in data["implied_vols"].items():
                 if symbol not in self.implied_vol_history:
                     self.implied_vol_history[symbol] = deque(maxlen=252)
                 self.implied_vol_history[symbol].append(iv)
@@ -195,7 +193,7 @@ class VolatilityArbitrageStrategy(BaseStrategy):
 
         return vol
 
-    def _generate_entry_signals(self) -> List[Signal]:
+    def _generate_entry_signals(self) -> list[Signal]:
         """Generate entry signals for vol arbitrage opportunities."""
         signals = []
 
@@ -249,12 +247,12 @@ class VolatilityArbitrageStrategy(BaseStrategy):
                     signal_type=signal_type,
                     strength=min(1.0, abs(z_score) / 3.0),  # Cap at 3 std devs
                     metadata={
-                        'strategy': 'vol_arbitrage',
-                        'direction': direction,
-                        'implied_vol': self.implied_vol_history[symbol][-1],
-                        'forecasted_vol': self.forecasted_vol[symbol],
-                        'spread': spread,
-                        'z_score': z_score
+                        "strategy": "vol_arbitrage",
+                        "direction": direction,
+                        "implied_vol": self.implied_vol_history[symbol][-1],
+                        "forecasted_vol": self.forecasted_vol[symbol],
+                        "spread": spread,
+                        "z_score": z_score
                     }
                 ))
 
@@ -266,7 +264,7 @@ class VolatilityArbitrageStrategy(BaseStrategy):
 
         return signals
 
-    def _generate_exit_signals(self) -> List[Signal]:
+    def _generate_exit_signals(self) -> list[Signal]:
         """Generate exit signals for existing vol positions."""
         signals = []
 
@@ -322,9 +320,9 @@ class VolatilityArbitrageStrategy(BaseStrategy):
                     signal_type=signal_type,
                     strength=1.0,
                     metadata={
-                        'strategy': 'vol_arbitrage_exit',
-                        'reason': reason,
-                        'holding_days': self.days_elapsed - entry_day
+                        "strategy": "vol_arbitrage_exit",
+                        "reason": reason,
+                        "holding_days": self.days_elapsed - entry_day
                     }
                 ))
 
@@ -333,7 +331,7 @@ class VolatilityArbitrageStrategy(BaseStrategy):
 
         return signals
 
-    def _generate_hedge_signals(self) -> List[Signal]:
+    def _generate_hedge_signals(self) -> list[Signal]:
         """
         Generate delta hedging signals.
 
@@ -350,7 +348,7 @@ class VolatilityArbitrageStrategy(BaseStrategy):
     def on_signal(self, signal: Signal) -> None:
         """Handle generated signal."""
         metadata = signal.metadata
-        if 'z_score' in metadata:
+        if "z_score" in metadata:
             self.logger.info(
                 f"Vol arbitrage entry: {metadata['direction']} {signal.symbol} "
                 f"(IV={metadata['implied_vol']:.2%}, FV={metadata['forecasted_vol']:.2%}, "

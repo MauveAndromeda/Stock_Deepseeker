@@ -2,15 +2,13 @@
 Performance reporting and visualization.
 """
 
-from typing import Dict, List, Optional, Any
-import pandas as pd
-import json
 from datetime import datetime
+import json
 from pathlib import Path
 
-from src.analytics.metrics import PerformanceMetrics, PerformanceStats
-from src.analytics.attribution import AttributionAnalyzer, AttributionResult
-from src.analytics.trades import TradeAnalyzer, TradeStats
+from src.analytics.attribution import AttributionResult
+from src.analytics.metrics import PerformanceStats
+from src.analytics.trades import TradeStats
 
 
 class PerformanceReporter:
@@ -26,9 +24,9 @@ class PerformanceReporter:
 
     def __init__(
         self,
-        performance_stats: Optional[PerformanceStats] = None,
-        trade_stats: Optional[TradeStats] = None,
-        attribution: Optional[AttributionResult] = None
+        performance_stats: PerformanceStats | None = None,
+        trade_stats: TradeStats | None = None,
+        attribution: AttributionResult | None = None
     ):
         """
         Initialize performance reporter.
@@ -167,90 +165,90 @@ class PerformanceReporter:
             JSON string
         """
         report = {
-            'timestamp': datetime.now().isoformat(),
-            'performance': None,
-            'trades': None,
-            'attribution': None
+            "timestamp": datetime.now().isoformat(),
+            "performance": None,
+            "trades": None,
+            "attribution": None
         }
 
         if self.performance_stats:
             ps = self.performance_stats
-            report['performance'] = {
-                'returns': {
-                    'total': ps.total_return,
-                    'annual': ps.annual_return,
-                    'monthly': ps.monthly_return,
-                    'daily': ps.daily_return
+            report["performance"] = {
+                "returns": {
+                    "total": ps.total_return,
+                    "annual": ps.annual_return,
+                    "monthly": ps.monthly_return,
+                    "daily": ps.daily_return
                 },
-                'risk': {
-                    'volatility': ps.volatility,
-                    'downside_volatility': ps.downside_volatility,
-                    'var_95': ps.var_95,
-                    'cvar_95': ps.cvar_95
+                "risk": {
+                    "volatility": ps.volatility,
+                    "downside_volatility": ps.downside_volatility,
+                    "var_95": ps.var_95,
+                    "cvar_95": ps.cvar_95
                 },
-                'risk_adjusted': {
-                    'sharpe_ratio': ps.sharpe_ratio,
-                    'sortino_ratio': ps.sortino_ratio,
-                    'calmar_ratio': ps.calmar_ratio,
-                    'omega_ratio': ps.omega_ratio
+                "risk_adjusted": {
+                    "sharpe_ratio": ps.sharpe_ratio,
+                    "sortino_ratio": ps.sortino_ratio,
+                    "calmar_ratio": ps.calmar_ratio,
+                    "omega_ratio": ps.omega_ratio
                 },
-                'drawdown': {
-                    'max_drawdown': ps.max_drawdown,
-                    'avg_drawdown': ps.avg_drawdown,
-                    'max_duration': ps.max_drawdown_duration,
-                    'recovery_time': ps.recovery_time
+                "drawdown": {
+                    "max_drawdown": ps.max_drawdown,
+                    "avg_drawdown": ps.avg_drawdown,
+                    "max_duration": ps.max_drawdown_duration,
+                    "recovery_time": ps.recovery_time
                 },
-                'win_loss': {
-                    'win_rate': ps.win_rate,
-                    'profit_factor': ps.profit_factor,
-                    'avg_win': ps.avg_win,
-                    'avg_loss': ps.avg_loss
+                "win_loss": {
+                    "win_rate": ps.win_rate,
+                    "profit_factor": ps.profit_factor,
+                    "avg_win": ps.avg_win,
+                    "avg_loss": ps.avg_loss
                 }
             }
 
         if self.trade_stats:
             ts = self.trade_stats
-            report['trades'] = {
-                'counts': {
-                    'total': ts.total_trades,
-                    'winning': ts.winning_trades,
-                    'losing': ts.losing_trades,
-                    'win_rate': ts.win_rate
+            report["trades"] = {
+                "counts": {
+                    "total": ts.total_trades,
+                    "winning": ts.winning_trades,
+                    "losing": ts.losing_trades,
+                    "win_rate": ts.win_rate
                 },
-                'pnl': {
-                    'total': ts.total_pnl,
-                    'avg': ts.avg_pnl,
-                    'avg_win': ts.avg_win,
-                    'avg_loss': ts.avg_loss,
-                    'largest_win': ts.largest_win,
-                    'largest_loss': ts.largest_loss
+                "pnl": {
+                    "total": ts.total_pnl,
+                    "avg": ts.avg_pnl,
+                    "avg_win": ts.avg_win,
+                    "avg_loss": ts.avg_loss,
+                    "largest_win": ts.largest_win,
+                    "largest_loss": ts.largest_loss
                 },
-                'metrics': {
-                    'profit_factor': ts.profit_factor,
-                    'expectancy': ts.expectancy
+                "metrics": {
+                    "profit_factor": ts.profit_factor,
+                    "expectancy": ts.expectancy
                 },
-                'holding': {
-                    'avg': ts.avg_holding_period,
-                    'avg_win': ts.avg_win_holding,
-                    'avg_loss': ts.avg_loss_holding
+                "holding": {
+                    "avg": ts.avg_holding_period,
+                    "avg_win": ts.avg_win_holding,
+                    "avg_loss": ts.avg_loss_holding
                 },
-                'streaks': {
-                    'max_wins': ts.max_consecutive_wins,
-                    'max_losses': ts.max_consecutive_losses
+                "streaks": {
+                    "max_wins": ts.max_consecutive_wins,
+                    "max_losses": ts.max_consecutive_losses
                 },
-                'costs': {
-                    'commission': ts.total_commission,
-                    'slippage': ts.total_slippage
+                "costs": {
+                    "commission": ts.total_commission,
+                    "slippage": ts.total_slippage
                 }
             }
 
         if self.attribution:
             attr = self.attribution
-            report['attribution'] = {
-                'total_return': attr.total_return,
-                'factor_contributions': attr.factor_contributions,
-                'residual_return': attr.residual_return,
-                'explained_variance': attr.explained_variance
+            report["attribution"] = {
+                "total_return": attr.total_return,
+                "factor_contributions": attr.factor_contributions,
+                "residual_return": attr.residual_return,
+                "explained_variance": attr.explained_variance
             }
 
         return json.dumps(report, indent=2)
@@ -322,7 +320,7 @@ class PerformanceReporter:
 
         Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write(content)
 
     def _generate_performance_table(self) -> str:

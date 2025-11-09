@@ -5,16 +5,15 @@ Handles cash dividends, special dividends, and dividend reinvestment.
 """
 
 from datetime import datetime
-from typing import Optional, Tuple, Dict
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import pandas as pd
 
 from src.data.corporate_actions.base import (
+    AdjustmentMethod,
     CorporateActionEvent,
     CorporateActionProcessor,
     CorporateActionType,
-    AdjustmentMethod,
 )
 
 
@@ -42,7 +41,7 @@ class DividendProcessor(CorporateActionProcessor):
         self.reinvest_dividends = reinvest_dividends
         self.tax_rate = tax_rate
 
-    def validate_event(self, event: CorporateActionEvent) -> Tuple[bool, Optional[str]]:
+    def validate_event(self, event: CorporateActionEvent) -> tuple[bool, str | None]:
         """
         Validate dividend event.
 
@@ -114,10 +113,10 @@ class DividendProcessor(CorporateActionProcessor):
                 # If ex-date data exists, use it; otherwise use last available price
                 try:
                     ref_price = adjusted_data.loc[
-                        adjusted_data.index >= ex_date, 'close'
+                        adjusted_data.index >= ex_date, "close"
                     ].iloc[0]
                 except (IndexError, KeyError):
-                    ref_price = adjusted_data['close'].iloc[-1]
+                    ref_price = adjusted_data["close"].iloc[-1]
 
                 # Calculate adjustment factor
                 # Factor = (Price - Dividend) / Price
@@ -131,7 +130,7 @@ class DividendProcessor(CorporateActionProcessor):
                     adjustment_factor = 0.01  # Minimum factor
 
                 # Adjust prices
-                price_columns = ['open', 'high', 'low', 'close']
+                price_columns = ["open", "high", "low", "close"]
                 for col in price_columns:
                     if col in adjusted_data.columns:
                         adjusted_data.loc[mask, col] = (
@@ -152,17 +151,17 @@ class DividendProcessor(CorporateActionProcessor):
                 # Get price just before ex-dividend date
                 try:
                     ref_price = adjusted_data.loc[
-                        adjusted_data.index < ex_date, 'close'
+                        adjusted_data.index < ex_date, "close"
                     ].iloc[-1]
                 except (IndexError, KeyError):
-                    ref_price = adjusted_data['close'].iloc[0]
+                    ref_price = adjusted_data["close"].iloc[0]
 
                 # Calculate adjustment factor
                 # Factor = Price / (Price - Dividend)
                 adjustment_factor = ref_price / (ref_price - dividend_amount)
 
                 # Adjust prices
-                price_columns = ['open', 'high', 'low', 'close']
+                price_columns = ["open", "high", "low", "close"]
                 for col in price_columns:
                     if col in adjusted_data.columns:
                         adjusted_data.loc[mask, col] = (
@@ -183,7 +182,7 @@ class DividendProcessor(CorporateActionProcessor):
         start_date: datetime,
         end_date: datetime,
         shares: float = 1.0
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate total dividends received over a period.
 
@@ -208,11 +207,11 @@ class DividendProcessor(CorporateActionProcessor):
 
         if not events:
             return {
-                'total_gross': 0.0,
-                'total_net': 0.0,
-                'total_tax': 0.0,
-                'count': 0,
-                'average': 0.0,
+                "total_gross": 0.0,
+                "total_net": 0.0,
+                "total_tax": 0.0,
+                "count": 0,
+                "average": 0.0,
             }
 
         total_gross = sum(e.value for e in events) * shares
@@ -220,11 +219,11 @@ class DividendProcessor(CorporateActionProcessor):
         total_net = total_gross - total_tax
 
         return {
-            'total_gross': total_gross,
-            'total_net': total_net,
-            'total_tax': total_tax,
-            'count': len(events),
-            'average': total_gross / len(events) if events else 0.0,
+            "total_gross": total_gross,
+            "total_net": total_net,
+            "total_tax": total_tax,
+            "count": len(events),
+            "average": total_gross / len(events) if events else 0.0,
         }
 
     def simulate_drip(
@@ -247,7 +246,7 @@ class DividendProcessor(CorporateActionProcessor):
             return price_data
 
         result = price_data.copy()
-        result['shares_held'] = initial_shares
+        result["shares_held"] = initial_shares
 
         # Get dividends for this symbol
         # (Assuming events are already filtered by symbol)
@@ -268,12 +267,12 @@ class DividendProcessor(CorporateActionProcessor):
                 continue
 
             # Get price on reinvestment date (assume payment date = ex-date for simplicity)
-            reinvest_price = result.loc[mask, 'close'].iloc[0]
+            reinvest_price = result.loc[mask, "close"].iloc[0]
 
             # Get current shares
             prev_mask = result.index < ex_date
             if prev_mask.any():
-                current_shares = result.loc[prev_mask, 'shares_held'].iloc[-1]
+                current_shares = result.loc[prev_mask, "shares_held"].iloc[-1]
             else:
                 current_shares = initial_shares
 
@@ -284,7 +283,7 @@ class DividendProcessor(CorporateActionProcessor):
             additional_shares = dividend_received / reinvest_price
 
             # Update shares held after reinvestment
-            result.loc[mask, 'shares_held'] = current_shares + additional_shares
+            result.loc[mask, "shares_held"] = current_shares + additional_shares
 
             logger.debug(
                 f"DRIP: {event.ex_date.date()} - "
@@ -294,7 +293,7 @@ class DividendProcessor(CorporateActionProcessor):
             )
 
         # Fill forward shares held
-        result['shares_held'] = result['shares_held'].fillna(method='ffill')
+        result["shares_held"] = result["shares_held"].fillna(method="ffill")
 
         return result
 
@@ -322,11 +321,11 @@ class DividendProcessor(CorporateActionProcessor):
 
         stats = self.calculate_total_dividends(symbol, start_date, end_date, shares=1.0)
 
-        if stats['count'] == 0 or current_price <= 0:
+        if stats["count"] == 0 or current_price <= 0:
             return 0.0
 
         # Annualize the dividend
-        annual_dividend = stats['total_gross'] * (12 / lookback_months)
+        annual_dividend = stats["total_gross"] * (12 / lookback_months)
 
         # Calculate yield
         yield_pct = annual_dividend / current_price
@@ -359,11 +358,11 @@ class DividendProcessor(CorporateActionProcessor):
         data = []
         for event in sorted(events, key=lambda x: x.ex_date):
             data.append({
-                'ex_date': event.ex_date,
-                'payment_date': event.payment_date,
-                'type': event.action_type.value,
-                'amount': event.value,
-                'currency': event.currency,
+                "ex_date": event.ex_date,
+                "payment_date": event.payment_date,
+                "type": event.action_type.value,
+                "amount": event.value,
+                "currency": event.currency,
             })
 
         return pd.DataFrame(data)
@@ -372,32 +371,32 @@ class DividendProcessor(CorporateActionProcessor):
 # Example usage
 if __name__ == "__main__":
     # Create sample data
-    dates = pd.date_range('2023-01-01', '2023-12-31', freq='B')
+    dates = pd.date_range("2023-01-01", "2023-12-31", freq="B")
     data = pd.DataFrame({
-        'open': 100.0,
-        'high': 105.0,
-        'low': 95.0,
-        'close': 100.0,
-        'volume': 1000000,
+        "open": 100.0,
+        "high": 105.0,
+        "low": 95.0,
+        "close": 100.0,
+        "volume": 1000000,
     }, index=dates)
 
     # Create dividend events
     dividend_events = [
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.DIVIDEND,
             ex_date=datetime(2023, 3, 15),
             payment_date=datetime(2023, 3, 30),
             value=1.50,  # $1.50 per share
-            source='manual',
+            source="manual",
         ),
         CorporateActionEvent(
-            symbol='TEST',
+            symbol="TEST",
             action_type=CorporateActionType.DIVIDEND,
             ex_date=datetime(2023, 6, 15),
             payment_date=datetime(2023, 6, 30),
             value=1.50,
-            source='manual',
+            source="manual",
         ),
     ]
 
@@ -412,11 +411,11 @@ if __name__ == "__main__":
 
     # Check results
     print("Dividend history:")
-    print(processor.get_dividend_history('TEST'))
+    print(processor.get_dividend_history("TEST"))
 
     print("\nTotal dividends:")
     print(processor.calculate_total_dividends(
-        'TEST',
+        "TEST",
         datetime(2023, 1, 1),
         datetime(2023, 12, 31)
     ))

@@ -4,12 +4,12 @@ Volatility factors.
 Risk and volatility metrics for cross-sectional ranking.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+from loguru import logger
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class HistoricalVolatility(Factor):
@@ -32,7 +32,7 @@ class HistoricalVolatility(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day annualized volatility (inverted)",
             formula=f"-1 * StdDev(returns_{lookback}d) * sqrt(252)",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -41,10 +41,10 @@ class HistoricalVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted historical volatility."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -84,7 +84,7 @@ class DownsideVolatility(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day downside semi-deviation (inverted)",
             formula=f"-1 * StdDev(negative_returns_{lookback}d) * sqrt(252)",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -93,10 +93,10 @@ class DownsideVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted downside volatility."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -128,7 +128,7 @@ class BetaFactor(Factor):
     Lower beta = less systematic risk (inverted for low-beta anomaly)
     """
 
-    def __init__(self, lookback: int = 252, market_symbol: str = 'SPY') -> None:
+    def __init__(self, lookback: int = 252, market_symbol: str = "SPY") -> None:
         """
         Initialize beta factor.
 
@@ -141,7 +141,7 @@ class BetaFactor(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day market beta (inverted for low-beta anomaly)",
             formula=f"-1 * Cov(stock, {market_symbol}) / Var({market_symbol})",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -151,10 +151,10 @@ class BetaFactor(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted beta."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Get market returns
         if self.market_symbol not in closes.columns:
@@ -191,7 +191,7 @@ class IdiosyncraticVolatility(Factor):
     Lower idiosyncratic vol = better
     """
 
-    def __init__(self, lookback: int = 60, market_symbol: str = 'SPY') -> None:
+    def __init__(self, lookback: int = 60, market_symbol: str = "SPY") -> None:
         """
         Initialize idiosyncratic volatility factor.
 
@@ -204,7 +204,7 @@ class IdiosyncraticVolatility(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day idiosyncratic volatility (inverted)",
             formula="StdDev(stock_returns - beta * market_returns)",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -214,10 +214,10 @@ class IdiosyncraticVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted idiosyncratic volatility."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Get market returns
         if self.market_symbol not in closes.columns:
@@ -274,7 +274,7 @@ class MaxDrawdown(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day maximum drawdown (inverted)",
             formula="Max peak-to-trough decline",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -283,10 +283,10 @@ class MaxDrawdown(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted max drawdown."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate rolling max drawdown
         def calc_max_dd(prices):
@@ -326,7 +326,7 @@ class VolatilityOfVolatility(Factor):
             category=FactorCategory.VOLATILITY,
             description="Volatility of volatility (inverted)",
             formula=f"StdDev(rolling_vol_{short_period}d) over {long_period}d",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=long_period,
         )
         super().__init__(metadata)
@@ -336,10 +336,10 @@ class VolatilityOfVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted vol-of-vol."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -380,7 +380,7 @@ class SharpeRatio(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day Sharpe ratio",
             formula="(Annualized Return - Risk Free Rate) / Annualized Volatility",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -390,10 +390,10 @@ class SharpeRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate Sharpe ratio."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -436,7 +436,7 @@ class SortinoRatio(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day Sortino ratio",
             formula="(Return - Risk Free Rate) / Downside Deviation",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -446,10 +446,10 @@ class SortinoRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate Sortino ratio."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -492,7 +492,7 @@ class CalmarRatio(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day Calmar ratio",
             formula="Annualized Return / Abs(Max Drawdown)",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -501,10 +501,10 @@ class CalmarRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate Calmar ratio."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate annualized returns
         returns = closes.pct_change()
@@ -548,7 +548,7 @@ class UpVolatility(Factor):
             category=FactorCategory.VOLATILITY,
             description=f"{lookback}-day upside semi-deviation",
             formula=f"StdDev(positive_returns_{lookback}d) * sqrt(252)",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -557,10 +557,10 @@ class UpVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate upside volatility."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -584,7 +584,7 @@ class UpVolatility(Factor):
 
 
 # Factory function to create all volatility factors
-def create_volatility_factors() -> List[Factor]:
+def create_volatility_factors() -> list[Factor]:
     """
     Create standard set of volatility factors.
 

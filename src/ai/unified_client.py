@@ -5,17 +5,19 @@
 """
 
 import os
-import sys
 from pathlib import Path
+import sys
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from typing import Dict, List, Optional, Any
-import json
-from enum import Enum
-from dataclasses import dataclass
 import asyncio
-import aiohttp
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
+import json
+from typing import Any
+
+import aiohttp
 
 
 class AIProvider(Enum):
@@ -36,7 +38,7 @@ class AIResponse:
     tokens_used: int
     cost: float
     timestamp: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class UnifiedAIClient:
@@ -45,41 +47,41 @@ class UnifiedAIClient:
     def __init__(self):
         """初始化客户端"""
         self.api_keys = {
-            AIProvider.OPENAI: os.getenv('OPENAI_API_KEY'),
-            AIProvider.ANTHROPIC: os.getenv('ANTHROPIC_API_KEY'),
-            AIProvider.GOOGLE: os.getenv('GOOGLE_API_KEY'),
-            AIProvider.DEEPSEEK: os.getenv('DEEPSEEK_API_KEY')
+            AIProvider.OPENAI: os.getenv("OPENAI_API_KEY"),
+            AIProvider.ANTHROPIC: os.getenv("ANTHROPIC_API_KEY"),
+            AIProvider.GOOGLE: os.getenv("GOOGLE_API_KEY"),
+            AIProvider.DEEPSEEK: os.getenv("DEEPSEEK_API_KEY")
         }
 
         # 模型配置
         self.models = {
             AIProvider.OPENAI: {
-                'gpt-4o': {'max_tokens': 4096, 'cost_per_1k': 0.005},
-                'gpt-4o-mini': {'max_tokens': 4096, 'cost_per_1k': 0.00015},
-                'gpt-5-nano': {'max_tokens': 4096, 'cost_per_1k': 0.0001}  # 假设的GPT-5 Nano
+                "gpt-4o": {"max_tokens": 4096, "cost_per_1k": 0.005},
+                "gpt-4o-mini": {"max_tokens": 4096, "cost_per_1k": 0.00015},
+                "gpt-5-nano": {"max_tokens": 4096, "cost_per_1k": 0.0001}  # 假设的GPT-5 Nano
             },
             AIProvider.ANTHROPIC: {
-                'claude-3-5-sonnet-20241022': {'max_tokens': 8192, 'cost_per_1k': 0.003},
-                'claude-4-5-sonnet-20250929': {'max_tokens': 8192, 'cost_per_1k': 0.003}  # 假设的Claude 4.5
+                "claude-3-5-sonnet-20241022": {"max_tokens": 8192, "cost_per_1k": 0.003},
+                "claude-4-5-sonnet-20250929": {"max_tokens": 8192, "cost_per_1k": 0.003}  # 假设的Claude 4.5
             },
             AIProvider.GOOGLE: {
-                'gemini-1.5-pro': {'max_tokens': 8192, 'cost_per_1k': 0.00125},
-                'gemini-1.5-flash': {'max_tokens': 8192, 'cost_per_1k': 0.000075}
+                "gemini-1.5-pro": {"max_tokens": 8192, "cost_per_1k": 0.00125},
+                "gemini-1.5-flash": {"max_tokens": 8192, "cost_per_1k": 0.000075}
             },
             AIProvider.DEEPSEEK: {
-                'deepseek-chat': {'max_tokens': 4096, 'cost_per_1k': 0.00014}
+                "deepseek-chat": {"max_tokens": 4096, "cost_per_1k": 0.00014}
             }
         }
 
         # API端点
         self.endpoints = {
-            AIProvider.OPENAI: 'https://api.openai.com/v1/chat/completions',
-            AIProvider.ANTHROPIC: 'https://api.anthropic.com/v1/messages',
-            AIProvider.GOOGLE: 'https://generativelanguage.googleapis.com/v1beta/models',
-            AIProvider.DEEPSEEK: 'https://api.deepseek.com/v1/chat/completions'
+            AIProvider.OPENAI: "https://api.openai.com/v1/chat/completions",
+            AIProvider.ANTHROPIC: "https://api.anthropic.com/v1/messages",
+            AIProvider.GOOGLE: "https://generativelanguage.googleapis.com/v1beta/models",
+            AIProvider.DEEPSEEK: "https://api.deepseek.com/v1/chat/completions"
         }
 
-        self.session: Optional[aiohttp.ClientSession] = None
+        self.session: aiohttp.ClientSession | None = None
 
     async def __aenter__(self):
         """异步上下文管理器入口"""
@@ -93,10 +95,10 @@ class UnifiedAIClient:
 
     async def analyze_market_sentiment(
         self,
-        market_data: Dict,
-        news: List[str],
+        market_data: dict,
+        news: list[str],
         provider: AIProvider = AIProvider.OPENAI,
-        model: Optional[str] = None
+        model: str | None = None
     ) -> AIResponse:
         """
         分析市场情绪
@@ -124,11 +126,11 @@ class UnifiedAIClient:
 
     async def generate_trading_signal(
         self,
-        market_data: Dict,
-        technical_indicators: Dict,
-        fundamental_data: Dict,
+        market_data: dict,
+        technical_indicators: dict,
+        fundamental_data: dict,
         provider: AIProvider = AIProvider.OPENAI,
-        model: Optional[str] = None
+        model: str | None = None
     ) -> AIResponse:
         """
         生成交易信号
@@ -158,10 +160,10 @@ class UnifiedAIClient:
 
     async def analyze_risk(
         self,
-        portfolio: Dict,
-        market_conditions: Dict,
+        portfolio: dict,
+        market_conditions: dict,
         provider: AIProvider = AIProvider.ANTHROPIC,
-        model: Optional[str] = None
+        model: str | None = None
     ) -> AIResponse:
         """
         风险分析
@@ -187,17 +189,17 @@ class UnifiedAIClient:
     def _get_default_model(self, provider: AIProvider) -> str:
         """获取默认模型"""
         defaults = {
-            AIProvider.OPENAI: 'gpt-4o-mini',
-            AIProvider.ANTHROPIC: 'claude-3-5-sonnet-20241022',
-            AIProvider.GOOGLE: 'gemini-1.5-flash',
-            AIProvider.DEEPSEEK: 'deepseek-chat'
+            AIProvider.OPENAI: "gpt-4o-mini",
+            AIProvider.ANTHROPIC: "claude-3-5-sonnet-20241022",
+            AIProvider.GOOGLE: "gemini-1.5-flash",
+            AIProvider.DEEPSEEK: "deepseek-chat"
         }
-        return defaults.get(provider, 'gpt-4o-mini')
+        return defaults.get(provider, "gpt-4o-mini")
 
     def _build_sentiment_prompt(
         self,
-        market_data: Dict,
-        news: List[str]
+        market_data: dict,
+        news: list[str]
     ) -> str:
         """构建情绪分析提示词"""
         prompt = f"""作为一个专业的金融分析师，分析以下市场数据和新闻，给出市场情绪评估。
@@ -223,9 +225,9 @@ class UnifiedAIClient:
 
     def _build_signal_prompt(
         self,
-        market_data: Dict,
-        technical_indicators: Dict,
-        fundamental_data: Dict
+        market_data: dict,
+        technical_indicators: dict,
+        fundamental_data: dict
     ) -> str:
         """构建交易信号提示词"""
         prompt = f"""作为量化交易专家，基于以下数据生成交易信号。
@@ -254,8 +256,8 @@ class UnifiedAIClient:
 
     def _build_risk_prompt(
         self,
-        portfolio: Dict,
-        market_conditions: Dict
+        portfolio: dict,
+        market_conditions: dict
     ) -> str:
         """构建风险分析提示词"""
         prompt = f"""作为风险管理专家，评估当前投资组合的风险状况。
@@ -307,14 +309,13 @@ class UnifiedAIClient:
 
         if provider == AIProvider.OPENAI:
             return await self._call_openai(model, prompt, temperature, max_tokens)
-        elif provider == AIProvider.ANTHROPIC:
+        if provider == AIProvider.ANTHROPIC:
             return await self._call_anthropic(model, prompt, temperature, max_tokens)
-        elif provider == AIProvider.GOOGLE:
+        if provider == AIProvider.GOOGLE:
             return await self._call_google(model, prompt, temperature, max_tokens)
-        elif provider == AIProvider.DEEPSEEK:
+        if provider == AIProvider.DEEPSEEK:
             return await self._call_deepseek(model, prompt, temperature, max_tokens)
-        else:
-            raise ValueError(f"不支持的提供商: {provider}")
+        raise ValueError(f"不支持的提供商: {provider}")
 
     async def _call_openai(
         self,
@@ -325,18 +326,18 @@ class UnifiedAIClient:
     ) -> AIResponse:
         """调用OpenAI API"""
         headers = {
-            'Authorization': f'Bearer {self.api_keys[AIProvider.OPENAI]}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {self.api_keys[AIProvider.OPENAI]}",
+            "Content-Type": "application/json"
         }
 
         payload = {
-            'model': model,
-            'messages': [
-                {'role': 'system', 'content': '你是一个专业的金融分析AI助手。'},
-                {'role': 'user', 'content': prompt}
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "你是一个专业的金融分析AI助手。"},
+                {"role": "user", "content": prompt}
             ],
-            'temperature': temperature,
-            'max_tokens': max_tokens
+            "temperature": temperature,
+            "max_tokens": max_tokens
         }
 
         async with self.session.post(
@@ -346,14 +347,14 @@ class UnifiedAIClient:
         ) as response:
             result = await response.json()
 
-            if 'error' in result:
+            if "error" in result:
                 raise Exception(f"OpenAI API错误: {result['error']}")
 
-            content = result['choices'][0]['message']['content']
-            tokens_used = result['usage']['total_tokens']
+            content = result["choices"][0]["message"]["content"]
+            tokens_used = result["usage"]["total_tokens"]
 
             # 计算成本
-            cost_per_1k = self.models[AIProvider.OPENAI][model]['cost_per_1k']
+            cost_per_1k = self.models[AIProvider.OPENAI][model]["cost_per_1k"]
             cost = (tokens_used / 1000) * cost_per_1k
 
             return AIResponse(
@@ -376,18 +377,18 @@ class UnifiedAIClient:
     ) -> AIResponse:
         """调用Anthropic API"""
         headers = {
-            'x-api-key': self.api_keys[AIProvider.ANTHROPIC],
-            'anthropic-version': '2023-06-01',
-            'Content-Type': 'application/json'
+            "x-api-key": self.api_keys[AIProvider.ANTHROPIC],
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
         }
 
         payload = {
-            'model': model,
-            'messages': [
-                {'role': 'user', 'content': prompt}
+            "model": model,
+            "messages": [
+                {"role": "user", "content": prompt}
             ],
-            'temperature': temperature,
-            'max_tokens': max_tokens
+            "temperature": temperature,
+            "max_tokens": max_tokens
         }
 
         async with self.session.post(
@@ -397,14 +398,14 @@ class UnifiedAIClient:
         ) as response:
             result = await response.json()
 
-            if 'error' in result:
+            if "error" in result:
                 raise Exception(f"Anthropic API错误: {result['error']}")
 
-            content = result['content'][0]['text']
-            tokens_used = result['usage']['input_tokens'] + result['usage']['output_tokens']
+            content = result["content"][0]["text"]
+            tokens_used = result["usage"]["input_tokens"] + result["usage"]["output_tokens"]
 
             # 计算成本
-            cost_per_1k = self.models[AIProvider.ANTHROPIC][model]['cost_per_1k']
+            cost_per_1k = self.models[AIProvider.ANTHROPIC][model]["cost_per_1k"]
             cost = (tokens_used / 1000) * cost_per_1k
 
             return AIResponse(
@@ -439,18 +440,18 @@ class UnifiedAIClient:
         """调用DeepSeek API"""
         # 与OpenAI兼容的API
         headers = {
-            'Authorization': f'Bearer {self.api_keys[AIProvider.DEEPSEEK]}',
-            'Content-Type': 'application/json'
+            "Authorization": f"Bearer {self.api_keys[AIProvider.DEEPSEEK]}",
+            "Content-Type": "application/json"
         }
 
         payload = {
-            'model': model,
-            'messages': [
-                {'role': 'system', 'content': '你是一个专业的金融分析AI助手。'},
-                {'role': 'user', 'content': prompt}
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "你是一个专业的金融分析AI助手。"},
+                {"role": "user", "content": prompt}
             ],
-            'temperature': temperature,
-            'max_tokens': max_tokens
+            "temperature": temperature,
+            "max_tokens": max_tokens
         }
 
         async with self.session.post(
@@ -460,13 +461,13 @@ class UnifiedAIClient:
         ) as response:
             result = await response.json()
 
-            if 'error' in result:
+            if "error" in result:
                 raise Exception(f"DeepSeek API错误: {result['error']}")
 
-            content = result['choices'][0]['message']['content']
-            tokens_used = result['usage']['total_tokens']
+            content = result["choices"][0]["message"]["content"]
+            tokens_used = result["usage"]["total_tokens"]
 
-            cost_per_1k = self.models[AIProvider.DEEPSEEK][model]['cost_per_1k']
+            cost_per_1k = self.models[AIProvider.DEEPSEEK][model]["cost_per_1k"]
             cost = (tokens_used / 1000) * cost_per_1k
 
             return AIResponse(
@@ -480,7 +481,7 @@ class UnifiedAIClient:
                 metadata=result
             )
 
-    def parse_json_response(self, content: str) -> Dict:
+    def parse_json_response(self, content: str) -> dict:
         """
         解析JSON响应
 
@@ -496,11 +497,10 @@ class UnifiedAIClient:
         except json.JSONDecodeError:
             # 尝试提取JSON部分
             import re
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group())
-            else:
-                raise ValueError("无法从响应中提取JSON")
+            raise ValueError("无法从响应中提取JSON")
 
 
 # 使用示例
@@ -509,9 +509,9 @@ async def main():
     async with UnifiedAIClient() as client:
         # 示例1: 市场情绪分析
         market_data = {
-            'price_change': 0.025,
-            'volume_change': 0.15,
-            'volatility': 0.18
+            "price_change": 0.025,
+            "volume_change": 0.15,
+            "volatility": 0.18
         }
         news = [
             "美联储宣布维持利率不变",
@@ -528,7 +528,7 @@ async def main():
             market_data,
             news,
             provider=AIProvider.OPENAI,
-            model='gpt-4o-mini'
+            model="gpt-4o-mini"
         )
 
         print(f"\n提供商: {response.provider.value}")
@@ -551,16 +551,16 @@ async def main():
         print("=" * 60)
 
         technical_indicators = {
-            'RSI': 45,
-            'MACD': 0.5,
-            'SMA_50': 150.2,
-            'SMA_200': 145.8
+            "RSI": 45,
+            "MACD": 0.5,
+            "SMA_50": 150.2,
+            "SMA_200": 145.8
         }
 
         fundamental_data = {
-            'PE_ratio': 18.5,
-            'PB_ratio': 2.3,
-            'ROE': 0.15
+            "PE_ratio": 18.5,
+            "PB_ratio": 2.3,
+            "ROE": 0.15
         }
 
         # 使用Claude
@@ -570,7 +570,7 @@ async def main():
                 technical_indicators,
                 fundamental_data,
                 provider=AIProvider.ANTHROPIC,
-                model='claude-3-5-sonnet-20241022'
+                model="claude-3-5-sonnet-20241022"
             )
 
             print(f"\n提供商: {response.provider.value}")

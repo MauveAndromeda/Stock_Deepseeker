@@ -3,14 +3,15 @@
 聚合多个智能体的意见，形成集体决策
 """
 
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import Counter
 from enum import Enum
+from typing import Any
 
-from src.agents.base import Agent, AgentDecision, Action, AgentType
+import numpy as np
+
+from src.agents.base import Action, Agent, AgentDecision
 
 
 class VotingStrategy(Enum):
@@ -27,11 +28,11 @@ class ConsensusDecision:
     symbol: str
     action: Action
     confidence: float
-    quantity: Optional[int]
-    price: Optional[float]
+    quantity: int | None
+    price: float | None
     reasoning: str
-    agent_votes: Dict[str, AgentDecision] = field(default_factory=dict)
-    voting_details: Dict[str, Any] = field(default_factory=dict)
+    agent_votes: dict[str, AgentDecision] = field(default_factory=dict)
+    voting_details: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -40,7 +41,7 @@ class ExpertPanel:
 
     def __init__(
         self,
-        agents: List[Agent],
+        agents: list[Agent],
         voting_strategy: VotingStrategy = VotingStrategy.CONFIDENCE_WEIGHTED,
         confidence_threshold: float = 0.6,
         min_agreement_ratio: float = 0.5,
@@ -63,14 +64,14 @@ class ExpertPanel:
         self.agent_weights = {agent.agent_id: 1.0 for agent in agents}
 
         # 决策历史
-        self.decision_history: List[ConsensusDecision] = []
+        self.decision_history: list[ConsensusDecision] = []
 
     def gather_opinions(
         self,
         symbol: str,
-        market_data: Dict,
-        context: Optional[Dict] = None
-    ) -> Dict[str, AgentDecision]:
+        market_data: dict,
+        context: dict | None = None
+    ) -> dict[str, AgentDecision]:
         """收集所有智能体的意见"""
         opinions = {}
 
@@ -86,8 +87,8 @@ class ExpertPanel:
 
     def vote_majority(
         self,
-        opinions: Dict[str, AgentDecision]
-    ) -> Tuple[Action, float, Dict]:
+        opinions: dict[str, AgentDecision]
+    ) -> tuple[Action, float, dict]:
         """多数投票"""
         action_votes = [decision.action for decision in opinions.values()]
         action_counter = Counter(action_votes)
@@ -112,8 +113,8 @@ class ExpertPanel:
 
     def vote_weighted(
         self,
-        opinions: Dict[str, AgentDecision]
-    ) -> Tuple[Action, float, Dict]:
+        opinions: dict[str, AgentDecision]
+    ) -> tuple[Action, float, dict]:
         """加权投票（基于智能体权重）"""
         action_weights = {Action.BUY: 0.0, Action.SELL: 0.0, Action.HOLD: 0.0}
 
@@ -135,8 +136,8 @@ class ExpertPanel:
 
     def vote_confidence_weighted(
         self,
-        opinions: Dict[str, AgentDecision]
-    ) -> Tuple[Action, float, Dict]:
+        opinions: dict[str, AgentDecision]
+    ) -> tuple[Action, float, dict]:
         """置信度加权投票"""
         action_scores = {Action.BUY: 0.0, Action.SELL: 0.0, Action.HOLD: 0.0}
 
@@ -159,8 +160,8 @@ class ExpertPanel:
 
     def vote_unanimous(
         self,
-        opinions: Dict[str, AgentDecision]
-    ) -> Tuple[Action, float, Dict]:
+        opinions: dict[str, AgentDecision]
+    ) -> tuple[Action, float, dict]:
         """一致通过（所有智能体必须同意）"""
         actions = [decision.action for decision in opinions.values()]
 
@@ -171,16 +172,15 @@ class ExpertPanel:
             avg_confidence = np.mean([d.confidence for d in opinions.values()])
             voting_details = {"unanimous": True, "action": str(action)}
             return action, avg_confidence, voting_details
-        else:
-            # 不一致，默认持有
-            voting_details = {"unanimous": False, "action_distribution": dict(Counter(actions))}
-            return Action.HOLD, 0.5, voting_details
+        # 不一致，默认持有
+        voting_details = {"unanimous": False, "action_distribution": dict(Counter(actions))}
+        return Action.HOLD, 0.5, voting_details
 
     def make_consensus_decision(
         self,
         symbol: str,
-        market_data: Dict,
-        context: Optional[Dict] = None
+        market_data: dict,
+        context: dict | None = None
     ) -> ConsensusDecision:
         """形成共识决策"""
 
@@ -194,7 +194,7 @@ class ExpertPanel:
                 action=Action.HOLD,
                 confidence=0.5,
                 quantity=None,
-                price=market_data.get('close'),
+                price=market_data.get("close"),
                 reasoning="无智能体意见",
                 agent_votes={},
                 voting_details={}
@@ -229,7 +229,7 @@ class ExpertPanel:
             action=action,
             confidence=confidence,
             quantity=avg_quantity,
-            price=market_data.get('close'),
+            price=market_data.get("close"),
             reasoning=reasoning,
             agent_votes=opinions,
             voting_details=details
@@ -242,7 +242,7 @@ class ExpertPanel:
 
     def _aggregate_reasoning(
         self,
-        opinions: Dict[str, AgentDecision],
+        opinions: dict[str, AgentDecision],
         chosen_action: Action
     ) -> str:
         """聚合推理"""
@@ -256,13 +256,12 @@ class ExpertPanel:
 
         if len(reasoning_texts) <= 3:
             return "; ".join(reasoning_texts)
-        else:
-            # 如果太多，只取前3个
-            return "; ".join(reasoning_texts[:3]) + f" (共{len(reasoning_texts)}个意见)"
+        # 如果太多，只取前3个
+        return "; ".join(reasoning_texts[:3]) + f" (共{len(reasoning_texts)}个意见)"
 
     def update_agent_weights(
         self,
-        performance_metrics: Dict[str, float]
+        performance_metrics: dict[str, float]
     ):
         """
         根据表现更新智能体权重
@@ -285,7 +284,7 @@ class ExpertPanel:
                 k: v / total_weight for k, v in self.agent_weights.items()
             }
 
-    def get_agent_statistics(self) -> Dict[str, Any]:
+    def get_agent_statistics(self) -> dict[str, Any]:
         """获取智能体统计信息"""
         stats = {
             "total_agents": len(self.agents),
@@ -302,9 +301,9 @@ class ExpertPanel:
 
     def get_decision_history(
         self,
-        symbol: Optional[str] = None,
+        symbol: str | None = None,
         limit: int = 100
-    ) -> List[ConsensusDecision]:
+    ) -> list[ConsensusDecision]:
         """获取决策历史"""
         history = self.decision_history
 
@@ -319,8 +318,8 @@ class HierarchicalPanel:
 
     def __init__(
         self,
-        retail_agents: List[Agent],
-        institutional_agents: List[Agent],
+        retail_agents: list[Agent],
+        institutional_agents: list[Agent],
         retail_weight: float = 0.3,
         institutional_weight: float = 0.7
     ):
@@ -351,8 +350,8 @@ class HierarchicalPanel:
     def make_decision(
         self,
         symbol: str,
-        market_data: Dict,
-        context: Optional[Dict] = None
+        market_data: dict,
+        context: dict | None = None
     ) -> ConsensusDecision:
         """分层决策"""
 
@@ -397,7 +396,7 @@ class HierarchicalPanel:
             action=final_action,
             confidence=final_confidence,
             quantity=final_quantity,
-            price=market_data.get('close'),
+            price=market_data.get("close"),
             reasoning=reasoning,
             agent_votes={
                 "retail": retail_decision,

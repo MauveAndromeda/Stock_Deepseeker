@@ -6,11 +6,11 @@ Automatic rebalancing to maintain target weights with transaction cost optimizat
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 
 class RebalanceMethod(Enum):
@@ -25,11 +25,11 @@ class RebalanceMethod(Enum):
 class RebalanceResult:
     """Rebalancing result."""
     timestamp: datetime
-    trades: Dict[str, float]  # symbol -> trade size
+    trades: dict[str, float]  # symbol -> trade size
     estimated_cost: float
-    current_weights: Dict[str, float]
-    target_weights: Dict[str, float]
-    weight_deviations: Dict[str, float]
+    current_weights: dict[str, float]
+    target_weights: dict[str, float]
+    weight_deviations: dict[str, float]
     reason: str
 
 
@@ -40,7 +40,7 @@ class Rebalancer:
     Determines when and how to rebalance portfolio to maintain target weights
     while minimizing transaction costs.
     """
-    
+
     def __init__(
         self,
         method: RebalanceMethod = RebalanceMethod.THRESHOLD,
@@ -64,19 +64,19 @@ class Rebalancer:
         self.min_trade_size = min_trade_size
         self.max_turnover = max_turnover
         self.transaction_cost = transaction_cost
-        
-        self.rebalance_history: List[RebalanceResult] = []
-        
+
+        self.rebalance_history: list[RebalanceResult] = []
+
         logger.info(
             f"Initialized Rebalancer: method={method.value}, "
             f"threshold={threshold:.1%}"
         )
-    
+
     def check_rebalance_needed(
         self,
-        current_weights: Dict[str, float],
-        target_weights: Dict[str, float],
-        volatilities: Optional[Dict[str, float]] = None
+        current_weights: dict[str, float],
+        target_weights: dict[str, float],
+        volatilities: dict[str, float] | None = None
     ) -> bool:
         """
         Check if rebalancing is needed.
@@ -91,60 +91,59 @@ class Rebalancer:
         """
         if self.method == RebalanceMethod.THRESHOLD:
             return self._threshold_check(current_weights, target_weights)
-        
-        elif self.method == RebalanceMethod.ADAPTIVE:
+
+        if self.method == RebalanceMethod.ADAPTIVE:
             return self._adaptive_check(current_weights, target_weights, volatilities)
-        
-        else:
-            # PERIODIC and COST_OPTIMIZED require external trigger
-            return False
-    
+
+        # PERIODIC and COST_OPTIMIZED require external trigger
+        return False
+
     def _threshold_check(
         self,
-        current_weights: Dict[str, float],
-        target_weights: Dict[str, float]
+        current_weights: dict[str, float],
+        target_weights: dict[str, float]
     ) -> bool:
         """Check if any position exceeds threshold deviation."""
         max_deviation = 0
-        
+
         for symbol in set(current_weights.keys()) | set(target_weights.keys()):
             current = current_weights.get(symbol, 0)
             target = target_weights.get(symbol, 0)
             deviation = abs(current - target)
             max_deviation = max(max_deviation, deviation)
-        
+
         return max_deviation > self.threshold
-    
+
     def _adaptive_check(
         self,
-        current_weights: Dict[str, float],
-        target_weights: Dict[str, float],
-        volatilities: Optional[Dict[str, float]]
+        current_weights: dict[str, float],
+        target_weights: dict[str, float],
+        volatilities: dict[str, float] | None
     ) -> bool:
         """Adaptive threshold based on volatility."""
         if volatilities is None:
             return self._threshold_check(current_weights, target_weights)
-        
+
         # Adjust threshold based on average portfolio volatility
         avg_vol = np.mean(list(volatilities.values()))
-        
+
         # Higher vol -> wider threshold (less frequent rebalancing)
         adjusted_threshold = self.threshold * (1 + avg_vol)
-        
+
         max_deviation = 0
         for symbol in set(current_weights.keys()) | set(target_weights.keys()):
             current = current_weights.get(symbol, 0)
             target = target_weights.get(symbol, 0)
             deviation = abs(current - target)
             max_deviation = max(max_deviation, deviation)
-        
+
         return max_deviation > adjusted_threshold
-    
+
     def calculate_rebalance(
         self,
-        current_positions: Dict[str, float],  # symbol -> quantity
-        current_prices: Dict[str, float],  # symbol -> price
-        target_weights: Dict[str, float],  # symbol -> target weight
+        current_positions: dict[str, float],  # symbol -> quantity
+        current_prices: dict[str, float],  # symbol -> price
+        target_weights: dict[str, float],  # symbol -> target weight
         portfolio_value: float
     ) -> RebalanceResult:
         """
@@ -165,7 +164,7 @@ class Rebalancer:
             if symbol in current_prices:
                 value = quantity * current_prices[symbol]
                 current_weights[symbol] = value / portfolio_value if portfolio_value > 0 else 0
-        
+
         # Calculate target positions
         target_positions = {}
         for symbol, weight in target_weights.items():
@@ -174,29 +173,29 @@ class Rebalancer:
                 target_positions[symbol] = target_value / current_prices[symbol]
             else:
                 target_positions[symbol] = 0
-        
+
         # Calculate trades
         trades = {}
         total_turnover = 0
-        
+
         all_symbols = set(current_positions.keys()) | set(target_positions.keys())
-        
+
         for symbol in all_symbols:
             current_qty = current_positions.get(symbol, 0)
             target_qty = target_positions.get(symbol, 0)
             trade_qty = target_qty - current_qty
-            
+
             # Check minimum trade size
             if symbol in current_prices:
                 trade_value = abs(trade_qty * current_prices[symbol])
-                
+
                 if trade_value >= self.min_trade_size:
                     trades[symbol] = trade_qty
                     total_turnover += trade_value
-        
+
         # Check turnover limit
         turnover_pct = total_turnover / portfolio_value if portfolio_value > 0 else 0
-        
+
         if turnover_pct > self.max_turnover:
             logger.warning(
                 f"Turnover {turnover_pct:.1%} exceeds limit {self.max_turnover:.1%}, "
@@ -205,21 +204,21 @@ class Rebalancer:
             scale_factor = self.max_turnover / turnover_pct
             trades = {symbol: qty * scale_factor for symbol, qty in trades.items()}
             total_turnover *= scale_factor
-        
+
         # Estimate transaction costs
         estimated_cost = total_turnover * self.transaction_cost
-        
+
         # Calculate deviations
         weight_deviations = {}
         for symbol in set(current_weights.keys()) | set(target_weights.keys()):
             current = current_weights.get(symbol, 0)
             target = target_weights.get(symbol, 0)
             weight_deviations[symbol] = current - target
-        
+
         # Determine reason
         max_deviation = max(abs(d) for d in weight_deviations.values()) if weight_deviations else 0
         reason = f"Weight deviation: {max_deviation:.2%}"
-        
+
         result = RebalanceResult(
             timestamp=datetime.now(),
             trades=trades,
@@ -229,20 +228,20 @@ class Rebalancer:
             weight_deviations=weight_deviations,
             reason=reason
         )
-        
+
         self.rebalance_history.append(result)
-        
+
         logger.info(
             f"Rebalance calculated: {len(trades)} trades, "
             f"cost=${estimated_cost:,.2f}, turnover={turnover_pct:.1%}"
         )
-        
+
         return result
-    
+
     def get_rebalance_schedule(
         self,
-        frequency: str = 'monthly'  # 'daily', 'weekly', 'monthly', 'quarterly'
-    ) -> List[datetime]:
+        frequency: str = "monthly"  # 'daily', 'weekly', 'monthly', 'quarterly'
+    ) -> list[datetime]:
         """
         Get periodic rebalancing schedule.
         
@@ -254,13 +253,13 @@ class Rebalancer:
         """
         # Placeholder - would generate actual schedule
         return []
-    
+
     def optimize_rebalance_timing(
         self,
-        current_weights: Dict[str, float],
-        target_weights: Dict[str, float],
-        volatility_forecast: Optional[Dict[str, float]] = None
-    ) -> Dict:
+        current_weights: dict[str, float],
+        target_weights: dict[str, float],
+        volatility_forecast: dict[str, float] | None = None
+    ) -> dict:
         """
         Optimize rebalancing timing to minimize costs.
         
@@ -277,35 +276,35 @@ class Rebalancer:
             symbol: abs(current_weights.get(symbol, 0) - target_weights.get(symbol, 0))
             for symbol in set(current_weights.keys()) | set(target_weights.keys())
         }
-        
+
         max_deviation = max(deviations.values()) if deviations else 0
         urgency_score = max_deviation / self.threshold
-        
+
         # High urgency -> rebalance now
         # Low urgency -> can wait for lower vol/costs
-        
+
         recommendation = {
-            'urgency_score': urgency_score,
-            'max_deviation': max_deviation,
-            'threshold': self.threshold,
-            'recommendation': 'immediate' if urgency_score > 1.5 else 'wait' if urgency_score < 0.5 else 'monitor'
+            "urgency_score": urgency_score,
+            "max_deviation": max_deviation,
+            "threshold": self.threshold,
+            "recommendation": "immediate" if urgency_score > 1.5 else "wait" if urgency_score < 0.5 else "monitor"
         }
-        
+
         return recommendation
-    
+
     def get_rebalance_stats(self) -> pd.DataFrame:
         """Get rebalancing statistics."""
         if len(self.rebalance_history) == 0:
             return pd.DataFrame()
-        
+
         stats_data = []
         for result in self.rebalance_history:
             stats_data.append({
-                'timestamp': result.timestamp,
-                'num_trades': len(result.trades),
-                'estimated_cost': result.estimated_cost,
-                'max_deviation': max(abs(d) for d in result.weight_deviations.values()),
-                'reason': result.reason
+                "timestamp": result.timestamp,
+                "num_trades": len(result.trades),
+                "estimated_cost": result.estimated_cost,
+                "max_deviation": max(abs(d) for d in result.weight_deviations.values()),
+                "reason": result.reason
             })
-        
+
         return pd.DataFrame(stats_data)

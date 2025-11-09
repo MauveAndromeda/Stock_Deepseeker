@@ -6,10 +6,10 @@ Tests individual factors by ranking stocks and measuring forward returns.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.factors import Factor
 
@@ -52,7 +52,7 @@ class FactorBacktestResult:
     ic_mean: float
     ic_std: float
     ic_ir: float
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         """Generate summary report."""
@@ -96,7 +96,7 @@ class FactorBacktester:
         quantiles: int = 5,  # Number of quantiles
         long_quantile: int = 5,  # Top quantile for long
         short_quantile: int = 1,  # Bottom quantile for short
-        rebalance_frequency: str = 'monthly',  # 'daily', 'weekly', 'monthly'
+        rebalance_frequency: str = "monthly",  # 'daily', 'weekly', 'monthly'
         min_stocks_per_quantile: int = 5,
         transaction_cost: float = 0.001,  # 10 bps per trade
     ) -> None:
@@ -128,7 +128,7 @@ class FactorBacktester:
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> FactorBacktestResult:
         """
         Run backtest for a factor.
@@ -254,14 +254,14 @@ class FactorBacktester:
         data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime
-    ) -> List[datetime]:
+    ) -> list[datetime]:
         """Get list of rebalancing dates."""
         all_dates = sorted(data.index.get_level_values(0).unique())
         dates_in_range = [d for d in all_dates if start_date <= d <= end_date]
 
-        if self.rebalance_frequency == 'daily':
+        if self.rebalance_frequency == "daily":
             return dates_in_range
-        elif self.rebalance_frequency == 'weekly':
+        if self.rebalance_frequency == "weekly":
             # First trading day of each week
             rebal_dates = []
             current_week = None
@@ -271,7 +271,7 @@ class FactorBacktester:
                     rebal_dates.append(date)
                     current_week = week
             return rebal_dates
-        elif self.rebalance_frequency == 'monthly':
+        if self.rebalance_frequency == "monthly":
             # First trading day of each month
             rebal_dates = []
             current_month = None
@@ -281,13 +281,12 @@ class FactorBacktester:
                     rebal_dates.append(date)
                     current_month = month
             return rebal_dates
-        else:
-            raise ValueError(f"Unknown rebalance frequency: {self.rebalance_frequency}")
+        raise ValueError(f"Unknown rebalance frequency: {self.rebalance_frequency}")
 
     def _form_quantile_portfolios(
         self,
         factor_values: pd.Series
-    ) -> Dict[int, List[str]]:
+    ) -> dict[int, list[str]]:
         """
         Form quantile portfolios based on factor values.
 
@@ -325,11 +324,11 @@ class FactorBacktester:
 
     def _calculate_forward_returns(
         self,
-        portfolios: Dict[int, List[str]],
+        portfolios: dict[int, list[str]],
         data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime
-    ) -> Optional[pd.Series]:
+    ) -> pd.Series | None:
         """
         Calculate forward returns for each quantile portfolio.
 
@@ -355,8 +354,8 @@ class FactorBacktester:
             returns = []
             for symbol in symbols:
                 try:
-                    start_price = data.loc[(start_date, symbol), 'close']
-                    end_price = data.loc[(end_date, symbol), 'close']
+                    start_price = data.loc[(start_date, symbol), "close"]
+                    end_price = data.loc[(end_date, symbol), "close"]
                     ret = (end_price - start_price) / start_price
                     returns.append(ret)
                 except (KeyError, ZeroDivisionError):
@@ -379,7 +378,7 @@ class FactorBacktester:
         data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Calculate Information Coefficient (Spearman correlation).
 
@@ -398,8 +397,8 @@ class FactorBacktester:
 
         for symbol in factor_values.index:
             try:
-                start_price = data.loc[(start_date, symbol), 'close']
-                end_price = data.loc[(end_date, symbol), 'close']
+                start_price = data.loc[(start_date, symbol), "close"]
+                end_price = data.loc[(end_date, symbol), "close"]
                 ret = (end_price - start_price) / start_price
                 forward_returns.append(ret)
                 factor_vals.append(factor_values[symbol])
@@ -420,8 +419,8 @@ class FactorBacktester:
 
     def _calculate_turnover(
         self,
-        old_holdings: List[str],
-        new_holdings: List[str]
+        old_holdings: list[str],
+        new_holdings: list[str]
     ) -> float:
         """
         Calculate portfolio turnover.

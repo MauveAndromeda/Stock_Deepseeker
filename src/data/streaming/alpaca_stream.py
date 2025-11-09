@@ -2,17 +2,12 @@
 Alpaca real-time data streaming implementation.
 """
 
-from typing import List, Optional, Any, Dict
 import asyncio
-import json
 from datetime import datetime
-from decimal import Decimal
+import json
+from typing import Any
 
-from src.data.streaming.base import (
-    StreamingDataProvider,
-    StreamingMessage,
-    MessageType
-)
+from src.data.streaming.base import MessageType, StreamingDataProvider, StreamingMessage
 
 try:
     import websockets
@@ -98,9 +93,8 @@ class AlpacaStreamingProvider(StreamingDataProvider):
                 self._connected = True
                 self.logger.info("Authentication successful")
                 return True
-            else:
-                self.logger.error(f"Authentication failed: {response_data}")
-                return False
+            self.logger.error(f"Authentication failed: {response_data}")
+            return False
 
         except Exception as e:
             self.logger.error(f"Connection error: {e}")
@@ -121,8 +115,8 @@ class AlpacaStreamingProvider(StreamingDataProvider):
 
     async def subscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """
         Subscribe to real-time data for symbols.
@@ -150,7 +144,7 @@ class AlpacaStreamingProvider(StreamingDataProvider):
         try:
             subscribe_message = {
                 "action": "subscribe",
-                **{channel: symbols for channel in channels}
+                **dict.fromkeys(channels, symbols)
             }
 
             await self._ws.send(json.dumps(subscribe_message))
@@ -170,8 +164,8 @@ class AlpacaStreamingProvider(StreamingDataProvider):
 
     async def unsubscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """Unsubscribe from real-time data."""
         if not self._connected:
@@ -188,7 +182,7 @@ class AlpacaStreamingProvider(StreamingDataProvider):
         try:
             unsubscribe_message = {
                 "action": "unsubscribe",
-                **{channel: symbols for channel in channels}
+                **dict.fromkeys(channels, symbols)
             }
 
             await self._ws.send(json.dumps(unsubscribe_message))
@@ -245,7 +239,7 @@ class AlpacaStreamingProvider(StreamingDataProvider):
                 else:
                     break
 
-    async def _process_message(self, raw_message: Dict[str, Any]) -> Optional[StreamingMessage]:
+    async def _process_message(self, raw_message: dict[str, Any]) -> StreamingMessage | None:
         """
         Process raw Alpaca message.
 
@@ -291,38 +285,38 @@ class AlpacaStreamingProvider(StreamingDataProvider):
 
             if message_type == MessageType.TRADE:
                 data = {
-                    'price': float(raw_message.get("p", 0)),
-                    'size': int(raw_message.get("s", 0)),
-                    'exchange': raw_message.get("x", ""),
-                    'conditions': raw_message.get("c", []),
-                    'tape': raw_message.get("z", "")
+                    "price": float(raw_message.get("p", 0)),
+                    "size": int(raw_message.get("s", 0)),
+                    "exchange": raw_message.get("x", ""),
+                    "conditions": raw_message.get("c", []),
+                    "tape": raw_message.get("z", "")
                 }
 
             elif message_type == MessageType.QUOTE:
                 data = {
-                    'bid_price': float(raw_message.get("bp", 0)),
-                    'bid_size': int(raw_message.get("bs", 0)),
-                    'ask_price': float(raw_message.get("ap", 0)),
-                    'ask_size': int(raw_message.get("as", 0)),
-                    'bid_exchange': raw_message.get("bx", ""),
-                    'ask_exchange': raw_message.get("ax", "")
+                    "bid_price": float(raw_message.get("bp", 0)),
+                    "bid_size": int(raw_message.get("bs", 0)),
+                    "ask_price": float(raw_message.get("ap", 0)),
+                    "ask_size": int(raw_message.get("as", 0)),
+                    "bid_exchange": raw_message.get("bx", ""),
+                    "ask_exchange": raw_message.get("ax", "")
                 }
 
             elif message_type == MessageType.BAR:
                 data = {
-                    'open': float(raw_message.get("o", 0)),
-                    'high': float(raw_message.get("h", 0)),
-                    'low': float(raw_message.get("l", 0)),
-                    'close': float(raw_message.get("c", 0)),
-                    'volume': int(raw_message.get("v", 0)),
-                    'vwap': float(raw_message.get("vw", 0)),
-                    'trade_count': int(raw_message.get("n", 0))
+                    "open": float(raw_message.get("o", 0)),
+                    "high": float(raw_message.get("h", 0)),
+                    "low": float(raw_message.get("l", 0)),
+                    "close": float(raw_message.get("c", 0)),
+                    "volume": int(raw_message.get("v", 0)),
+                    "vwap": float(raw_message.get("vw", 0)),
+                    "trade_count": int(raw_message.get("n", 0))
                 }
 
             elif message_type == MessageType.ERROR:
                 data = {
-                    'code': raw_message.get("code", 0),
-                    'msg': raw_message.get("msg", "")
+                    "code": raw_message.get("code", 0),
+                    "msg": raw_message.get("msg", "")
                 }
                 self.logger.error(f"Alpaca error: {data}")
 

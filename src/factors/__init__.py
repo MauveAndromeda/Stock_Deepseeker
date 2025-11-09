@@ -5,13 +5,15 @@ Uses vectorized operations for fast factor calculation across large universes.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Callable, Any
-import pandas as pd
-import numpy as np
+from typing import Any, Dict, List, Optional
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 
 class FactorCategory(Enum):
@@ -47,7 +49,7 @@ class FactorMetadata:
     category: FactorCategory
     description: str
     formula: str
-    data_requirements: List[str]
+    data_requirements: list[str]
     lookback_period: int
     update_frequency: str = "daily"
     normalization: bool = True
@@ -73,7 +75,7 @@ class Factor(ABC):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """
         Calculate factor values.
@@ -85,7 +87,6 @@ class Factor(ABC):
         Returns:
             Series of factor values indexed by (date, symbol)
         """
-        pass
 
     def validate_data(self, data: pd.DataFrame) -> bool:
         """
@@ -140,11 +141,11 @@ class Factor(ABC):
                 return (values - mean) / std
             return values - mean
 
-        elif method == "rank":
+        if method == "rank":
             # Rank normalization (0 to 1)
             return values.rank(pct=True)
 
-        elif method == "minmax":
+        if method == "minmax":
             # Min-max normalization (0 to 1)
             min_val = values.min()
             max_val = values.max()
@@ -152,8 +153,7 @@ class Factor(ABC):
                 return (values - min_val) / (max_val - min_val)
             return values * 0
 
-        else:
-            raise ValueError(f"Unknown normalization method: {method}")
+        raise ValueError(f"Unknown normalization method: {method}")
 
 
 class VectorizedFactorEngine:
@@ -169,7 +169,7 @@ class VectorizedFactorEngine:
 
     def __init__(
         self,
-        factors: Optional[List[Factor]] = None,
+        factors: list[Factor] | None = None,
         enable_cache: bool = True
     ) -> None:
         """
@@ -179,19 +179,19 @@ class VectorizedFactorEngine:
             factors: List of factors to compute
             enable_cache: Whether to enable caching
         """
-        self.factors: Dict[str, Factor] = {}
+        self.factors: dict[str, Factor] = {}
         if factors:
             for factor in factors:
                 self.register_factor(factor)
 
         self.enable_cache = enable_cache
-        self._cache: Dict[str, pd.Series] = {}
+        self._cache: dict[str, pd.Series] = {}
 
         # Statistics
         self.stats = {
-            'calculations': 0,
-            'cache_hits': 0,
-            'cache_misses': 0,
+            "calculations": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
         }
 
     def register_factor(self, factor: Factor) -> None:
@@ -208,7 +208,7 @@ class VectorizedFactorEngine:
         self,
         factor_name: str,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None,
+        universe: list[str] | None = None,
         use_cache: bool = True
     ) -> pd.Series:
         """
@@ -231,12 +231,12 @@ class VectorizedFactorEngine:
         # Check cache
         cache_key = self._get_cache_key(factor_name, data, universe)
         if use_cache and self.enable_cache and cache_key in self._cache:
-            self.stats['cache_hits'] += 1
+            self.stats["cache_hits"] += 1
             logger.debug(f"Cache hit: {factor_name}")
             return self._cache[cache_key]
 
-        self.stats['cache_misses'] += 1
-        self.stats['calculations'] += 1
+        self.stats["cache_misses"] += 1
+        self.stats["calculations"] += 1
 
         # Validate data
         if not factor.validate_data(data):
@@ -260,8 +260,8 @@ class VectorizedFactorEngine:
     def calculate_all_factors(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None,
-        categories: Optional[List[FactorCategory]] = None
+        universe: list[str] | None = None,
+        categories: list[FactorCategory] | None = None
     ) -> pd.DataFrame:
         """
         Calculate all registered factors.
@@ -299,9 +299,9 @@ class VectorizedFactorEngine:
 
     def calculate_factor_panel(
         self,
-        data: Dict[str, pd.DataFrame],
-        factor_names: List[str],
-        rebalance_dates: List[datetime]
+        data: dict[str, pd.DataFrame],
+        factor_names: list[str],
+        rebalance_dates: list[datetime]
     ) -> pd.DataFrame:
         """
         Calculate factor panel over time.
@@ -339,13 +339,13 @@ class VectorizedFactorEngine:
                         use_cache=False  # Don't cache panel calculations
                     )
 
-                    for symbol in filtered_data.keys():
+                    for symbol in filtered_data:
                         if symbol in values.index:
                             results.append({
-                                'date': date,
-                                'symbol': symbol,
-                                'factor': factor_name,
-                                'value': values[symbol]
+                                "date": date,
+                                "symbol": symbol,
+                                "factor": factor_name,
+                                "value": values[symbol]
                             })
                 except Exception as e:
                     logger.error(
@@ -358,16 +358,16 @@ class VectorizedFactorEngine:
 
         df = pd.DataFrame(results)
         df = df.pivot_table(
-            index=['date', 'symbol'],
-            columns='factor',
-            values='value'
+            index=["date", "symbol"],
+            columns="factor",
+            values="value"
         )
 
         return df
 
     def _stack_data(
         self,
-        data: Dict[str, pd.DataFrame],
+        data: dict[str, pd.DataFrame],
         end_date: datetime
     ) -> pd.DataFrame:
         """
@@ -384,7 +384,7 @@ class VectorizedFactorEngine:
 
         for symbol, df in data.items():
             df = df.copy()
-            df['symbol'] = symbol
+            df["symbol"] = symbol
             dfs.append(df)
 
         if not dfs:
@@ -392,7 +392,7 @@ class VectorizedFactorEngine:
 
         stacked = pd.concat(dfs, axis=0)
         stacked = stacked.reset_index()
-        stacked = stacked.set_index(['date', 'symbol'])
+        stacked = stacked.set_index(["date", "symbol"])
 
         return stacked
 
@@ -400,7 +400,7 @@ class VectorizedFactorEngine:
         self,
         factor_name: str,
         data: pd.DataFrame,
-        universe: Optional[List[str]]
+        universe: list[str] | None
     ) -> str:
         """Generate cache key."""
         data_hash = hash(tuple(data.index))
@@ -412,31 +412,31 @@ class VectorizedFactorEngine:
         self._cache.clear()
         logger.info("Factor cache cleared")
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         Get engine statistics.
 
         Returns:
             Dict with statistics
         """
-        total_requests = self.stats['cache_hits'] + self.stats['cache_misses']
+        total_requests = self.stats["cache_hits"] + self.stats["cache_misses"]
         hit_rate = (
-            self.stats['cache_hits'] / total_requests
+            self.stats["cache_hits"] / total_requests
             if total_requests > 0 else 0
         )
 
         return {
-            'registered_factors': len(self.factors),
-            'total_calculations': self.stats['calculations'],
-            'cache_size': len(self._cache),
-            'cache_hit_rate': hit_rate,
+            "registered_factors": len(self.factors),
+            "total_calculations": self.stats["calculations"],
+            "cache_size": len(self._cache),
+            "cache_hit_rate": hit_rate,
             **self.stats
         }
 
     def list_factors(
         self,
-        category: Optional[FactorCategory] = None
-    ) -> List[FactorMetadata]:
+        category: FactorCategory | None = None
+    ) -> list[FactorMetadata]:
         """
         List registered factors.
 
@@ -474,7 +474,7 @@ class MomentumFactor(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"{lookback}-day price momentum",
             formula=f"(close_t - close_t-{lookback}) / close_t-{lookback}",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -483,17 +483,17 @@ class MomentumFactor(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate momentum."""
-        closes = data['close']
+        closes = data["close"]
 
         # Calculate returns
         returns = closes.pct_change(periods=self.lookback)
 
         # Filter universe if provided
         if universe:
-            returns = returns[returns.index.get_level_values('symbol').isin(universe)]
+            returns = returns[returns.index.get_level_values("symbol").isin(universe)]
 
         return returns.fillna(0)
 
@@ -508,20 +508,20 @@ if __name__ == "__main__":
     engine.register_factor(MomentumFactor(lookback=60))
 
     # Create sample data
-    dates = pd.date_range('2023-01-01', '2023-12-31', freq='B')
-    symbols = ['AAPL', 'MSFT', 'GOOGL']
+    dates = pd.date_range("2023-01-01", "2023-12-31", freq="B")
+    symbols = ["AAPL", "MSFT", "GOOGL"]
 
     data_list = []
     for symbol in symbols:
         for date in dates:
             data_list.append({
-                'date': date,
-                'symbol': symbol,
-                'close': 100 * (1 + np.random.randn() * 0.02).cumprod()[0]
+                "date": date,
+                "symbol": symbol,
+                "close": 100 * (1 + np.random.randn() * 0.02).cumprod()[0]
             })
 
     data = pd.DataFrame(data_list)
-    data = data.set_index(['date', 'symbol'])
+    data = data.set_index(["date", "symbol"])
 
     # Calculate all factors
     factors = engine.calculate_all_factors(data)

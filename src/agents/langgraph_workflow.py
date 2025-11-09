@@ -6,18 +6,15 @@ Research-grade implementation (Under Development)
 Multi-round expert discussion using graph-based workflow
 """
 
-from typing import Dict, List, Optional, Any, TypedDict, Annotated
 from dataclasses import dataclass, field
 from datetime import datetime
 import operator
+from typing import Annotated, Any, TypedDict
 
-from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from pydantic import BaseModel, Field
-
-from src.agents.base import AgentDecision, Action
-from src.ai.model_unified import ModelRouter, ModelTier, get_router
+from langgraph.graph import END, StateGraph
 from loguru import logger
+
+from src.ai.model_unified import ModelRouter, ModelTier, get_router
 
 
 class ExpertRole(str):
@@ -32,13 +29,13 @@ class ExpertRole(str):
 class DiscussionState(TypedDict):
     """讨论状态（在节点间传递）"""
     symbol: str
-    market_data: Dict[str, Any]
+    market_data: dict[str, Any]
     round_number: int
     max_rounds: int
-    expert_opinions: Annotated[List[Dict], operator.add]  # 累积专家意见
-    chairman_summary: Optional[str]
-    final_decision: Optional[Dict]
-    metadata: Dict[str, Any]
+    expert_opinions: Annotated[list[dict], operator.add]  # 累积专家意见
+    chairman_summary: str | None
+    final_decision: dict | None
+    metadata: dict[str, Any]
 
 
 @dataclass
@@ -49,8 +46,8 @@ class ExpertOpinion:
     opinion: str
     action_recommendation: str  # BUY/SELL/HOLD
     confidence: float
-    key_points: List[str]
-    concerns: List[str]
+    key_points: list[str]
+    concerns: list[str]
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -64,7 +61,7 @@ class ExpertNode:
     ):
         self.role = role
         self.model_tier = model_tier
-        self.router: Optional[ModelRouter] = None
+        self.router: ModelRouter | None = None
 
     async def _ensure_router(self):
         if self.router is None:
@@ -121,18 +118,18 @@ Provide a balanced final decision.
         }
         return prompts.get(self.role, "You are a financial expert.")
 
-    async def process(self, state: DiscussionState) -> Dict:
+    async def process(self, state: DiscussionState) -> dict:
         """处理节点逻辑"""
         await self._ensure_router()
 
-        symbol = state['symbol']
-        round_num = state['round_number']
-        market_data = state['market_data']
+        symbol = state["symbol"]
+        round_num = state["round_number"]
+        market_data = state["market_data"]
 
         # 准备上下文
         market_context = self._format_market_data(market_data)
         previous_opinions = self._format_previous_opinions(
-            state.get('expert_opinions', []),
+            state.get("expert_opinions", []),
             round_num
         )
 
@@ -166,8 +163,8 @@ Format as JSON:
 """
 
         messages = [
-            {'role': 'system', 'content': self._get_system_prompt()},
-            {'role': 'user', 'content': user_message}
+            {"role": "system", "content": self._get_system_prompt()},
+            {"role": "user", "content": user_message}
         ]
 
         try:
@@ -178,7 +175,7 @@ Format as JSON:
             import json
             try:
                 parsed = json.loads(response.content)
-            except:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 # 如果解析失败，创建默认响应
                 parsed = {
                     "opinion": response.content,
@@ -190,38 +187,38 @@ Format as JSON:
 
             # 创建专家意见
             opinion = {
-                'role': self.role,
-                'round': round_num,
-                'opinion': parsed['opinion'],
-                'action': parsed['action'],
-                'confidence': parsed['confidence'],
-                'key_points': parsed.get('key_points', []),
-                'concerns': parsed.get('concerns', []),
-                'cost': response.cost,
-                'tokens': response.tokens_used
+                "role": self.role,
+                "round": round_num,
+                "opinion": parsed["opinion"],
+                "action": parsed["action"],
+                "confidence": parsed["confidence"],
+                "key_points": parsed.get("key_points", []),
+                "concerns": parsed.get("concerns", []),
+                "cost": response.cost,
+                "tokens": response.tokens_used
             }
 
             # 返回更新
             return {
-                'expert_opinions': [opinion]
+                "expert_opinions": [opinion]
             }
 
         except Exception as e:
             logger.error(f"Expert {self.role} failed: {e}")
             # 返回默认意见
             return {
-                'expert_opinions': [{
-                    'role': self.role,
-                    'round': round_num,
-                    'opinion': f"Analysis failed: {str(e)}",
-                    'action': 'HOLD',
-                    'confidence': 0.5,
-                    'key_points': [],
-                    'concerns': [str(e)]
+                "expert_opinions": [{
+                    "role": self.role,
+                    "round": round_num,
+                    "opinion": f"Analysis failed: {e!s}",
+                    "action": "HOLD",
+                    "confidence": 0.5,
+                    "key_points": [],
+                    "concerns": [str(e)]
                 }]
             }
 
-    def _format_market_data(self, market_data: Dict) -> str:
+    def _format_market_data(self, market_data: dict) -> str:
         """格式化市场数据"""
         parts = []
         for key, value in market_data.items():
@@ -233,7 +230,7 @@ Format as JSON:
                 parts.append(f"{key}: {value}")
         return "\n".join(parts)
 
-    def _format_previous_opinions(self, opinions: List[Dict], current_round: int) -> str:
+    def _format_previous_opinions(self, opinions: list[dict], current_round: int) -> str:
         """格式化之前的意见"""
         if not opinions:
             return "No previous opinions yet."
@@ -241,7 +238,7 @@ Format as JSON:
         # 只显示上一轮的意见
         previous_round_opinions = [
             op for op in opinions
-            if op['round'] == current_round - 1
+            if op["round"] == current_round - 1
         ]
 
         if not previous_round_opinions:
@@ -315,28 +312,28 @@ class ExpertPanelWorkflow:
 
         self.workflow = workflow.compile()
 
-    def _check_rounds(self, state: DiscussionState) -> Dict:
+    def _check_rounds(self, state: DiscussionState) -> dict:
         """检查轮次并更新状态"""
         return {
-            'round_number': state['round_number'] + 1
+            "round_number": state["round_number"] + 1
         }
 
     def _should_continue(self, state: DiscussionState) -> str:
         """决定是否继续下一轮"""
-        if state['round_number'] >= state['max_rounds']:
+        if state["round_number"] >= state["max_rounds"]:
             return "end"
 
         # 检查是否达成共识
         last_round_opinions = [
-            op for op in state['expert_opinions']
-            if op['round'] == state['round_number'] - 1
+            op for op in state["expert_opinions"]
+            if op["round"] == state["round_number"] - 1
         ]
 
         if last_round_opinions:
-            actions = [op['action'] for op in last_round_opinions]
+            actions = [op["action"] for op in last_round_opinions]
             # 如果所有专家意见一致且置信度都很高
             if len(set(actions)) == 1:
-                avg_confidence = sum(op['confidence'] for op in last_round_opinions) / len(last_round_opinions)
+                avg_confidence = sum(op["confidence"] for op in last_round_opinions) / len(last_round_opinions)
                 if avg_confidence >= 0.8:
                     logger.info(f"Consensus reached with high confidence: {actions[0]}")
                     return "end"
@@ -346,9 +343,9 @@ class ExpertPanelWorkflow:
     async def discuss(
         self,
         symbol: str,
-        market_data: Dict[str, Any],
-        metadata: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        market_data: dict[str, Any],
+        metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         执行专家讨论
 
@@ -362,14 +359,14 @@ class ExpertPanelWorkflow:
         """
         # 初始化状态
         initial_state: DiscussionState = {
-            'symbol': symbol,
-            'market_data': market_data,
-            'round_number': 1,
-            'max_rounds': self.max_rounds,
-            'expert_opinions': [],
-            'chairman_summary': None,
-            'final_decision': None,
-            'metadata': metadata or {}
+            "symbol": symbol,
+            "market_data": market_data,
+            "round_number": 1,
+            "max_rounds": self.max_rounds,
+            "expert_opinions": [],
+            "chairman_summary": None,
+            "final_decision": None,
+            "metadata": metadata or {}
         }
 
         # 运行工作流
@@ -380,45 +377,45 @@ class ExpertPanelWorkflow:
         final_decision = self._extract_final_decision(final_state)
 
         return {
-            'symbol': symbol,
-            'final_decision': final_decision,
-            'discussion_rounds': final_state['round_number'] - 1,
-            'all_opinions': final_state['expert_opinions'],
-            'metadata': final_state['metadata']
+            "symbol": symbol,
+            "final_decision": final_decision,
+            "discussion_rounds": final_state["round_number"] - 1,
+            "all_opinions": final_state["expert_opinions"],
+            "metadata": final_state["metadata"]
         }
 
-    def _extract_final_decision(self, state: DiscussionState) -> Dict[str, Any]:
+    def _extract_final_decision(self, state: DiscussionState) -> dict[str, Any]:
         """从状态中提取最终决策"""
         # 获取主席的最后意见
         chairman_opinions = [
-            op for op in state['expert_opinions']
-            if op['role'] == ExpertRole.CHAIRMAN
+            op for op in state["expert_opinions"]
+            if op["role"] == ExpertRole.CHAIRMAN
         ]
 
         if chairman_opinions:
             final_chairman = chairman_opinions[-1]
             return {
-                'action': final_chairman['action'],
-                'confidence': final_chairman['confidence'],
-                'reasoning': final_chairman['opinion'],
-                'key_points': final_chairman.get('key_points', []),
-                'concerns': final_chairman.get('concerns', [])
+                "action": final_chairman["action"],
+                "confidence": final_chairman["confidence"],
+                "reasoning": final_chairman["opinion"],
+                "key_points": final_chairman.get("key_points", []),
+                "concerns": final_chairman.get("concerns", [])
             }
 
         # 如果没有主席意见，聚合所有专家意见
-        if state['expert_opinions']:
-            last_round = max(op['round'] for op in state['expert_opinions'])
+        if state["expert_opinions"]:
+            last_round = max(op["round"] for op in state["expert_opinions"])
             last_opinions = [
-                op for op in state['expert_opinions']
-                if op['round'] == last_round
+                op for op in state["expert_opinions"]
+                if op["round"] == last_round
             ]
 
             # 投票
             action_votes = {}
             total_confidence = 0
             for op in last_opinions:
-                action = op['action']
-                confidence = op['confidence']
+                action = op["action"]
+                confidence = op["confidence"]
                 action_votes[action] = action_votes.get(action, 0) + confidence
                 total_confidence += confidence
 
@@ -426,18 +423,18 @@ class ExpertPanelWorkflow:
             avg_confidence = total_confidence / len(last_opinions) if last_opinions else 0.5
 
             return {
-                'action': best_action,
-                'confidence': avg_confidence,
-                'reasoning': 'Aggregated from expert opinions',
-                'key_points': [],
-                'concerns': []
+                "action": best_action,
+                "confidence": avg_confidence,
+                "reasoning": "Aggregated from expert opinions",
+                "key_points": [],
+                "concerns": []
             }
 
         # 默认
         return {
-            'action': 'HOLD',
-            'confidence': 0.5,
-            'reasoning': 'No consensus reached',
-            'key_points': [],
-            'concerns': ['Insufficient information']
+            "action": "HOLD",
+            "confidence": 0.5,
+            "reasoning": "No consensus reached",
+            "key_points": [],
+            "concerns": ["Insufficient information"]
         }

@@ -2,12 +2,12 @@
 Trade-level analytics and analysis.
 """
 
-from typing import Dict, List, Optional, Tuple
-import numpy as np
-import pandas as pd
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from collections import defaultdict
+
+import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -70,18 +70,18 @@ class TradeStats:
     total_commission: float
     total_slippage: float
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
-            'Total Trades': self.total_trades,
-            'Win Rate': f"{self.win_rate:.2%}",
-            'Total P&L': f"${self.total_pnl:,.2f}",
-            'Avg P&L': f"${self.avg_pnl:,.2f}",
-            'Profit Factor': f"{self.profit_factor:.2f}",
-            'Expectancy': f"${self.expectancy:,.2f}",
-            'Avg Holding': f"{self.avg_holding_period:.1f} days",
-            'Max Consecutive Wins': self.max_consecutive_wins,
-            'Max Consecutive Losses': self.max_consecutive_losses
+            "Total Trades": self.total_trades,
+            "Win Rate": f"{self.win_rate:.2%}",
+            "Total P&L": f"${self.total_pnl:,.2f}",
+            "Avg P&L": f"${self.avg_pnl:,.2f}",
+            "Profit Factor": f"{self.profit_factor:.2f}",
+            "Expectancy": f"${self.expectancy:,.2f}",
+            "Avg Holding": f"{self.avg_holding_period:.1f} days",
+            "Max Consecutive Wins": self.max_consecutive_wins,
+            "Max Consecutive Losses": self.max_consecutive_losses
         }
 
 
@@ -99,13 +99,13 @@ class TradeAnalyzer:
 
     def __init__(self):
         """Initialize trade analyzer."""
-        self.trades: List[Trade] = []
+        self.trades: list[Trade] = []
 
     def add_trade(self, trade: Trade) -> None:
         """Add a trade to the analyzer."""
         self.trades.append(trade)
 
-    def add_trades(self, trades: List[Trade]) -> None:
+    def add_trades(self, trades: list[Trade]) -> None:
         """Add multiple trades."""
         self.trades.extend(trades)
 
@@ -171,15 +171,15 @@ class TradeAnalyzer:
             avg_holding_period=avg_holding,
             avg_win_holding=avg_win_holding,
             avg_loss_holding=avg_loss_holding,
-            consecutive_wins=streaks['current_wins'],
-            consecutive_losses=streaks['current_losses'],
-            max_consecutive_wins=streaks['max_wins'],
-            max_consecutive_losses=streaks['max_losses'],
+            consecutive_wins=streaks["current_wins"],
+            consecutive_losses=streaks["current_losses"],
+            max_consecutive_wins=streaks["max_wins"],
+            max_consecutive_losses=streaks["max_losses"],
             total_commission=total_commission,
             total_slippage=total_slippage
         )
 
-    def analyze_by_symbol(self) -> Dict[str, TradeStats]:
+    def analyze_by_symbol(self) -> dict[str, TradeStats]:
         """Calculate statistics grouped by symbol."""
         by_symbol = defaultdict(list)
 
@@ -194,7 +194,7 @@ class TradeAnalyzer:
 
         return results
 
-    def analyze_by_side(self) -> Dict[str, TradeStats]:
+    def analyze_by_side(self) -> dict[str, TradeStats]:
         """Calculate statistics grouped by side (long/short)."""
         by_side = defaultdict(list)
 
@@ -211,8 +211,8 @@ class TradeAnalyzer:
 
     def analyze_by_holding_period(
         self,
-        buckets: List[Tuple[int, int]] = [(0, 1), (1, 5), (5, 20), (20, 100)]
-    ) -> Dict[str, TradeStats]:
+        buckets: list[tuple[int, int]] = [(0, 1), (1, 5), (5, 20), (20, 100)]
+    ) -> dict[str, TradeStats]:
         """
         Calculate statistics grouped by holding period.
 
@@ -241,7 +241,7 @@ class TradeAnalyzer:
 
         return results
 
-    def analyze_by_time(self) -> Dict[str, Dict]:
+    def analyze_by_time(self) -> dict[str, dict]:
         """Analyze performance by time patterns."""
         by_hour = defaultdict(list)
         by_day_of_week = defaultdict(list)
@@ -253,20 +253,20 @@ class TradeAnalyzer:
             by_hour[hour].append(trade.pnl)
 
             # Day of week
-            day_name = trade.entry_date.strftime('%A')
+            day_name = trade.entry_date.strftime("%A")
             by_day_of_week[day_name].append(trade.pnl)
 
             # Month
-            month_name = trade.entry_date.strftime('%B')
+            month_name = trade.entry_date.strftime("%B")
             by_month[month_name].append(trade.pnl)
 
         return {
-            'by_hour': {h: np.mean(pnls) for h, pnls in by_hour.items()},
-            'by_day_of_week': {d: np.mean(pnls) for d, pnls in by_day_of_week.items()},
-            'by_month': {m: np.mean(pnls) for m, pnls in by_month.items()}
+            "by_hour": {h: np.mean(pnls) for h, pnls in by_hour.items()},
+            "by_day_of_week": {d: np.mean(pnls) for d, pnls in by_day_of_week.items()},
+            "by_month": {m: np.mean(pnls) for m, pnls in by_month.items()}
         }
 
-    def get_trade_distribution(self, bins: int = 20) -> Tuple[np.ndarray, np.ndarray]:
+    def get_trade_distribution(self, bins: int = 20) -> tuple[np.ndarray, np.ndarray]:
         """
         Get distribution of trade P&L.
 
@@ -309,7 +309,7 @@ class TradeAnalyzer:
 
         return pd.Series(equity, index=dates)
 
-    def find_best_worst_trades(self, n: int = 10) -> Tuple[List[Trade], List[Trade]]:
+    def find_best_worst_trades(self, n: int = 10) -> tuple[list[Trade], list[Trade]]:
         """
         Find best and worst trades.
 
@@ -326,14 +326,14 @@ class TradeAnalyzer:
 
         return best, worst
 
-    def _calculate_streaks(self) -> Dict[str, int]:
+    def _calculate_streaks(self) -> dict[str, int]:
         """Calculate winning/losing streaks."""
         if len(self.trades) == 0:
             return {
-                'current_wins': 0,
-                'current_losses': 0,
-                'max_wins': 0,
-                'max_losses': 0
+                "current_wins": 0,
+                "current_losses": 0,
+                "max_wins": 0,
+                "max_losses": 0
             }
 
         current_wins = 0
@@ -352,10 +352,10 @@ class TradeAnalyzer:
                 max_losses = max(max_losses, current_losses)
 
         return {
-            'current_wins': current_wins,
-            'current_losses': current_losses,
-            'max_wins': max_wins,
-            'max_losses': max_losses
+            "current_wins": current_wins,
+            "current_losses": current_losses,
+            "max_wins": max_wins,
+            "max_losses": max_losses
         }
 
     def _empty_stats(self) -> TradeStats:
