@@ -58,7 +58,7 @@ plotly==5.24.1
 dash==2.18.1
 
 # Utils
-click==8.1.7
+click==8.3.0
 rich==13.9.2
 tqdm==4.66.5
 
