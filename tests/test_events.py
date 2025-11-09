@@ -2,9 +2,11 @@
 测试事件系统模块
 """
 
-import pytest
-import sys
 from pathlib import Path
+import sys
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.events import Event, EventBus, EventType
@@ -17,31 +19,31 @@ class TestEvent:
         """测试事件创建"""
         event = Event(
             type=EventType.MARKET_DATA,
-            data={'symbol': 'AAPL', 'price': 150.0}
+            data={"symbol": "AAPL", "price": 150.0}
         )
         assert event.type == EventType.MARKET_DATA
-        assert event.data['symbol'] == 'AAPL'
-        assert event.data['price'] == 150.0
+        assert event.data["symbol"] == "AAPL"
+        assert event.data["price"] == 150.0
         assert event.timestamp is not None
 
     def test_event_with_source(self):
         """测试带源的事件"""
         event = Event(
             type=EventType.SIGNAL,
-            data={'action': 'BUY'},
-            source='TestStrategy'
+            data={"action": "BUY"},
+            source="TestStrategy"
         )
-        assert event.source == 'TestStrategy'
+        assert event.source == "TestStrategy"
 
     def test_event_str_representation(self):
         """测试事件字符串表示"""
         event = Event(
             type=EventType.ORDER,
-            data={'symbol': 'AAPL', 'quantity': 100}
+            data={"symbol": "AAPL", "quantity": 100}
         )
         event_str = str(event)
-        assert 'ORDER' in event_str
-        assert 'AAPL' in event_str
+        assert "ORDER" in event_str
+        assert "AAPL" in event_str
 
 
 class TestEventBus:
@@ -69,14 +71,14 @@ class TestEventBus:
         # 发布
         event = Event(
             type=EventType.MARKET_DATA,
-            data={'symbol': 'AAPL', 'price': 150.0}
+            data={"symbol": "AAPL", "price": 150.0}
         )
         self.event_bus.publish(event)
 
         # 验证
         assert len(self.received_events) == 1
         assert self.received_events[0].type == EventType.MARKET_DATA
-        assert self.received_events[0].data['symbol'] == 'AAPL'
+        assert self.received_events[0].data["symbol"] == "AAPL"
 
     def test_multiple_subscribers(self):
         """测试多个订阅者"""
@@ -94,7 +96,7 @@ class TestEventBus:
         self.event_bus.subscribe(EventType.SIGNAL, handler2)
 
         # 发布事件
-        event = Event(type=EventType.SIGNAL, data={'action': 'BUY'})
+        event = Event(type=EventType.SIGNAL, data={"action": "BUY"})
         self.event_bus.publish(event)
 
         # 验证两个订阅者都收到了事件
@@ -110,7 +112,7 @@ class TestEventBus:
         self.event_bus.subscribe(EventType.ORDER, handler)
 
         # 发布第一个事件
-        event1 = Event(type=EventType.ORDER, data={'symbol': 'AAPL'})
+        event1 = Event(type=EventType.ORDER, data={"symbol": "AAPL"})
         self.event_bus.publish(event1)
         assert len(self.received_events) == 1
 
@@ -118,7 +120,7 @@ class TestEventBus:
         self.event_bus.unsubscribe(EventType.ORDER, handler)
 
         # 发布第二个事件
-        event2 = Event(type=EventType.ORDER, data={'symbol': 'MSFT'})
+        event2 = Event(type=EventType.ORDER, data={"symbol": "MSFT"})
         self.event_bus.publish(event2)
 
         # 验证不再收到事件

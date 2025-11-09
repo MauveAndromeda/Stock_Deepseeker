@@ -2,9 +2,10 @@
 任务调度器
 定时运行交易系统
 """
-import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+import sys
+
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
@@ -13,8 +14,9 @@ from loguru import logger
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from utils import setup_logger, load_config
 from main import TradingSystem
+
+from utils import load_config, setup_logger
 
 
 class TradingScheduler:
@@ -30,12 +32,12 @@ class TradingScheduler:
         self.config = load_config(config_path)
 
         # 初始化日志
-        log_config = self.config.get('logging', {})
+        log_config = self.config.get("logging", {})
         setup_logger(
-            log_level=log_config.get('level', 'INFO'),
+            log_level=log_config.get("level", "INFO"),
             log_file="logs/scheduler.log",
-            rotation=log_config.get('rotation', '1 day'),
-            retention=log_config.get('retention', '30 days')
+            rotation=log_config.get("rotation", "1 day"),
+            retention=log_config.get("retention", "30 days")
         )
 
         # 创建调度器
@@ -48,18 +50,18 @@ class TradingScheduler:
 
     def _add_jobs(self):
         """添加调度任务"""
-        scheduler_config = self.config.get('scheduler', {})
+        scheduler_config = self.config.get("scheduler", {})
 
-        if not scheduler_config.get('enabled', False):
+        if not scheduler_config.get("enabled", False):
             logger.warning("Scheduler is disabled in config")
             return
 
-        jobs = scheduler_config.get('jobs', [])
+        jobs = scheduler_config.get("jobs", [])
 
         for job in jobs:
-            job_name = job.get('name')
-            cron_expr = job.get('cron')
-            function_name = job.get('function')
+            job_name = job.get("name")
+            cron_expr = job.get("cron")
+            function_name = job.get("function")
 
             if not all([job_name, cron_expr, function_name]):
                 logger.warning(f"Invalid job config: {job}")
@@ -169,11 +171,11 @@ class TradingScheduler:
             logger.info(f"今日分析 {len(stocks)} 只股票")
 
             # 分析市场整体情况
-            total_rise = sum(1 for s in stocks if s['change_pct'] > 0)
-            total_fall = sum(1 for s in stocks if s['change_pct'] < 0)
-            avg_change = sum(s['change_pct'] for s in stocks) / len(stocks)
+            total_rise = sum(1 for s in stocks if s["change_pct"] > 0)
+            total_fall = sum(1 for s in stocks if s["change_pct"] < 0)
+            avg_change = sum(s["change_pct"] for s in stocks) / len(stocks)
 
-            logger.info(f"\n市场概况:")
+            logger.info("\n市场概况:")
             logger.info(f"  上涨: {total_rise} ({total_rise/len(stocks):.1%})")
             logger.info(f"  下跌: {total_fall} ({total_fall/len(stocks):.1%})")
             logger.info(f"  平均涨跌幅: {avg_change:.2f}%")

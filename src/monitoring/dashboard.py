@@ -123,7 +123,7 @@ class Dashboard:
                 y=values,
                 mode="lines",
                 name="Equity",
-                line=dict(color="#2E86AB", width=2)
+                line={"color": "#2E86AB", "width": 2}
             ))
 
             fig.update_layout(

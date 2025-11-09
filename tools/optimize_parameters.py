@@ -15,7 +15,7 @@ import asyncio
 from datetime import datetime
 import json
 
-from src.strategy.enhanced_strategy import EnhancedTradingStrategy
+from src.strategies.enhanced_strategy import EnhancedTradingStrategy
 from src.data.providers import YahooFinanceProvider
 
 

@@ -5,17 +5,18 @@ Multi-Agent System Tests
 Research-grade implementation (Under Development)
 """
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
 
-from src.ai.model_unified import ModelRouter, ModelConfig, ModelProvider, ModelTier
-from src.agents.enhanced_base import MomentumChaserAgent, ValueSeekerAgent
-from src.agents.base import AgentType, Action
-from src.agents.langgraph_workflow import ExpertPanelWorkflow
+import numpy as np
+import pandas as pd
+import pytest
+
 from src.agents.backtest_integration import MultiAgentStrategy, create_default_multi_agent_strategy
+from src.agents.base import Action, AgentType
+from src.agents.enhanced_base import MomentumChaserAgent, ValueSeekerAgent
+from src.agents.langgraph_workflow import ExpertPanelWorkflow
+from src.ai.model_unified import ModelConfig, ModelProvider, ModelRouter, ModelTier
 from src.backtest.portfolio_v2 import PortfolioV2
 from src.data.providers.base import PriceData
 
@@ -64,7 +65,7 @@ class TestEnhancedAgents:
         )
         prompt_template = agent._create_prompt_template()
         assert prompt_template is not None
-        assert 'value' in prompt_template.template.lower()
+        assert "value" in prompt_template.template.lower()
 
     def test_agent_personality(self):
         """测试性格特征"""
@@ -73,7 +74,7 @@ class TestEnhancedAgents:
         )
         personality = agent._get_personality_traits()
         assert len(personality) > 0
-        assert 'momentum' in personality.lower() or 'aggressive' in personality.lower()
+        assert "momentum" in personality.lower() or "aggressive" in personality.lower()
 
 
 class TestLangGraphWorkflow:
@@ -91,9 +92,9 @@ class TestLangGraphWorkflow:
         workflow = ExpertPanelWorkflow(max_rounds=1)
 
         market_data = {
-            'price': 150.0,
-            'change_pct': 0.02,
-            'volume': 1000000
+            "price": 150.0,
+            "change_pct": 0.02,
+            "volume": 1000000
         }
 
         # 注意：实际运行需要API密钥，这里只测试结构
@@ -104,11 +105,11 @@ class TestLangGraphWorkflow:
                 market_data=market_data
             )
             # 如果成功，检查结果结构
-            assert 'symbol' in result
-            assert 'final_decision' in result
+            assert "symbol" in result
+            assert "final_decision" in result
         except Exception as e:
             # 预期在没有API密钥时会失败
-            assert 'API' in str(e) or 'key' in str(e).lower()
+            assert "API" in str(e) or "key" in str(e).lower()
 
 
 class TestBacktestIntegration:
@@ -127,13 +128,13 @@ class TestBacktestIntegration:
     def test_market_data_preparation(self):
         """测试市场数据准备"""
         # 创建模拟数据
-        dates = pd.date_range(start='2024-01-01', periods=100, freq='D')
+        dates = pd.date_range(start="2024-01-01", periods=100, freq="D")
         df = pd.DataFrame({
-            'open': np.random.randn(100).cumsum() + 100,
-            'high': np.random.randn(100).cumsum() + 105,
-            'low': np.random.randn(100).cumsum() + 95,
-            'close': np.random.randn(100).cumsum() + 100,
-            'volume': np.random.randint(1000000, 10000000, 100)
+            "open": np.random.randn(100).cumsum() + 100,
+            "high": np.random.randn(100).cumsum() + 105,
+            "low": np.random.randn(100).cumsum() + 95,
+            "close": np.random.randn(100).cumsum() + 100,
+            "volume": np.random.randint(1000000, 10000000, 100)
         }, index=dates)
 
         strategy = MultiAgentStrategy(
@@ -149,12 +150,12 @@ class TestBacktestIntegration:
         )
 
         # market_data is now a MarketContext object, not a dict
-        assert hasattr(market_data, 'symbol')
-        assert hasattr(market_data, 'current_price')
-        assert hasattr(market_data, 'technical_indicators')
+        assert hasattr(market_data, "symbol")
+        assert hasattr(market_data, "current_price")
+        assert hasattr(market_data, "technical_indicators")
         assert market_data.symbol == "TEST"
         assert market_data.current_price > 0
-        assert 'SMA_20' in market_data.technical_indicators
+        assert "SMA_20" in market_data.technical_indicators
 
     @pytest.mark.asyncio
     async def test_decision_synthesis(self):
@@ -168,9 +169,9 @@ class TestBacktestIntegration:
 
         # 模拟智能体决策
         agent_decisions = [
-            {'action': 'BUY', 'confidence': 0.8, 'agent_id': 'a1'},
-            {'action': 'BUY', 'confidence': 0.7, 'agent_id': 'a2'},
-            {'action': 'HOLD', 'confidence': 0.6, 'agent_id': 'a3'}
+            {"action": "BUY", "confidence": 0.8, "agent_id": "a1"},
+            {"action": "BUY", "confidence": 0.7, "agent_id": "a2"},
+            {"action": "HOLD", "confidence": 0.6, "agent_id": "a3"}
         ]
 
         action, confidence = strategy._synthesize_decisions(
@@ -178,7 +179,7 @@ class TestBacktestIntegration:
             expert_decision=None
         )
 
-        assert action == 'BUY'  # 多数投BUY
+        assert action == "BUY"  # 多数投BUY
         assert confidence > 0
 
 
@@ -191,11 +192,11 @@ class TestEndToEnd:
         prices = 100 * (1 + np.random.randn(days) * 0.02).cumprod()
 
         df = pd.DataFrame({
-            'open': prices * (1 + np.random.randn(days) * 0.01),
-            'high': prices * (1 + np.abs(np.random.randn(days)) * 0.02),
-            'low': prices * (1 - np.abs(np.random.randn(days)) * 0.02),
-            'close': prices,
-            'volume': np.random.randint(1000000, 10000000, days)
+            "open": prices * (1 + np.random.randn(days) * 0.01),
+            "high": prices * (1 + np.abs(np.random.randn(days)) * 0.02),
+            "low": prices * (1 - np.abs(np.random.randn(days)) * 0.02),
+            "close": prices,
+            "volume": np.random.randint(1000000, 10000000, days)
         }, index=dates)
 
         return PriceData(
@@ -241,14 +242,14 @@ class TestEndToEnd:
 
         # 检查性能总结
         summary = strategy.get_performance_summary()
-        assert 'total_signals' in summary
-        assert 'decision_count' in summary
+        assert "total_signals" in summary
+        assert "decision_count" in summary
 
 
 # 运行测试的便捷函数
 def run_tests():
     """运行所有测试"""
-    pytest.main([__file__, '-v', '--tb=short'])
+    pytest.main([__file__, "-v", "--tb=short"])
 
 
 if __name__ == "__main__":

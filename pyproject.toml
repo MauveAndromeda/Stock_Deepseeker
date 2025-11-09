@@ -45,11 +45,14 @@ dependencies = [
     "numpy>=1.26.0",
     "scipy>=1.14.0",
     "scikit-learn>=1.5.0",
+    "hmmlearn>=0.3.0",  # Hidden Markov Models for regime detection
 
     # Financial Data
     "yfinance>=0.2.28,<0.2.40",  # Pin to avoid multitasking build issues
     "pandas-market-calendars>=4.3.0",
     "exchange-calendars>=4.5.0",
+    "alpaca-py>=0.8.0",  # Alpaca trading API
+    "polygon-api-client>=1.12.0",  # Polygon.io data API
 
     # Database
     "sqlalchemy>=2.0.30",
@@ -83,6 +86,13 @@ dependencies = [
     "langchain-openai>=0.2.0",
     "langchain-anthropic>=0.3.0",
     "langgraph>=0.2.0",
+
+    # AI API Clients (core feature)
+    "openai>=1.0.0",
+    "anthropic>=0.18.0",
+
+    # Async Support
+    "nest-asyncio>=1.6.0",
 ]
 
 [project.optional-dependencies]
@@ -264,6 +274,7 @@ ignore = [
 
     # Datetime (allow naive datetime for simplicity)
     "DTZ005",  # datetime.now() without timezone
+    "DTZ006",  # datetime.fromtimestamp() without timezone
 
     # Logging (allow f-strings in logging)
     "G004",    # Logging with f-string
@@ -272,12 +283,14 @@ ignore = [
     "EM101",   # Exception must not use a string literal
     "EM102",   # Exception must not use an f-string literal
     "TRY003",  # Avoid specifying long messages outside exception class
+    "TRY004",  # Prefer TypeError for invalid type
     "TRY300",  # Consider moving this statement to an else block
     "TRY400",  # Use logging.exception instead of logging.error
 
     # Naming (allow research naming conventions)
     "N805",    # First argument of a method should be named self
     "N806",    # Variable in function should be lowercase
+    "N812",    # Lowercase imported as non-lowercase (e.g., F for functional)
 
     # Misc
     "RUF001",  # Ambiguous unicode character
@@ -291,11 +304,15 @@ ignore = [
     "F403",    # import * used (legacy code compatibility)
     "F405",    # Name may be undefined, or defined from star imports
     "F841",    # Local variable is assigned but never used
+    "PLC0206", # Extracting value from dictionary without calling .items()
     "PLC0415", # import not at top-level (needed for async code)
     "S101",    # Use of assert
+    "S104",    # Binding to all interfaces (development servers)
     "S110",    # try-except-pass detected
     "S112",    # try-except-continue detected
+    "S301",    # Pickle usage (data serialization)
     "S311",    # Standard pseudo-random generators are not suitable for cryptographic purposes
+    "S324",    # Insecure hash functions (MD5 for cache keys, not security)
     "B006",    # Do not use mutable data structures for argument defaults
     "B007",    # Loop control variable not used within the loop body
     "B027",    # Empty method in abstract base class
@@ -307,6 +324,14 @@ ignore = [
     "ARG002",  # Unused method argument
     "A001",    # Variable is shadowing a Python builtin
     "A002",    # Argument is shadowing a Python builtin
+    "E402",    # Module level import not at top of file (path manipulation)
+    "E722",    # Bare except (some legacy code)
+    "SIM117",  # Use single with statement (preference)
+    "PTH103",  # os.makedirs() vs Path.mkdir() (compatibility)
+    "PTH110",  # os.path.exists() vs Path.exists() (compatibility)
+    "PTH204",  # os.path.getmtime vs Path.stat() (compatibility)
+    "SLF001",  # Private member access (needed in tests)
+    "PT017",   # Assert on exception in except block (test patterns)
     "N803",    # Argument name should be lowercase
     "PTH123",  # Use Path.open instead of open
     "SIM102",  # Use a single if instead of nested if

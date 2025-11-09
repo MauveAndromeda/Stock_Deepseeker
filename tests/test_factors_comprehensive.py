@@ -9,39 +9,64 @@ Tests all 62+ factors across 6 categories with:
 - Data quality validation
 """
 
-import pytest
+from datetime import datetime, timedelta
+from pathlib import Path
+import sys
+
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
-import sys
-from pathlib import Path
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.factors import VectorizedFactorEngine
-from src.factors.momentum import (
-    PriceMomentum, RSI, MACD, VolumeMomentum,
-    PriceAcceleration, ReversalFactor, TrendStrength
-)
-from src.factors.value import (
-    PriceToBook, PriceToEarnings, PriceToSales,
-    PriceToCashFlow, EarningsYield, DividendYield
-)
-from src.factors.quality import (
-    ROE, ROA, ROIC, GrossMargin, OperatingMargin,
-    NetMargin, CurrentRatio, DebtToEquity
-)
-from src.factors.volatility import (
-    HistoricalVolatility, DownsideVolatility, Beta,
-    IdiosyncraticVolatility, MaxDrawdown
-)
 from src.factors.growth import (
-    RevenueGrowth, EarningsGrowth, EPSGrowth,
-    CashFlowGrowth, MarginExpansion
+    CashFlowGrowth,
+    EarningsGrowth,
+    EPSGrowth,
+    MarginExpansion,
+    RevenueGrowth,
 )
 from src.factors.liquidity import (
-    DollarVolume, ShareTurnover, AmihudIlliquidity,
-    BidAskSpread, MarketCapFactor
+    AmihudIlliquidity,
+    BidAskSpread,
+    DollarVolume,
+    MarketCapFactor,
+    ShareTurnover,
+)
+from src.factors.momentum import (
+    MACD,
+    RSI,
+    PriceAcceleration,
+    PriceMomentum,
+    ReversalFactor,
+    TrendStrength,
+    VolumeMomentum,
+)
+from src.factors.quality import (
+    ROA,
+    ROE,
+    ROIC,
+    CurrentRatio,
+    DebtToEquity,
+    GrossMargin,
+    NetMargin,
+    OperatingMargin,
+)
+from src.factors.value import (
+    DividendYield,
+    EarningsYield,
+    PriceToBook,
+    PriceToCashFlow,
+    PriceToEarnings,
+    PriceToSales,
+)
+from src.factors.volatility import (
+    Beta,
+    DownsideVolatility,
+    HistoricalVolatility,
+    IdiosyncraticVolatility,
+    MaxDrawdown,
 )
 
 
@@ -57,7 +82,7 @@ class TestDataGenerator:
         """Generate realistic price data."""
         np.random.seed(seed)
         
-        dates = pd.date_range(end=datetime.now(), periods=n_days, freq='D')
+        dates = pd.date_range(end=datetime.now(), periods=n_days, freq="D")
         symbols = [f"STOCK_{i:03d}" for i in range(n_stocks)]
         
         data = []
@@ -71,18 +96,18 @@ class TestDataGenerator:
             
             for i, date in enumerate(dates):
                 data.append({
-                    'date': date,
-                    'symbol': symbol,
-                    'open': prices[i] * 0.98,
-                    'high': prices[i] * 1.02,
-                    'low': prices[i] * 0.97,
-                    'close': prices[i],
-                    'volume': np.random.randint(1000000, 10000000),
-                    'adj_close': prices[i]
+                    "date": date,
+                    "symbol": symbol,
+                    "open": prices[i] * 0.98,
+                    "high": prices[i] * 1.02,
+                    "low": prices[i] * 0.97,
+                    "close": prices[i],
+                    "volume": np.random.randint(1000000, 10000000),
+                    "adj_close": prices[i]
                 })
         
         df = pd.DataFrame(data)
-        df = df.set_index(['date', 'symbol'])
+        df = df.set_index(["date", "symbol"])
         return df
     
     @staticmethod
@@ -94,7 +119,7 @@ class TestDataGenerator:
         """Generate realistic fundamental data."""
         np.random.seed(seed)
         
-        dates = pd.date_range(end=datetime.now(), periods=n_quarters, freq='Q')
+        dates = pd.date_range(end=datetime.now(), periods=n_quarters, freq="Q")
         symbols = [f"STOCK_{i:03d}" for i in range(n_stocks)]
         
         data = []
@@ -108,21 +133,21 @@ class TestDataGenerator:
                 debt = assets - equity
                 
                 data.append({
-                    'date': date,
-                    'symbol': symbol,
-                    'revenue': revenue,
-                    'net_income': earnings,
-                    'total_assets': assets,
-                    'total_equity': equity,
-                    'total_debt': debt,
-                    'operating_income': revenue * np.random.uniform(0.08, 0.18),
-                    'cash_flow': earnings * np.random.uniform(1.0, 1.3),
-                    'shares_outstanding': np.random.uniform(100, 1000),
-                    'dividend': earnings * np.random.uniform(0, 0.5)
+                    "date": date,
+                    "symbol": symbol,
+                    "revenue": revenue,
+                    "net_income": earnings,
+                    "total_assets": assets,
+                    "total_equity": equity,
+                    "total_debt": debt,
+                    "operating_income": revenue * np.random.uniform(0.08, 0.18),
+                    "cash_flow": earnings * np.random.uniform(1.0, 1.3),
+                    "shares_outstanding": np.random.uniform(100, 1000),
+                    "dividend": earnings * np.random.uniform(0, 0.5)
                 })
         
         df = pd.DataFrame(data)
-        df = df.set_index(['date', 'symbol'])
+        df = df.set_index(["date", "symbol"])
         return df
 
 
@@ -207,9 +232,9 @@ class TestValueFactors:
         combined = pd.merge(
             price_data.reset_index(),
             fundamental_data.reset_index(),
-            on=['date', 'symbol'],
-            how='inner'
-        ).set_index(['date', 'symbol'])
+            on=["date", "symbol"],
+            how="inner"
+        ).set_index(["date", "symbol"])
         
         result = factor.calculate(combined)
         
@@ -226,9 +251,9 @@ class TestValueFactors:
         combined = pd.merge(
             price_data.reset_index(),
             fundamental_data.reset_index(),
-            on=['date', 'symbol'],
-            how='inner'
-        ).set_index(['date', 'symbol'])
+            on=["date", "symbol"],
+            how="inner"
+        ).set_index(["date", "symbol"])
         
         result = factor.calculate(combined)
         
@@ -245,9 +270,9 @@ class TestValueFactors:
         combined = pd.merge(
             price_data.reset_index(),
             fundamental_data.reset_index(),
-            on=['date', 'symbol'],
-            how='inner'
-        ).set_index(['date', 'symbol'])
+            on=["date", "symbol"],
+            how="inner"
+        ).set_index(["date", "symbol"])
         
         result = factor.calculate(combined)
         
@@ -353,7 +378,7 @@ class TestVolatilityFactors:
     def test_beta(self, price_data):
         """Test beta calculation."""
         # Create market data (aggregate of all stocks)
-        market_data = price_data.groupby('date')['close'].mean().to_frame('close')
+        market_data = price_data.groupby("date")["close"].mean().to_frame("close")
         
         factor = Beta(window=60)
         # Note: Beta requires both stock and market data
@@ -424,7 +449,7 @@ class TestLiquidityFactors:
         """Test share turnover."""
         # Need shares outstanding
         price_data_copy = price_data.copy()
-        price_data_copy['shares_outstanding'] = 1000000
+        price_data_copy["shares_outstanding"] = 1000000
         
         factor = ShareTurnover(window=20)
         result = factor.calculate(price_data_copy)
@@ -434,7 +459,7 @@ class TestLiquidityFactors:
     def test_market_cap(self, price_data):
         """Test market cap factor."""
         price_data_copy = price_data.copy()
-        price_data_copy['shares_outstanding'] = 1000000
+        price_data_copy["shares_outstanding"] = 1000000
         
         factor = MarketCapFactor()
         result = factor.calculate(price_data_copy)
@@ -460,7 +485,7 @@ class TestVectorizedFactorEngine:
     def test_engine_initialization(self, engine):
         """Test engine initializes correctly."""
         assert engine is not None
-        assert hasattr(engine, 'calculate_factor')
+        assert hasattr(engine, "calculate_factor")
     
     def test_factor_registration(self, engine):
         """Test factor registration."""
@@ -547,7 +572,7 @@ class TestEdgeCases:
         data = TestDataGenerator.generate_price_data(n_stocks=5, n_days=100)
         
         # Introduce some NaN values
-        data.loc[data.index[10:20], 'close'] = np.nan
+        data.loc[data.index[10:20], "close"] = np.nan
         
         factor = PriceMomentum(lookback=20)
         result = factor.calculate(data)

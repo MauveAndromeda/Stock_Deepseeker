@@ -176,7 +176,7 @@ class SplitAdjuster(CorporateActionProcessor):
         cumulative_factor = 1.0
 
         for event in sorted(events, key=lambda x: x.ex_date):
-            if event.action_type == CorporateActionType.SPLIT or event.action_type == CorporateActionType.REVERSE_SPLIT:
+            if event.action_type in (CorporateActionType.SPLIT, CorporateActionType.REVERSE_SPLIT):
                 cumulative_factor *= event.ratio
 
         return cumulative_factor

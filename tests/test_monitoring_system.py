@@ -10,18 +10,17 @@ Tests for:
 - Performance profiling
 """
 
-import pytest
-import time
 from datetime import datetime, timedelta
+import time
 
-from src.monitoring.metrics import (
-    MetricsCollector, Counter, Gauge, Histogram, Summary
-)
-from src.monitoring.logger import StructuredLogger, LogLevel, LogContext
-from src.monitoring.alerts import AlertManager, Alert, AlertLevel, AlertRule
+import pytest
+
+from src.monitoring.alerts import Alert, AlertLevel, AlertManager, AlertRule
 from src.monitoring.health import HealthChecker, HealthStatus
+from src.monitoring.logger import LogContext, LogLevel, StructuredLogger
+from src.monitoring.metrics import Counter, Gauge, Histogram, MetricsCollector, Summary
+from src.monitoring.profiler import DistributedTracer, Profiler
 from src.monitoring.tsdb import InMemoryTSDB, TimeSeriesQuery
-from src.monitoring.profiler import Profiler, DistributedTracer
 
 
 class TestMetricsCollection:
@@ -79,9 +78,9 @@ class TestMetricsCollection:
         
         stats = histogram.get_stats()
         
-        assert stats['count'] == 4
-        assert stats['sum'] == 0.05 + 0.3 + 0.8 + 2.5
-        assert stats['avg'] == stats['sum'] / 4
+        assert stats["count"] == 4
+        assert stats["sum"] == 0.05 + 0.3 + 0.8 + 2.5
+        assert stats["avg"] == stats["sum"] / 4
     
     def test_summary_statistics(self, collector):
         """Test summary statistical calculations."""
@@ -97,13 +96,13 @@ class TestMetricsCollection:
         
         stats = summary.get_stats()
         
-        assert stats['count'] == 100
-        assert 'q50' in stats
-        assert 'q90' in stats
-        assert 'q99' in stats
+        assert stats["count"] == 100
+        assert "q50" in stats
+        assert "q90" in stats
+        assert "q99" in stats
         
-        assert 0.4 < stats['q50'] < 0.6  # Median around 0.5
-        assert 0.85 < stats['q90'] < 0.95  # 90th percentile
+        assert 0.4 < stats["q50"] < 0.6  # Median around 0.5
+        assert 0.85 < stats["q90"] < 0.95  # 90th percentile
     
     def test_prometheus_export(self, collector):
         """Test Prometheus format export."""
@@ -173,8 +172,8 @@ class TestStructuredLogging:
         
         logs = logger.get_recent_logs(n=1)
         
-        assert logs[0]['context']['request_id'] == "req-123"
-        assert logs[0]['context']['symbol'] == "AAPL"
+        assert logs[0]["context"]["request_id"] == "req-123"
+        assert logs[0]["context"]["symbol"] == "AAPL"
     
     def test_error_logging_with_exception(self, logger):
         """Test logging errors with exceptions."""
@@ -186,8 +185,8 @@ class TestStructuredLogging:
         errors = logger.get_errors(n=1)
         
         assert len(errors) > 0
-        assert errors[0]['exception'] is not None
-        assert "ValueError" in errors[0]['exception']['type']
+        assert errors[0]["exception"] is not None
+        assert "ValueError" in errors[0]["exception"]["type"]
     
     def test_log_filtering(self, logger):
         """Test log filtering by level."""
@@ -199,7 +198,7 @@ class TestStructuredLogging:
         errors = logger.get_errors(n=10)
         
         assert len(errors) >= 2
-        assert all(log['level'] in ['ERROR', 'CRITICAL'] for log in errors)
+        assert all(log["level"] in ["ERROR", "CRITICAL"] for log in errors)
 
 
 class TestAlertManagement:
@@ -216,7 +215,7 @@ class TestAlertManagement:
             level=AlertLevel.WARNING,
             title="High CPU Usage",
             message="CPU usage is at 85%",
-            tags={'host': 'server-1'}
+            tags={"host": "server-1"}
         )
         
         assert alert.id is not None
@@ -294,9 +293,9 @@ class TestAlertManagement:
         
         stats = alert_manager.get_alert_stats(hours=24)
         
-        assert stats['total'] >= 5
-        assert stats['by_level']['info'] >= 3
-        assert stats['by_level']['warning'] >= 2
+        assert stats["total"] >= 5
+        assert stats["by_level"]["info"] >= 3
+        assert stats["by_level"]["warning"] >= 2
 
 
 class TestHealthChecking:
@@ -313,9 +312,9 @@ class TestHealthChecking:
         results = health_checker.check_all()
         
         # Should have CPU, memory, disk checks
-        assert 'system_cpu' in results
-        assert 'system_memory' in results
-        assert 'system_disk' in results
+        assert "system_cpu" in results
+        assert "system_memory" in results
+        assert "system_disk" in results
         
         # All should return results
         for result in results.values():
@@ -393,7 +392,7 @@ class TestTimeSeriesDatabase:
         """Test writing and querying data."""
         # Write some points
         for i in range(10):
-            tsdb.write("cpu_usage", 50.0 + i, {'host': 'server-1'})
+            tsdb.write("cpu_usage", 50.0 + i, {"host": "server-1"})
             time.sleep(0.01)
         
         # Query
@@ -401,13 +400,13 @@ class TestTimeSeriesDatabase:
             metric="cpu_usage",
             start_time=datetime.now() - timedelta(minutes=1),
             end_time=datetime.now() + timedelta(minutes=1),
-            tags={'host': 'server-1'}
+            tags={"host": "server-1"}
         )
         
         points = tsdb.query(query)
         
         assert len(points) == 10
-        assert all(p.tags['host'] == 'server-1' for p in points)
+        assert all(p.tags["host"] == "server-1" for p in points)
     
     def test_aggregation(self, tsdb):
         """Test time-series aggregation."""
@@ -462,8 +461,8 @@ class TestPerformanceProfiling:
         stats = profiler.get_stats("slow_function")
         
         assert stats is not None
-        assert stats['slow_function']['count'] >= 1
-        assert stats['slow_function']['mean_ms'] >= 100  # At least 100ms
+        assert stats["slow_function"]["count"] >= 1
+        assert stats["slow_function"]["mean_ms"] >= 100  # At least 100ms
     
     def test_context_profiling(self, profiler):
         """Test profiling with context manager."""
@@ -472,8 +471,8 @@ class TestPerformanceProfiling:
         
         stats = profiler.get_stats("test_section")
         
-        assert stats['test_section']['count'] == 1
-        assert stats['test_section']['mean_ms'] >= 50
+        assert stats["test_section"]["count"] == 1
+        assert stats["test_section"]["mean_ms"] >= 50
     
     def test_profiling_statistics(self, profiler):
         """Test profiling statistical measures."""
@@ -484,11 +483,11 @@ class TestPerformanceProfiling:
         
         stats = profiler.get_stats("variable_time")
         
-        assert 'mean_ms' in stats['variable_time']
-        assert 'median_ms' in stats['variable_time']
-        assert 'p95_ms' in stats['variable_time']
-        assert 'p99_ms' in stats['variable_time']
-        assert 'std_ms' in stats['variable_time']
+        assert "mean_ms" in stats["variable_time"]
+        assert "median_ms" in stats["variable_time"]
+        assert "p95_ms" in stats["variable_time"]
+        assert "p99_ms" in stats["variable_time"]
+        assert "std_ms" in stats["variable_time"]
 
 
 class TestDistributedTracing:
@@ -523,12 +522,11 @@ class TestDistributedTracing:
     
     def test_nested_spans(self, tracer):
         """Test nested span relationships."""
-        with tracer.trace("root"):
-            with tracer.span("parent") as parent_span:
-                with tracer.span("child") as child_span:
-                    time.sleep(0.01)
-                
-                assert child_span.parent_id == parent_span.span_id
+        with tracer.trace("root"), tracer.span("parent") as parent_span:
+            with tracer.span("child") as child_span:
+                time.sleep(0.01)
+            
+            assert child_span.parent_id == parent_span.span_id
 
 
 @pytest.mark.benchmark

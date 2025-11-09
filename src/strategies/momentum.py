@@ -94,7 +94,7 @@ class MomentumStrategy(BaseStrategy):
 
         # Generate sell signals for positions not in top N
         current_positions = set(self.positions.keys())
-        top_symbols = set(s[0] for s in ranked_symbols[:self.n_positions])
+        top_symbols = {s[0] for s in ranked_symbols[:self.n_positions]}
 
         for symbol in current_positions - top_symbols:
             signal = Signal(

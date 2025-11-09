@@ -218,10 +218,7 @@ class ExecutionEngine:
         if order.order_type == OrderType.LIMIT and order.price is None:
             return False
 
-        if order.order_type in [OrderType.STOP, OrderType.STOP_LIMIT] and order.stop_price is None:
-            return False
-
-        return True
+        return not (order.order_type in [OrderType.STOP, OrderType.STOP_LIMIT] and order.stop_price is None)
 
     def _get_market_price(self, symbol: str) -> float:
         """获取市场价格（模拟）"""

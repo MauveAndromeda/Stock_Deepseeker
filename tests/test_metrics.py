@@ -2,11 +2,13 @@
 测试性能指标模块
 """
 
-import pytest
+from pathlib import Path
+import sys
+
 import numpy as np
 import pandas as pd
-import sys
-from pathlib import Path
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.metrics import MetricsCalculator
@@ -133,7 +135,7 @@ class TestMetricsCalculator:
 
         # 创建测试交易
         trades = pd.DataFrame({
-            'pnl': [100, -50, 200, -30, 150, -20, 80]
+            "pnl": [100, -50, 200, -30, 150, -20, 80]
         })
 
         win_rate = calculator.calculate_win_rate(trades)
@@ -146,7 +148,7 @@ class TestMetricsCalculator:
         calculator = MetricsCalculator()
 
         trades = pd.DataFrame({
-            'pnl': [100, -50, 200, -30, 150]
+            "pnl": [100, -50, 200, -30, 150]
         })
 
         profit_factor = calculator.calculate_profit_factor(trades)
@@ -160,11 +162,11 @@ class TestMetricsCalculator:
         calculator = MetricsCalculator()
 
         trades = pd.DataFrame({
-            'pnl': [100, 200, 150]
+            "pnl": [100, 200, 150]
         })
 
         profit_factor = calculator.calculate_profit_factor(trades)
-        assert profit_factor == float('inf'), "无亏损时盈利因子应为无穷大"
+        assert profit_factor == float("inf"), "无亏损时盈利因子应为无穷大"
 
     def test_information_ratio(self):
         """测试信息比率计算"""
@@ -189,8 +191,8 @@ class TestMetricsCalculator:
         calculator = MetricsCalculator()
 
         trades = pd.DataFrame({
-            'pnl': [100, -50, 200, -30, 150, -20, 80],
-            'symbol': ['AAPL'] * 7
+            "pnl": [100, -50, 200, -30, 150, -20, 80],
+            "symbol": ["AAPL"] * 7
         })
 
         metrics = calculator.calculate_all_metrics(
@@ -201,15 +203,15 @@ class TestMetricsCalculator:
 
         # 验证所有关键指标都存在
         required_metrics = [
-            'total_return',
-            'annualized_return',
-            'volatility',
-            'sharpe_ratio',
-            'sortino_ratio',
-            'max_drawdown',
-            'calmar_ratio',
-            'win_rate',
-            'profit_factor'
+            "total_return",
+            "annualized_return",
+            "volatility",
+            "sharpe_ratio",
+            "sortino_ratio",
+            "max_drawdown",
+            "calmar_ratio",
+            "win_rate",
+            "profit_factor"
         ]
 
         for metric in required_metrics:
