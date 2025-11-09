@@ -3,16 +3,16 @@
 集成Alpha因子、Regime检测、动态风险管理
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 
+import numpy as np
+import pandas as pd
+
+from src.agents.base import Action
+from src.agents.expert import ExpertPanel
 from src.models.alpha_factors import AlphaFactorLibrary, FactorCombiner
-from src.risk.regime_detection import MarketRegimeDetector, MarketRegime
-from src.agents.base import Agent, AgentDecision, Action
-from src.agents.expert import ExpertPanel, VotingStrategy
+from src.risk.regime_detection import MarketRegime, MarketRegimeDetector
 
 
 @dataclass
@@ -53,11 +53,11 @@ class EnhancedTradingStrategy:
 
         # 状态追踪
         self.portfolio = {
-            'cash': initial_capital,
-            'positions': {},  # {symbol: quantity}
-            'entry_prices': {},  # {symbol: price}
-            'stop_losses': {},  # {symbol: price}
-            'take_profits': {}  # {symbol: price}
+            "cash": initial_capital,
+            "positions": {},  # {symbol: quantity}
+            "entry_prices": {},  # {symbol: price}
+            "stop_losses": {},  # {symbol: price}
+            "take_profits": {}  # {symbol: price}
         }
 
         # 性能追踪
@@ -67,8 +67,8 @@ class EnhancedTradingStrategy:
 
     def calculate_factors(
         self,
-        market_data: Dict[str, pd.DataFrame]
-    ) -> Dict[str, pd.DataFrame]:
+        market_data: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
         """
         计算所有股票的因子
 
@@ -84,11 +84,11 @@ class EnhancedTradingStrategy:
             try:
                 # 准备数据
                 factor_data = {
-                    'close': data['Close'],
-                    'volume': data['Volume'],
-                    'open': data['Open'],
-                    'high': data['High'],
-                    'low': data['Low']
+                    "close": data["Close"],
+                    "volume": data["Volume"],
+                    "open": data["Open"],
+                    "high": data["High"],
+                    "low": data["Low"]
                 }
 
                 # 计算因子
@@ -103,10 +103,10 @@ class EnhancedTradingStrategy:
 
     def rank_stocks_by_factors(
         self,
-        factor_data: Dict[str, pd.DataFrame],
+        factor_data: dict[str, pd.DataFrame],
         date: pd.Timestamp,
         top_n: int = 5
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         根据因子值排序股票
 
@@ -137,7 +137,7 @@ class EnhancedTradingStrategy:
                     composite_score = valid_factors.mean()
                     scores[symbol] = composite_score
 
-            except Exception as e:
+            except Exception:
                 continue
 
         # 排序
@@ -164,7 +164,7 @@ class EnhancedTradingStrategy:
         """
         state = self.regime_detector.detect_regime(
             market_data,
-            method='ensemble'
+            method="ensemble"
         )
 
         self.current_regime = state.regime
@@ -176,7 +176,7 @@ class EnhancedTradingStrategy:
         current_price: float,
         regime: MarketRegime,
         factor_score: float
-    ) -> Tuple[int, float, float]:
+    ) -> tuple[int, float, float]:
         """
         计算仓位大小、止损和止盈
 
@@ -193,13 +193,13 @@ class EnhancedTradingStrategy:
         params = self.regime_detector.get_regime_parameters(regime)
 
         # 计算总资产
-        total_value = self.portfolio['cash']
-        for pos_symbol, quantity in self.portfolio['positions'].items():
+        total_value = self.portfolio["cash"]
+        for pos_symbol, quantity in self.portfolio["positions"].items():
             if quantity > 0:
                 total_value += quantity * current_price  # 简化：用当前价
 
         # 基础仓位（基于regime）
-        base_position_ratio = params['max_position']
+        base_position_ratio = params["max_position"]
 
         # 因子调整（因子评分越高，仓位越大）
         # factor_score 已标准化，范围约 -3 到 +3
@@ -214,8 +214,8 @@ class EnhancedTradingStrategy:
         quantity = int(position_value / current_price)
 
         # 止损和止盈
-        stop_loss_pct = params['stop_loss']
-        take_profit_pct = params['take_profit']
+        stop_loss_pct = params["stop_loss"]
+        take_profit_pct = params["take_profit"]
 
         stop_loss = current_price * (1 - stop_loss_pct)
         take_profit = current_price * (1 + take_profit_pct)
@@ -224,11 +224,11 @@ class EnhancedTradingStrategy:
 
     def generate_signals(
         self,
-        market_data: Dict[str, pd.DataFrame],
+        market_data: dict[str, pd.DataFrame],
         market_index: pd.DataFrame,
         current_date: pd.Timestamp,
-        agent_panel: Optional[ExpertPanel] = None
-    ) -> List[StrategySignal]:
+        agent_panel: ExpertPanel | None = None
+    ) -> list[StrategySignal]:
         """
         生成交易信号
 
@@ -263,8 +263,8 @@ class EnhancedTradingStrategy:
                 if current_date not in market_data[symbol].index:
                     continue
 
-                current_price = market_data[symbol].loc[current_date, 'Close']
-                current_position = self.portfolio['positions'].get(symbol, 0)
+                current_price = market_data[symbol].loc[current_date, "Close"]
+                current_position = self.portfolio["positions"].get(symbol, 0)
 
                 # 计算仓位
                 quantity, stop_loss, take_profit = self.calculate_position_size(
@@ -282,8 +282,8 @@ class EnhancedTradingStrategy:
 
                 elif current_position > 0:
                     # 检查止损/止盈
-                    if symbol in self.portfolio['stop_losses']:
-                        if current_price <= self.portfolio['stop_losses'][symbol]:
+                    if symbol in self.portfolio["stop_losses"]:
+                        if current_price <= self.portfolio["stop_losses"][symbol]:
                             # 触发止损
                             action = Action.SELL
                             confidence = 0.95
@@ -302,8 +302,8 @@ class EnhancedTradingStrategy:
                             ))
                             continue
 
-                    if symbol in self.portfolio['take_profits']:
-                        if current_price >= self.portfolio['take_profits'][symbol]:
+                    if symbol in self.portfolio["take_profits"]:
+                        if current_price >= self.portfolio["take_profits"][symbol]:
                             # 触发止盈
                             action = Action.SELL
                             confidence = 0.95
@@ -367,7 +367,7 @@ class EnhancedTradingStrategy:
         self,
         signal: StrategySignal,
         current_price: float
-    ) -> Optional[Dict]:
+    ) -> dict | None:
         """
         执行交易信号
 
@@ -386,24 +386,24 @@ class EnhancedTradingStrategy:
             quantity = signal.target_position
             cost = quantity * current_price
 
-            if self.portfolio['cash'] >= cost and quantity > 0:
+            if self.portfolio["cash"] >= cost and quantity > 0:
                 # 执行买入
-                self.portfolio['cash'] -= cost
-                self.portfolio['positions'][symbol] = \
-                    self.portfolio['positions'].get(symbol, 0) + quantity
-                self.portfolio['entry_prices'][symbol] = current_price
-                self.portfolio['stop_losses'][symbol] = signal.stop_loss
-                self.portfolio['take_profits'][symbol] = signal.take_profit
+                self.portfolio["cash"] -= cost
+                self.portfolio["positions"][symbol] = \
+                    self.portfolio["positions"].get(symbol, 0) + quantity
+                self.portfolio["entry_prices"][symbol] = current_price
+                self.portfolio["stop_losses"][symbol] = signal.stop_loss
+                self.portfolio["take_profits"][symbol] = signal.take_profit
 
                 # 记录交易
                 trade = {
-                    'timestamp': signal.timestamp,
-                    'symbol': symbol,
-                    'action': 'BUY',
-                    'quantity': quantity,
-                    'price': current_price,
-                    'value': cost,
-                    'reasoning': signal.reasoning
+                    "timestamp": signal.timestamp,
+                    "symbol": symbol,
+                    "action": "BUY",
+                    "quantity": quantity,
+                    "price": current_price,
+                    "value": cost,
+                    "reasoning": signal.reasoning
                 }
 
                 self.trades.append(trade)
@@ -411,39 +411,39 @@ class EnhancedTradingStrategy:
 
         elif action == Action.SELL:
             # 卖出
-            if symbol in self.portfolio['positions']:
-                quantity = self.portfolio['positions'][symbol]
+            if symbol in self.portfolio["positions"]:
+                quantity = self.portfolio["positions"][symbol]
 
                 if quantity > 0:
                     # 执行卖出
                     proceeds = quantity * current_price
-                    self.portfolio['cash'] += proceeds
-                    self.portfolio['positions'][symbol] = 0
+                    self.portfolio["cash"] += proceeds
+                    self.portfolio["positions"][symbol] = 0
 
                     # 计算盈亏
-                    entry_price = self.portfolio['entry_prices'].get(symbol, current_price)
+                    entry_price = self.portfolio["entry_prices"].get(symbol, current_price)
                     pnl = (current_price - entry_price) * quantity
                     pnl_pct = (current_price - entry_price) / entry_price if entry_price > 0 else 0
 
                     # 清理止损止盈
-                    if symbol in self.portfolio['stop_losses']:
-                        del self.portfolio['stop_losses'][symbol]
-                    if symbol in self.portfolio['take_profits']:
-                        del self.portfolio['take_profits'][symbol]
-                    if symbol in self.portfolio['entry_prices']:
-                        del self.portfolio['entry_prices'][symbol]
+                    if symbol in self.portfolio["stop_losses"]:
+                        del self.portfolio["stop_losses"][symbol]
+                    if symbol in self.portfolio["take_profits"]:
+                        del self.portfolio["take_profits"][symbol]
+                    if symbol in self.portfolio["entry_prices"]:
+                        del self.portfolio["entry_prices"][symbol]
 
                     # 记录交易
                     trade = {
-                        'timestamp': signal.timestamp,
-                        'symbol': symbol,
-                        'action': 'SELL',
-                        'quantity': quantity,
-                        'price': current_price,
-                        'value': proceeds,
-                        'pnl': pnl,
-                        'pnl_pct': pnl_pct,
-                        'reasoning': signal.reasoning
+                        "timestamp": signal.timestamp,
+                        "symbol": symbol,
+                        "action": "SELL",
+                        "quantity": quantity,
+                        "price": current_price,
+                        "value": proceeds,
+                        "pnl": pnl,
+                        "pnl_pct": pnl_pct,
+                        "reasoning": signal.reasoning
                     }
 
                     self.trades.append(trade)
@@ -451,17 +451,17 @@ class EnhancedTradingStrategy:
 
         return None
 
-    def get_portfolio_value(self, current_prices: Dict[str, float]) -> float:
+    def get_portfolio_value(self, current_prices: dict[str, float]) -> float:
         """计算投资组合总价值"""
-        total_value = self.portfolio['cash']
+        total_value = self.portfolio["cash"]
 
-        for symbol, quantity in self.portfolio['positions'].items():
+        for symbol, quantity in self.portfolio["positions"].items():
             if quantity > 0 and symbol in current_prices:
                 total_value += quantity * current_prices[symbol]
 
         return total_value
 
-    def get_performance_metrics(self) -> Dict:
+    def get_performance_metrics(self) -> dict:
         """计算性能指标"""
         if not self.equity_curve:
             return {}
@@ -491,13 +491,13 @@ class EnhancedTradingStrategy:
 
         # 交易统计
         if self.trades:
-            trades_with_pnl = [t for t in self.trades if 'pnl' in t]
+            trades_with_pnl = [t for t in self.trades if "pnl" in t]
             if trades_with_pnl:
-                winning_trades = [t for t in trades_with_pnl if t['pnl'] > 0]
+                winning_trades = [t for t in trades_with_pnl if t["pnl"] > 0]
                 win_rate = len(winning_trades) / len(trades_with_pnl)
 
-                total_wins = sum(t['pnl'] for t in winning_trades)
-                total_losses = abs(sum(t['pnl'] for t in trades_with_pnl if t['pnl'] < 0))
+                total_wins = sum(t["pnl"] for t in winning_trades)
+                total_losses = abs(sum(t["pnl"] for t in trades_with_pnl if t["pnl"] < 0))
                 profit_factor = total_wins / total_losses if total_losses > 0 else 0
             else:
                 win_rate = 0
@@ -507,15 +507,15 @@ class EnhancedTradingStrategy:
             profit_factor = 0
 
         return {
-            'total_return': total_return,
-            'annualized_return': annualized_return,
-            'max_drawdown': max_drawdown,
-            'volatility': volatility,
-            'sharpe_ratio': sharpe_ratio,
-            'total_trades': len(self.trades),
-            'win_rate': win_rate,
-            'profit_factor': profit_factor,
-            'final_equity': equity_series.iloc[-1],
+            "total_return": total_return,
+            "annualized_return": annualized_return,
+            "max_drawdown": max_drawdown,
+            "volatility": volatility,
+            "sharpe_ratio": sharpe_ratio,
+            "total_trades": len(self.trades),
+            "win_rate": win_rate,
+            "profit_factor": profit_factor,
+            "final_equity": equity_series.iloc[-1],
         }
 
 

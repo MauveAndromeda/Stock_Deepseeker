@@ -4,13 +4,14 @@ Real-time risk monitoring system.
 Monitors portfolio risk metrics and triggers alerts.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Callable
 from enum import Enum
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 
 class RiskLevel(Enum):
@@ -64,7 +65,7 @@ class RiskMetrics:
     short_exposure: float
     net_exposure: float
     gross_exposure: float
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
     def get_risk_level(self) -> RiskLevel:
         """Determine overall risk level."""
@@ -82,12 +83,11 @@ class RiskMetrics:
 
         if critical_count >= 2:
             return RiskLevel.CRITICAL
-        elif critical_count == 1:
+        if critical_count == 1:
             return RiskLevel.HIGH
-        elif abs(self.max_drawdown) > 0.10 or self.volatility > 0.25:
+        if abs(self.max_drawdown) > 0.10 or self.volatility > 0.25:
             return RiskLevel.MEDIUM
-        else:
-            return RiskLevel.LOW
+        return RiskLevel.LOW
 
 
 class RiskMonitor:
@@ -102,7 +102,7 @@ class RiskMonitor:
         self,
         update_frequency: int = 60,  # Seconds between updates
         lookback_window: int = 252,  # Days for vol/correlation
-        alert_callbacks: Optional[List[Callable]] = None,
+        alert_callbacks: list[Callable] | None = None,
     ) -> None:
         """
         Initialize risk monitor.
@@ -117,25 +117,25 @@ class RiskMonitor:
         self.alert_callbacks = alert_callbacks or []
 
         # Historical data
-        self.metrics_history: List[RiskMetrics] = []
+        self.metrics_history: list[RiskMetrics] = []
         self.returns_history: pd.Series = pd.Series(dtype=float)
         self.portfolio_values: pd.Series = pd.Series(dtype=float)
 
         # Current state
-        self.current_metrics: Optional[RiskMetrics] = None
-        self.last_update: Optional[datetime] = None
+        self.current_metrics: RiskMetrics | None = None
+        self.last_update: datetime | None = None
 
         # Alert tracking
-        self.active_alerts: Dict[str, Dict] = {}
+        self.active_alerts: dict[str, dict] = {}
 
         logger.info("Initialized RiskMonitor")
 
     def update(
         self,
         portfolio_value: float,
-        positions: Dict[str, Dict],  # symbol -> {quantity, price, value}
+        positions: dict[str, dict],  # symbol -> {quantity, price, value}
         market_data: pd.DataFrame,  # Recent price data
-        benchmark_returns: Optional[pd.Series] = None
+        benchmark_returns: pd.Series | None = None
     ) -> RiskMetrics:
         """
         Update risk metrics.
@@ -190,9 +190,9 @@ class RiskMonitor:
         self,
         timestamp: datetime,
         portfolio_value: float,
-        positions: Dict[str, Dict],
+        positions: dict[str, dict],
         market_data: pd.DataFrame,
-        benchmark_returns: Optional[pd.Series]
+        benchmark_returns: pd.Series | None
     ) -> RiskMetrics:
         """Calculate current risk metrics."""
         # Daily P&L
@@ -231,10 +231,10 @@ class RiskMonitor:
 
         # Position metrics
         long_exposure = sum(
-            pos['value'] for pos in positions.values() if pos['value'] > 0
+            pos["value"] for pos in positions.values() if pos["value"] > 0
         )
         short_exposure = sum(
-            abs(pos['value']) for pos in positions.values() if pos['value'] < 0
+            abs(pos["value"]) for pos in positions.values() if pos["value"] < 0
         )
         net_exposure = long_exposure - short_exposure
         gross_exposure = long_exposure + short_exposure
@@ -247,7 +247,7 @@ class RiskMonitor:
 
         # Concentration (largest position)
         if len(positions) > 0 and portfolio_value > 0:
-            largest_position = max(abs(pos['value']) for pos in positions.values())
+            largest_position = max(abs(pos["value"]) for pos in positions.values())
             concentration = largest_position / portfolio_value
         else:
             concentration = 0.0
@@ -335,60 +335,60 @@ class RiskMonitor:
         # Drawdown alerts
         if abs(metrics.max_drawdown) > 0.20:
             alerts.append({
-                'type': 'drawdown',
-                'severity': RiskLevel.CRITICAL,
-                'message': f"Critical drawdown: {metrics.max_drawdown:.2%}",
-                'value': metrics.max_drawdown,
+                "type": "drawdown",
+                "severity": RiskLevel.CRITICAL,
+                "message": f"Critical drawdown: {metrics.max_drawdown:.2%}",
+                "value": metrics.max_drawdown,
             })
         elif abs(metrics.max_drawdown) > 0.15:
             alerts.append({
-                'type': 'drawdown',
-                'severity': RiskLevel.HIGH,
-                'message': f"High drawdown: {metrics.max_drawdown:.2%}",
-                'value': metrics.max_drawdown,
+                "type": "drawdown",
+                "severity": RiskLevel.HIGH,
+                "message": f"High drawdown: {metrics.max_drawdown:.2%}",
+                "value": metrics.max_drawdown,
             })
 
         # Volatility alerts
         if metrics.volatility > 0.40:
             alerts.append({
-                'type': 'volatility',
-                'severity': RiskLevel.HIGH,
-                'message': f"High volatility: {metrics.volatility:.1%}",
-                'value': metrics.volatility,
+                "type": "volatility",
+                "severity": RiskLevel.HIGH,
+                "message": f"High volatility: {metrics.volatility:.1%}",
+                "value": metrics.volatility,
             })
 
         # Leverage alerts
         if abs(metrics.leverage) > 2.0:
             alerts.append({
-                'type': 'leverage',
-                'severity': RiskLevel.CRITICAL,
-                'message': f"Excessive leverage: {metrics.leverage:.2f}x",
-                'value': metrics.leverage,
+                "type": "leverage",
+                "severity": RiskLevel.CRITICAL,
+                "message": f"Excessive leverage: {metrics.leverage:.2f}x",
+                "value": metrics.leverage,
             })
         elif abs(metrics.leverage) > 1.5:
             alerts.append({
-                'type': 'leverage',
-                'severity': RiskLevel.HIGH,
-                'message': f"High leverage: {metrics.leverage:.2f}x",
-                'value': metrics.leverage,
+                "type": "leverage",
+                "severity": RiskLevel.HIGH,
+                "message": f"High leverage: {metrics.leverage:.2f}x",
+                "value": metrics.leverage,
             })
 
         # Concentration alerts
         if metrics.concentration > 0.30:
             alerts.append({
-                'type': 'concentration',
-                'severity': RiskLevel.HIGH,
-                'message': f"High concentration: {metrics.concentration:.1%}",
-                'value': metrics.concentration,
+                "type": "concentration",
+                "severity": RiskLevel.HIGH,
+                "message": f"High concentration: {metrics.concentration:.1%}",
+                "value": metrics.concentration,
             })
 
         # VaR alerts
         if abs(metrics.var_99) > 0.05:  # 5% daily VaR
             alerts.append({
-                'type': 'var',
-                'severity': RiskLevel.HIGH,
-                'message': f"High VaR(99%): {metrics.var_99:.2%}",
-                'value': metrics.var_99,
+                "type": "var",
+                "severity": RiskLevel.HIGH,
+                "message": f"High VaR(99%): {metrics.var_99:.2%}",
+                "value": metrics.var_99,
             })
 
         # Trigger callbacks
@@ -397,7 +397,7 @@ class RiskMonitor:
 
             # Only trigger if not already active or severity increased
             if alert_key not in self.active_alerts or \
-               self.active_alerts[alert_key]['severity'].value < alert['severity'].value:
+               self.active_alerts[alert_key]["severity"].value < alert["severity"].value:
 
                 logger.warning(f"RISK ALERT: {alert['message']}")
 
@@ -417,7 +417,7 @@ class RiskMonitor:
             logger.info(f"Risk alert resolved: {self.active_alerts[key]['message']}")
             del self.active_alerts[key]
 
-    def get_risk_report(self) -> Dict:
+    def get_risk_report(self) -> dict:
         """Generate comprehensive risk report."""
         if self.current_metrics is None:
             return {}
@@ -426,42 +426,42 @@ class RiskMonitor:
         risk_level = metrics.get_risk_level()
 
         report = {
-            'timestamp': metrics.timestamp,
-            'risk_level': risk_level.value,
-            'portfolio': {
-                'value': metrics.portfolio_value,
-                'daily_pnl': metrics.daily_pnl,
-                'daily_return': metrics.daily_return,
-                'num_positions': metrics.num_positions,
+            "timestamp": metrics.timestamp,
+            "risk_level": risk_level.value,
+            "portfolio": {
+                "value": metrics.portfolio_value,
+                "daily_pnl": metrics.daily_pnl,
+                "daily_return": metrics.daily_return,
+                "num_positions": metrics.num_positions,
             },
-            'exposure': {
-                'long': metrics.long_exposure,
-                'short': metrics.short_exposure,
-                'net': metrics.net_exposure,
-                'gross': metrics.gross_exposure,
-                'leverage': metrics.leverage,
+            "exposure": {
+                "long": metrics.long_exposure,
+                "short": metrics.short_exposure,
+                "net": metrics.net_exposure,
+                "gross": metrics.gross_exposure,
+                "leverage": metrics.leverage,
             },
-            'risk_metrics': {
-                'volatility': metrics.volatility,
-                'beta': metrics.beta,
-                'sharpe_ratio': metrics.sharpe_ratio,
-                'max_drawdown': metrics.max_drawdown,
-                'concentration': metrics.concentration,
+            "risk_metrics": {
+                "volatility": metrics.volatility,
+                "beta": metrics.beta,
+                "sharpe_ratio": metrics.sharpe_ratio,
+                "max_drawdown": metrics.max_drawdown,
+                "concentration": metrics.concentration,
             },
-            'var_metrics': {
-                'var_95': metrics.var_95,
-                'var_99': metrics.var_99,
-                'expected_shortfall': metrics.expected_shortfall,
+            "var_metrics": {
+                "var_95": metrics.var_95,
+                "var_99": metrics.var_99,
+                "expected_shortfall": metrics.expected_shortfall,
             },
-            'active_alerts': list(self.active_alerts.values()),
+            "active_alerts": list(self.active_alerts.values()),
         }
 
         return report
 
     def get_metrics_history(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
     ) -> pd.DataFrame:
         """Get historical risk metrics as DataFrame."""
         if len(self.metrics_history) == 0:
@@ -476,19 +476,19 @@ class RiskMonitor:
                 continue
 
             data.append({
-                'timestamp': m.timestamp,
-                'portfolio_value': m.portfolio_value,
-                'daily_return': m.daily_return,
-                'volatility': m.volatility,
-                'sharpe_ratio': m.sharpe_ratio,
-                'max_drawdown': m.max_drawdown,
-                'leverage': m.leverage,
-                'concentration': m.concentration,
-                'var_95': m.var_95,
-                'var_99': m.var_99,
+                "timestamp": m.timestamp,
+                "portfolio_value": m.portfolio_value,
+                "daily_return": m.daily_return,
+                "volatility": m.volatility,
+                "sharpe_ratio": m.sharpe_ratio,
+                "max_drawdown": m.max_drawdown,
+                "leverage": m.leverage,
+                "concentration": m.concentration,
+                "var_95": m.var_95,
+                "var_99": m.var_99,
             })
 
-        return pd.DataFrame(data).set_index('timestamp')
+        return pd.DataFrame(data).set_index("timestamp")
 
     def reset(self) -> None:
         """Reset monitor state."""

@@ -5,16 +5,15 @@ Handles forward and reverse splits with proper price and volume adjustments.
 """
 
 from datetime import datetime
-from typing import Optional, Tuple
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import pandas as pd
 
 from src.data.corporate_actions.base import (
+    AdjustmentMethod,
     CorporateActionEvent,
     CorporateActionProcessor,
     CorporateActionType,
-    AdjustmentMethod,
 )
 
 
@@ -33,7 +32,7 @@ class SplitAdjuster(CorporateActionProcessor):
         """Initialize split adjuster."""
         super().__init__()
 
-    def validate_event(self, event: CorporateActionEvent) -> Tuple[bool, Optional[str]]:
+    def validate_event(self, event: CorporateActionEvent) -> tuple[bool, str | None]:
         """
         Validate split event.
 
@@ -111,14 +110,14 @@ class SplitAdjuster(CorporateActionProcessor):
 
             if mask.any():
                 # Adjust prices (divide by split factor)
-                price_columns = ['open', 'high', 'low', 'close']
+                price_columns = ["open", "high", "low", "close"]
                 for col in price_columns:
                     if col in adjusted_data.columns:
                         adjusted_data.loc[mask, col] = adjusted_data.loc[mask, col] / split_factor
 
                 # Adjust volume (multiply by split factor)
-                if 'volume' in adjusted_data.columns:
-                    adjusted_data.loc[mask, 'volume'] = adjusted_data.loc[mask, 'volume'] * split_factor
+                if "volume" in adjusted_data.columns:
+                    adjusted_data.loc[mask, "volume"] = adjusted_data.loc[mask, "volume"] * split_factor
 
                 logger.info(
                     f"Applied backward split adjustment for {event.symbol}: "
@@ -131,14 +130,14 @@ class SplitAdjuster(CorporateActionProcessor):
 
             if mask.any():
                 # Adjust prices (multiply by split factor)
-                price_columns = ['open', 'high', 'low', 'close']
+                price_columns = ["open", "high", "low", "close"]
                 for col in price_columns:
                     if col in adjusted_data.columns:
                         adjusted_data.loc[mask, col] = adjusted_data.loc[mask, col] * split_factor
 
                 # Adjust volume (divide by split factor)
-                if 'volume' in adjusted_data.columns:
-                    adjusted_data.loc[mask, 'volume'] = adjusted_data.loc[mask, 'volume'] / split_factor
+                if "volume" in adjusted_data.columns:
+                    adjusted_data.loc[mask, "volume"] = adjusted_data.loc[mask, "volume"] / split_factor
 
                 logger.info(
                     f"Applied forward split adjustment for {event.symbol}: "
@@ -177,9 +176,7 @@ class SplitAdjuster(CorporateActionProcessor):
         cumulative_factor = 1.0
 
         for event in sorted(events, key=lambda x: x.ex_date):
-            if event.action_type == CorporateActionType.SPLIT:
-                cumulative_factor *= event.ratio
-            elif event.action_type == CorporateActionType.REVERSE_SPLIT:
+            if event.action_type == CorporateActionType.SPLIT or event.action_type == CorporateActionType.REVERSE_SPLIT:
                 cumulative_factor *= event.ratio
 
         return cumulative_factor
@@ -209,10 +206,10 @@ class SplitAdjuster(CorporateActionProcessor):
         data = []
         for event in sorted(events, key=lambda x: x.ex_date):
             data.append({
-                'ex_date': event.ex_date,
-                'type': event.action_type.value,
-                'ratio': event.ratio,
-                'description': self._describe_split(event),
+                "ex_date": event.ex_date,
+                "type": event.action_type.value,
+                "ratio": event.ratio,
+                "description": self._describe_split(event),
             })
 
         return pd.DataFrame(data)
@@ -233,20 +230,17 @@ class SplitAdjuster(CorporateActionProcessor):
             # Forward split
             if ratio == int(ratio):
                 return f"{int(ratio)}-for-1 split"
-            else:
-                return f"{ratio:.2f}-for-1 split"
-        else:
-            # Reverse split
-            if 1/ratio == int(1/ratio):
-                return f"1-for-{int(1/ratio)} reverse split"
-            else:
-                return f"1-for-{1/ratio:.2f} reverse split"
+            return f"{ratio:.2f}-for-1 split"
+        # Reverse split
+        if 1/ratio == int(1/ratio):
+            return f"1-for-{int(1/ratio)} reverse split"
+        return f"1-for-{1/ratio:.2f} reverse split"
 
     def detect_splits_from_prices(
         self,
         price_data: pd.DataFrame,
         threshold: float = 0.4
-    ) -> list[Tuple[datetime, float]]:
+    ) -> list[tuple[datetime, float]]:
         """
         Detect potential splits from price data.
 
@@ -263,7 +257,7 @@ class SplitAdjuster(CorporateActionProcessor):
             return []
 
         # Calculate daily price ratios
-        price_ratios = price_data['close'].pct_change()
+        price_ratios = price_data["close"].pct_change()
 
         # Find large drops (potential forward splits)
         forward_splits = price_ratios[price_ratios < -threshold]
@@ -290,22 +284,22 @@ class SplitAdjuster(CorporateActionProcessor):
 # Example usage
 if __name__ == "__main__":
     # Create sample data
-    dates = pd.date_range('2023-01-01', '2023-12-31', freq='B')
+    dates = pd.date_range("2023-01-01", "2023-12-31", freq="B")
     data = pd.DataFrame({
-        'open': 100.0,
-        'high': 105.0,
-        'low': 95.0,
-        'close': 100.0,
-        'volume': 1000000,
+        "open": 100.0,
+        "high": 105.0,
+        "low": 95.0,
+        "close": 100.0,
+        "volume": 1000000,
     }, index=dates)
 
     # Create split event (2-for-1 split on July 1)
     split_event = CorporateActionEvent(
-        symbol='TEST',
+        symbol="TEST",
         action_type=CorporateActionType.SPLIT,
         ex_date=datetime(2023, 7, 1),
         ratio=2.0,  # 2-for-1 split
-        source='manual',
+        source="manual",
     )
 
     # Process split
@@ -314,8 +308,8 @@ if __name__ == "__main__":
     adjusted = adjuster.process_event(split_event, data, AdjustmentMethod.BACKWARD)
 
     # Check results
-    print("Original close price (June 30):", data.loc['2023-06-30', 'close'])
-    print("Adjusted close price (June 30):", adjusted.loc['2023-06-30', 'close'])
-    print("Close price (July 3):", adjusted.loc['2023-07-03', 'close'])
+    print("Original close price (June 30):", data.loc["2023-06-30", "close"])
+    print("Adjusted close price (June 30):", adjusted.loc["2023-06-30", "close"])
+    print("Close price (July 3):", adjusted.loc["2023-07-03", "close"])
 
     # Should be 50.0 before split, 100.0 after split (in backward adjustment)

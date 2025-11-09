@@ -5,8 +5,8 @@
 
 from src.data.providers import (
     DataProvider,
-    YahooFinanceProvider,
     MultiSourceAggregator,
+    YahooFinanceProvider,
 )
 
 # TODO: Additional providers not yet implemented
@@ -20,6 +20,6 @@ from src.data.providers import (
 
 __all__ = [
     "DataProvider",
-    "YahooFinanceProvider",
     "MultiSourceAggregator",
+    "YahooFinanceProvider",
 ]

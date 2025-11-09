@@ -2,31 +2,30 @@
 Performance attribution analysis.
 """
 
-from typing import Dict, List, Optional, Tuple
-import numpy as np
-import pandas as pd
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+
+import pandas as pd
 
 
 @dataclass
 class AttributionResult:
     """Container for attribution analysis results."""
     total_return: float
-    factor_returns: Dict[str, float]
-    factor_contributions: Dict[str, float]
+    factor_returns: dict[str, float]
+    factor_contributions: dict[str, float]
     residual_return: float
     explained_variance: float
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for reporting."""
         return {
-            'Total Return': f"{self.total_return:.2%}",
-            'Factor Contributions': {
+            "Total Return": f"{self.total_return:.2%}",
+            "Factor Contributions": {
                 k: f"{v:.2%}" for k, v in self.factor_contributions.items()
             },
-            'Residual Return': f"{self.residual_return:.2%}",
-            'Explained Variance': f"{self.explained_variance:.2%}"
+            "Residual Return": f"{self.residual_return:.2%}",
+            "Explained Variance": f"{self.explained_variance:.2%}"
         }
 
 
@@ -44,7 +43,6 @@ class AttributionAnalyzer:
 
     def __init__(self):
         """Initialize attribution analyzer."""
-        pass
 
     def factor_attribution(
         self,
@@ -67,7 +65,7 @@ class AttributionAnalyzer:
         aligned_data = pd.concat(
             [returns, factor_exposures, factor_returns],
             axis=1,
-            join='inner'
+            join="inner"
         )
 
         if len(aligned_data) == 0:
@@ -80,8 +78,8 @@ class AttributionAnalyzer:
         for factor in factor_names:
             # Contribution = exposure * factor_return
             contribution = (
-                aligned_data[f'{factor}_exposure'] *
-                aligned_data[f'{factor}_return']
+                aligned_data[f"{factor}_exposure"] *
+                aligned_data[f"{factor}_return"]
             ).mean()
             factor_contributions[factor] = contribution
 
@@ -116,7 +114,7 @@ class AttributionAnalyzer:
         portfolio_returns: pd.Series,
         portfolio_weights: pd.DataFrame,  # columns = sectors
         sector_returns: pd.DataFrame      # columns = sectors
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> dict[str, dict[str, float]]:
         """
         Perform sector attribution (allocation and selection effects).
 
@@ -156,20 +154,20 @@ class AttributionAnalyzer:
             interaction_effects[sector] = 0.0
 
         return {
-            'allocation': allocation_effects,
-            'selection': selection_effects,
-            'interaction': interaction_effects,
-            'total_allocation': sum(allocation_effects.values()),
-            'total_selection': sum(selection_effects.values()),
-            'total_interaction': sum(interaction_effects.values())
+            "allocation": allocation_effects,
+            "selection": selection_effects,
+            "interaction": interaction_effects,
+            "total_allocation": sum(allocation_effects.values()),
+            "total_selection": sum(selection_effects.values()),
+            "total_interaction": sum(interaction_effects.values())
         }
 
     def security_attribution(
         self,
         portfolio_returns: pd.DataFrame,  # columns = securities
         portfolio_weights: pd.DataFrame,  # columns = securities
-        benchmark_returns: Optional[pd.DataFrame] = None
-    ) -> Dict[str, float]:
+        benchmark_returns: pd.DataFrame | None = None
+    ) -> dict[str, float]:
         """
         Calculate contribution of each security to portfolio return.
 
@@ -240,9 +238,9 @@ class AttributionAnalyzer:
         df = pd.DataFrame(rolling_contributions, index=dates)
 
         # Add total and residual
-        df['total_return'] = returns.iloc[window:]
-        df['explained'] = df[list(factor_names)].sum(axis=1)
-        df['residual'] = df['total_return'] - df['explained']
+        df["total_return"] = returns.iloc[window:]
+        df["explained"] = df[list(factor_names)].sum(axis=1)
+        df["residual"] = df["total_return"] - df["explained"]
 
         return df
 

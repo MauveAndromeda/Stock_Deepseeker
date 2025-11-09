@@ -2,12 +2,10 @@
 Sector rotation strategy based on macroeconomic indicators and momentum.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
-import numpy as np
-import pandas as pd
-from datetime import datetime
 from collections import deque
+from enum import Enum
+
+import numpy as np
 
 from src.strategies.base import BaseStrategy, Signal, SignalType
 
@@ -48,7 +46,7 @@ class SectorRotationStrategy(BaseStrategy):
 
     def __init__(
         self,
-        sectors: Optional[List[str]] = None,
+        sectors: list[str] | None = None,
         lookback_momentum: int = 126,  # ~6 months
         lookback_strength: int = 21,   # ~1 month
         rebalance_frequency: int = 21,
@@ -68,17 +66,17 @@ class SectorRotationStrategy(BaseStrategy):
         # Define sectors (using SPDR sector ETFs as default)
         if sectors is None:
             self.sectors = {
-                'XLK': 'Technology',
-                'XLF': 'Financials',
-                'XLV': 'Healthcare',
-                'XLE': 'Energy',
-                'XLI': 'Industrials',
-                'XLY': 'Consumer Discretionary',
-                'XLP': 'Consumer Staples',
-                'XLB': 'Materials',
-                'XLU': 'Utilities',
-                'XLRE': 'Real Estate',
-                'XLC': 'Communication Services'
+                "XLK": "Technology",
+                "XLF": "Financials",
+                "XLV": "Healthcare",
+                "XLE": "Energy",
+                "XLI": "Industrials",
+                "XLY": "Consumer Discretionary",
+                "XLP": "Consumer Staples",
+                "XLB": "Materials",
+                "XLU": "Utilities",
+                "XLRE": "Real Estate",
+                "XLC": "Communication Services"
             }
         else:
             self.sectors = {sector: sector for sector in sectors}
@@ -86,79 +84,79 @@ class SectorRotationStrategy(BaseStrategy):
         # Regime-based sector preferences (scores 0-1)
         self.regime_preferences = {
             MarketRegime.EARLY_BULL: {
-                'Technology': 1.0,
-                'Financials': 0.9,
-                'Industrials': 0.8,
-                'Consumer Discretionary': 0.7,
-                'Communication Services': 0.7,
-                'Materials': 0.5,
-                'Energy': 0.4,
-                'Healthcare': 0.4,
-                'Real Estate': 0.3,
-                'Consumer Staples': 0.2,
-                'Utilities': 0.1
+                "Technology": 1.0,
+                "Financials": 0.9,
+                "Industrials": 0.8,
+                "Consumer Discretionary": 0.7,
+                "Communication Services": 0.7,
+                "Materials": 0.5,
+                "Energy": 0.4,
+                "Healthcare": 0.4,
+                "Real Estate": 0.3,
+                "Consumer Staples": 0.2,
+                "Utilities": 0.1
             },
             MarketRegime.LATE_BULL: {
-                'Energy': 1.0,
-                'Materials': 0.9,
-                'Consumer Discretionary': 0.8,
-                'Technology': 0.7,
-                'Industrials': 0.6,
-                'Financials': 0.5,
-                'Communication Services': 0.5,
-                'Healthcare': 0.4,
-                'Real Estate': 0.3,
-                'Consumer Staples': 0.3,
-                'Utilities': 0.2
+                "Energy": 1.0,
+                "Materials": 0.9,
+                "Consumer Discretionary": 0.8,
+                "Technology": 0.7,
+                "Industrials": 0.6,
+                "Financials": 0.5,
+                "Communication Services": 0.5,
+                "Healthcare": 0.4,
+                "Real Estate": 0.3,
+                "Consumer Staples": 0.3,
+                "Utilities": 0.2
             },
             MarketRegime.EARLY_BEAR: {
-                'Utilities': 1.0,
-                'Healthcare': 0.9,
-                'Consumer Staples': 0.9,
-                'Real Estate': 0.5,
-                'Communication Services': 0.4,
-                'Technology': 0.3,
-                'Financials': 0.3,
-                'Industrials': 0.2,
-                'Energy': 0.2,
-                'Materials': 0.1,
-                'Consumer Discretionary': 0.1
+                "Utilities": 1.0,
+                "Healthcare": 0.9,
+                "Consumer Staples": 0.9,
+                "Real Estate": 0.5,
+                "Communication Services": 0.4,
+                "Technology": 0.3,
+                "Financials": 0.3,
+                "Industrials": 0.2,
+                "Energy": 0.2,
+                "Materials": 0.1,
+                "Consumer Discretionary": 0.1
             },
             MarketRegime.LATE_BEAR: {
-                'Consumer Staples': 1.0,
-                'Healthcare': 0.9,
-                'Utilities': 0.8,
-                'Technology': 0.6,  # Quality tech at discount
-                'Financials': 0.5,
-                'Communication Services': 0.4,
-                'Real Estate': 0.3,
-                'Consumer Discretionary': 0.3,
-                'Industrials': 0.2,
-                'Materials': 0.2,
-                'Energy': 0.2
+                "Consumer Staples": 1.0,
+                "Healthcare": 0.9,
+                "Utilities": 0.8,
+                "Technology": 0.6,  # Quality tech at discount
+                "Financials": 0.5,
+                "Communication Services": 0.4,
+                "Real Estate": 0.3,
+                "Consumer Discretionary": 0.3,
+                "Industrials": 0.2,
+                "Materials": 0.2,
+                "Energy": 0.2
             },
             MarketRegime.RECOVERY: {
-                'Financials': 1.0,
-                'Consumer Discretionary': 0.9,
-                'Technology': 0.8,
-                'Industrials': 0.8,
-                'Materials': 0.7,
-                'Energy': 0.6,
-                'Communication Services': 0.6,
-                'Real Estate': 0.5,
-                'Healthcare': 0.4,
-                'Consumer Staples': 0.3,
-                'Utilities': 0.2
+                "Financials": 1.0,
+                "Consumer Discretionary": 0.9,
+                "Technology": 0.8,
+                "Industrials": 0.8,
+                "Materials": 0.7,
+                "Energy": 0.6,
+                "Communication Services": 0.6,
+                "Real Estate": 0.5,
+                "Healthcare": 0.4,
+                "Consumer Staples": 0.3,
+                "Utilities": 0.2
             }
         }
 
         # State
         self.last_rebalance_day = 0
-        self.sector_prices: Dict[str, deque] = {}
+        self.sector_prices: dict[str, deque] = {}
         self.market_prices: deque = deque(maxlen=252)
-        self.current_regime: Optional[MarketRegime] = None
-        self.sector_momentum: Dict[str, float] = {}
-        self.sector_strength: Dict[str, float] = {}
+        self.current_regime: MarketRegime | None = None
+        self.sector_momentum: dict[str, float] = {}
+        self.sector_strength: dict[str, float] = {}
 
     def on_start(self) -> None:
         """Initialize strategy."""
@@ -170,7 +168,7 @@ class SectorRotationStrategy(BaseStrategy):
             f"Regime detection: {'enabled' if self.use_regime_detection else 'disabled'}"
         )
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate sector rotation signals.
 
@@ -185,16 +183,16 @@ class SectorRotationStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update sector prices
-        if 'sector_prices' in data:
-            for sector, price in data['sector_prices'].items():
+        if "sector_prices" in data:
+            for sector, price in data["sector_prices"].items():
                 if sector in self.sectors:
                     if sector not in self.sector_prices:
                         self.sector_prices[sector] = deque(maxlen=252)
                     self.sector_prices[sector].append(price)
 
         # Update market prices
-        if 'market_price' in data:
-            self.market_prices.append(data['market_price'])
+        if "market_price" in data:
+            self.market_prices.append(data["market_price"])
 
         # Check if rebalancing is needed
         if self.days_elapsed - self.last_rebalance_day < self.rebalance_frequency:
@@ -257,26 +255,25 @@ class SectorRotationStrategy(BaseStrategy):
             return MarketRegime.EARLY_BULL
 
         # Late Bull: Rising trend, slowing momentum, rising volatility
-        elif trend_long > 0 and momentum_3m > 0 and momentum_6m > momentum_3m and volatility_21d > volatility_63d:
+        if trend_long > 0 and momentum_3m > 0 and momentum_6m > momentum_3m and volatility_21d > volatility_63d:
             return MarketRegime.LATE_BULL
 
         # Early Bear: Declining trend, negative momentum, rising volatility
-        elif trend_short < 0 and momentum_3m < 0 and volatility_21d > 0.2:
+        if trend_short < 0 and momentum_3m < 0 and volatility_21d > 0.2:
             return MarketRegime.EARLY_BEAR
 
         # Late Bear: Declining trend, negative momentum, declining volatility
-        elif trend_long < 0 and momentum_3m < 0 and volatility_21d < volatility_63d:
+        if trend_long < 0 and momentum_3m < 0 and volatility_21d < volatility_63d:
             return MarketRegime.LATE_BEAR
 
         # Recovery: Bottoming out, early positive signals
-        elif trend_long < 0 and trend_short > 0 and momentum_3m > -0.05:
+        if trend_long < 0 and trend_short > 0 and momentum_3m > -0.05:
             return MarketRegime.RECOVERY
 
         # Default to late bull if unclear
-        else:
-            return MarketRegime.LATE_BULL
+        return MarketRegime.LATE_BULL
 
-    def _calculate_sector_scores(self) -> Dict[str, float]:
+    def _calculate_sector_scores(self) -> dict[str, float]:
         """Calculate composite scores for each sector."""
         scores = {}
 
@@ -351,7 +348,7 @@ class SectorRotationStrategy(BaseStrategy):
         normalized = (rel_strength - 0.8) / 0.4
         return np.clip(normalized, 0, 1)
 
-    def _generate_rebalance_signals(self, sector_scores: Dict[str, float]) -> List[Signal]:
+    def _generate_rebalance_signals(self, sector_scores: dict[str, float]) -> list[Signal]:
         """Generate rebalancing signals."""
         signals = []
 
@@ -365,7 +362,7 @@ class SectorRotationStrategy(BaseStrategy):
         # Calculate target weights
         if self.equal_weight:
             target_weight = 1.0 / self.n_sectors
-            sector_weights = {sector: target_weight for sector in target_sectors}
+            sector_weights = dict.fromkeys(target_sectors, target_weight)
         else:
             # Momentum-weighted
             total_score = sum(score for sector, score in sorted_sectors[:self.n_sectors])
@@ -382,8 +379,8 @@ class SectorRotationStrategy(BaseStrategy):
                     signal_type=SignalType.SELL,
                     strength=1.0,
                     metadata={
-                        'reason': 'sector_rotation',
-                        'old_score': sector_scores.get(sector, 0)
+                        "reason": "sector_rotation",
+                        "old_score": sector_scores.get(sector, 0)
                     }
                 ))
 
@@ -398,11 +395,11 @@ class SectorRotationStrategy(BaseStrategy):
                     signal_type=SignalType.BUY,
                     strength=target_weight,
                     metadata={
-                        'reason': 'sector_entry',
-                        'score': sector_scores[sector],
-                        'momentum': self.sector_momentum.get(sector, 0),
-                        'rel_strength': self.sector_strength.get(sector, 0),
-                        'target_weight': target_weight
+                        "reason": "sector_entry",
+                        "score": sector_scores[sector],
+                        "momentum": self.sector_momentum.get(sector, 0),
+                        "rel_strength": self.sector_strength.get(sector, 0),
+                        "target_weight": target_weight
                     }
                 ))
             # Note: Rebalancing existing positions would go here

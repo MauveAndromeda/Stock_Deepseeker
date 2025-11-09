@@ -3,15 +3,15 @@
 支持结构化日志、多目标输出、日志聚合
 """
 
-import sys
-import logging
-import json
-from pathlib import Path
-from typing import Optional, Dict, Any, List
+from collections import deque
 from datetime import datetime
 from enum import Enum
+import json
+from pathlib import Path
+import sys
 import threading
-from collections import deque
+from typing import Any
+
 from loguru import logger as loguru_logger
 
 
@@ -45,10 +45,10 @@ class Logger:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized'):
+        if not hasattr(self, "_initialized"):
             self._logger = loguru_logger
-            self._handlers: List[Dict[str, Any]] = []
-            self._context: Dict[str, Any] = {}
+            self._handlers: list[dict[str, Any]] = []
+            self._context: dict[str, Any] = {}
             self._buffer = deque(maxlen=10000)  # 内存缓冲区
             self._buffer_enabled = False
             self._initialized = True
@@ -56,7 +56,7 @@ class Logger:
     def configure(
         self,
         level: str = "INFO",
-        log_file: Optional[str] = None,
+        log_file: str | None = None,
         rotation: str = "1 day",
         retention: str = "30 days",
         format_type: str = "colored",
@@ -141,7 +141,7 @@ class Logger:
         # 启用缓冲
         self._buffer_enabled = enable_buffer
 
-    def _json_formatter(self, record: Dict[str, Any]) -> str:
+    def _json_formatter(self, record: dict[str, Any]) -> str:
         """JSON格式化器"""
         log_entry = {
             "timestamp": record["time"].isoformat(),
@@ -210,7 +210,7 @@ class Logger:
             self._logger.bind(**extra).critical(message)
         self._add_to_buffer("CRITICAL", message, extra)
 
-    def _add_to_buffer(self, level: str, message: str, extra: Dict[str, Any]):
+    def _add_to_buffer(self, level: str, message: str, extra: dict[str, Any]):
         """添加到内存缓冲区"""
         if self._buffer_enabled:
             self._buffer.append({
@@ -220,7 +220,7 @@ class Logger:
                 "extra": extra
             })
 
-    def get_buffer(self, level: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_buffer(self, level: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         """
         获取缓冲区内容
 
@@ -253,7 +253,7 @@ class Logger:
         self._logger.remove(handler_id)
         self._handlers = [h for h in self._handlers if h["id"] != handler_id]
 
-    def get_handlers(self) -> List[Dict[str, Any]]:
+    def get_handlers(self) -> list[dict[str, Any]]:
         """获取所有处理器"""
         return self._handlers.copy()
 
@@ -269,7 +269,7 @@ def get_logger() -> Logger:
 
 def configure_logging(
     level: str = "INFO",
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     **kwargs
 ):
     """配置全局日志"""
@@ -315,7 +315,7 @@ def clear_context():
 class PerformanceLogger:
     """性能日志记录器"""
 
-    def __init__(self, operation: str, logger: Optional[Logger] = None):
+    def __init__(self, operation: str, logger: Logger | None = None):
         self.operation = operation
         self.logger = logger or get_logger()
         self.start_time = None
@@ -349,7 +349,7 @@ class PerformanceLogger:
 class TradeLogger:
     """交易专用日志记录器"""
 
-    def __init__(self, logger: Optional[Logger] = None):
+    def __init__(self, logger: Logger | None = None):
         self.logger = logger or get_logger()
 
     def log_order(

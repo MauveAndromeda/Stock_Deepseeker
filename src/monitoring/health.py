@@ -9,14 +9,16 @@ Provides comprehensive health checking for:
 - Application-specific health indicators
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Callable
 import threading
 import time
-import psutil
+from typing import Any
+
 from loguru import logger
+import psutil
 
 
 class HealthStatus(Enum):
@@ -35,9 +37,9 @@ class HealthCheck:
     message: str
     timestamp: datetime
     response_time_ms: float
-    details: Dict[str, Any]
-    
-    def to_dict(self) -> Dict[str, Any]:
+    details: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "name": self.name,
@@ -55,37 +57,37 @@ class HealthCheckFunction:
     
     Defines a health check with automatic timeout and error handling.
     """
-    
+
     def __init__(
         self,
         name: str,
         check_func: Callable[[], bool],
         timeout_seconds: float = 5.0,
-        details_func: Optional[Callable[[], Dict[str, Any]]] = None
+        details_func: Callable[[], dict[str, Any]] | None = None
     ):
         """Initialize health check function."""
         self.name = name
         self.check_func = check_func
         self.timeout_seconds = timeout_seconds
         self.details_func = details_func
-    
+
     def execute(self) -> HealthCheck:
         """Execute health check."""
         start_time = time.time()
-        
+
         try:
             # Run check with timeout
             result = self._run_with_timeout()
-            
+
             response_time = (time.time() - start_time) * 1000  # ms
-            
+
             if result:
                 status = HealthStatus.HEALTHY
                 message = "Check passed"
             else:
                 status = HealthStatus.UNHEALTHY
                 message = "Check failed"
-            
+
             # Get details if available
             details = {}
             if self.details_func:
@@ -93,7 +95,7 @@ class HealthCheckFunction:
                     details = self.details_func()
                 except Exception as e:
                     details = {"error": str(e)}
-            
+
             return HealthCheck(
                 name=self.name,
                 status=status,
@@ -102,7 +104,7 @@ class HealthCheckFunction:
                 response_time_ms=response_time,
                 details=details
             )
-            
+
         except TimeoutError:
             return HealthCheck(
                 name=self.name,
@@ -116,19 +118,19 @@ class HealthCheckFunction:
             return HealthCheck(
                 name=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Check failed: {str(e)}",
+                message=f"Check failed: {e!s}",
                 timestamp=datetime.now(),
                 response_time_ms=(time.time() - start_time) * 1000,
                 details={"error": str(e)}
             )
-    
+
     def _run_with_timeout(self) -> bool:
         """Run check function with timeout."""
         import signal
-        
+
         def timeout_handler(signum: int, frame: Any) -> None:
-            raise TimeoutError()
-        
+            raise TimeoutError
+
         # Set timeout (Unix only)
         try:
             old_handler = signal.signal(signal.SIGALRM, timeout_handler)
@@ -155,22 +157,22 @@ class HealthChecker:
     - Historical health data
     - Integration with alerting
     """
-    
+
     def __init__(self):
         """Initialize health checker."""
-        self._checks: Dict[str, HealthCheckFunction] = {}
-        self._last_results: Dict[str, HealthCheck] = {}
+        self._checks: dict[str, HealthCheckFunction] = {}
+        self._last_results: dict[str, HealthCheck] = {}
         self._lock = threading.Lock()
-        
+
         # Monitoring
         self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
-        
+        self._monitor_thread: threading.Thread | None = None
+
         # Register default system checks
         self._register_system_checks()
-        
+
         logger.info("Initialized HealthChecker")
-    
+
     def _register_system_checks(self) -> None:
         """Register default system health checks."""
         # CPU check
@@ -182,7 +184,7 @@ class HealthChecker:
                 "cpu_count": psutil.cpu_count()
             }
         )
-        
+
         # Memory check
         self.register_check(
             "system_memory",
@@ -193,24 +195,24 @@ class HealthChecker:
                 "memory_available_gb": psutil.virtual_memory().available / (1024**3)
             }
         )
-        
+
         # Disk check
         self.register_check(
             "system_disk",
-            lambda: psutil.disk_usage('/').percent < 90.0,
+            lambda: psutil.disk_usage("/").percent < 90.0,
             details_func=lambda: {
-                "disk_percent": psutil.disk_usage('/').percent,
-                "disk_total_gb": psutil.disk_usage('/').total / (1024**3),
-                "disk_free_gb": psutil.disk_usage('/').free / (1024**3)
+                "disk_percent": psutil.disk_usage("/").percent,
+                "disk_total_gb": psutil.disk_usage("/").total / (1024**3),
+                "disk_free_gb": psutil.disk_usage("/").free / (1024**3)
             }
         )
-    
+
     def register_check(
         self,
         name: str,
         check_func: Callable[[], bool],
         timeout_seconds: float = 5.0,
-        details_func: Optional[Callable[[], Dict[str, Any]]] = None
+        details_func: Callable[[], dict[str, Any]] | None = None
     ) -> None:
         """Register a health check."""
         with self._lock:
@@ -218,7 +220,7 @@ class HealthChecker:
                 name, check_func, timeout_seconds, details_func
             )
         logger.info(f"Registered health check: {name}")
-    
+
     def unregister_check(self, name: str) -> None:
         """Unregister a health check."""
         with self._lock:
@@ -227,72 +229,72 @@ class HealthChecker:
                 if name in self._last_results:
                     del self._last_results[name]
         logger.info(f"Unregistered health check: {name}")
-    
-    def check(self, name: str) -> Optional[HealthCheck]:
+
+    def check(self, name: str) -> HealthCheck | None:
         """Run a specific health check."""
         with self._lock:
             check_func = self._checks.get(name)
-        
+
         if not check_func:
             logger.warning(f"Health check not found: {name}")
             return None
-        
+
         result = check_func.execute()
-        
+
         with self._lock:
             self._last_results[name] = result
-        
+
         return result
-    
-    def check_all(self) -> Dict[str, HealthCheck]:
+
+    def check_all(self) -> dict[str, HealthCheck]:
         """Run all health checks."""
         with self._lock:
             checks = list(self._checks.items())
-        
+
         results = {}
         for name, check_func in checks:
             result = check_func.execute()
             results[name] = result
-            
+
             with self._lock:
                 self._last_results[name] = result
-        
+
         return results
-    
+
     def get_status(self) -> HealthStatus:
         """Get overall system health status."""
         with self._lock:
             if not self._last_results:
                 return HealthStatus.UNKNOWN
-            
+
             statuses = [r.status for r in self._last_results.values()]
-        
+
         # If any check is unhealthy, system is unhealthy
         if HealthStatus.UNHEALTHY in statuses:
             return HealthStatus.UNHEALTHY
-        
+
         # If any check is degraded, system is degraded
         if HealthStatus.DEGRADED in statuses:
             return HealthStatus.DEGRADED
-        
+
         # If all checks are healthy, system is healthy
         if all(s == HealthStatus.HEALTHY for s in statuses):
             return HealthStatus.HEALTHY
-        
+
         return HealthStatus.UNKNOWN
-    
-    def get_summary(self) -> Dict[str, Any]:
+
+    def get_summary(self) -> dict[str, Any]:
         """Get health summary."""
         with self._lock:
             results = dict(self._last_results)
-        
+
         if not results:
             return {
                 "status": HealthStatus.UNKNOWN.value,
                 "checks": {},
                 "timestamp": datetime.now().isoformat()
             }
-        
+
         return {
             "status": self.get_status().value,
             "checks": {name: check.to_dict() for name, check in results.items()},
@@ -302,13 +304,13 @@ class HealthChecker:
             "degraded": sum(1 for c in results.values() if c.status == HealthStatus.DEGRADED),
             "unhealthy": sum(1 for c in results.values() if c.status == HealthStatus.UNHEALTHY)
         }
-    
+
     def start_monitoring(self, interval_seconds: int = 30) -> None:
         """Start periodic health monitoring."""
         if self._monitoring:
             logger.warning("Health monitoring already started")
             return
-        
+
         self._monitoring = True
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
@@ -317,14 +319,14 @@ class HealthChecker:
         )
         self._monitor_thread.start()
         logger.info(f"Started health monitoring (interval: {interval_seconds}s)")
-    
+
     def stop_monitoring(self) -> None:
         """Stop health monitoring."""
         self._monitoring = False
         if self._monitor_thread:
             self._monitor_thread.join(timeout=5)
         logger.info("Stopped health monitoring")
-    
+
     def _monitor_loop(self, interval_seconds: int) -> None:
         """Health monitoring loop."""
         while self._monitoring:
@@ -378,7 +380,7 @@ def check_api_endpoint(url: str, timeout: float = 5.0) -> Callable[[], bool]:
 
 
 # Global health checker instance
-_default_health_checker: Optional[HealthChecker] = None
+_default_health_checker: HealthChecker | None = None
 
 
 def get_default_health_checker() -> HealthChecker:

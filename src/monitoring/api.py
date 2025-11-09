@@ -10,18 +10,20 @@ Provides REST API endpoints for:
 - System status
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import PlainTextResponse, JSONResponse
-from pydantic import BaseModel
+from fastapi.responses import PlainTextResponse
 from loguru import logger
+from pydantic import BaseModel
+
+from src.monitoring.alerts import AlertLevel, get_default_alert_manager
+from src.monitoring.health import get_default_health_checker
+from src.monitoring.logger import get_default_logger
 
 # Import monitoring components
 from src.monitoring.metrics import get_default_collector
-from src.monitoring.logger import get_default_logger, LogLevel
-from src.monitoring.alerts import get_default_alert_manager, AlertLevel
-from src.monitoring.health import get_default_health_checker, HealthStatus
 from src.monitoring.profiler import get_default_profiler, get_default_tracer
 
 
@@ -31,7 +33,7 @@ class MetricResponse(BaseModel):
     name: str
     value: float
     timestamp: str
-    labels: Dict[str, str]
+    labels: dict[str, str]
 
 
 class AlertRequest(BaseModel):
@@ -39,7 +41,7 @@ class AlertRequest(BaseModel):
     level: str
     title: str
     message: str
-    tags: Optional[Dict[str, str]] = None
+    tags: dict[str, str] | None = None
 
 
 class AlertResponse(BaseModel):
@@ -79,12 +81,12 @@ async def get_metrics_prometheus():
 
 
 @app.get("/api/v1/metrics")
-async def get_metrics_json() -> Dict[str, Any]:
+async def get_metrics_json() -> dict[str, Any]:
     """Get all metrics in JSON format."""
     try:
         collector = get_default_collector()
         metrics = collector.get_all_metrics()
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "metrics": [
@@ -105,15 +107,15 @@ async def get_metrics_json() -> Dict[str, Any]:
 
 
 @app.get("/api/v1/metrics/{metric_name}")
-async def get_metric(metric_name: str) -> Dict[str, Any]:
+async def get_metric(metric_name: str) -> dict[str, Any]:
     """Get specific metric by name."""
     try:
         collector = get_default_collector()
         metric = collector.get_metric(metric_name)
-        
+
         if not metric:
             raise HTTPException(status_code=404, detail="Metric not found")
-        
+
         metric_obj = metric.to_metric()
         return {
             "name": metric_obj.name,
@@ -132,12 +134,12 @@ async def get_metric(metric_name: str) -> Dict[str, Any]:
 # ============= Health Endpoints =============
 
 @app.get("/health")
-async def health_check() -> Dict[str, str]:
+async def health_check() -> dict[str, str]:
     """Quick health check endpoint."""
     try:
         checker = get_default_health_checker()
         status = checker.get_status()
-        
+
         return {
             "status": status.value,
             "timestamp": datetime.now().isoformat()
@@ -152,7 +154,7 @@ async def health_check() -> Dict[str, str]:
 
 
 @app.get("/api/v1/health")
-async def health_detailed() -> Dict[str, Any]:
+async def health_detailed() -> dict[str, Any]:
     """Detailed health status."""
     try:
         checker = get_default_health_checker()
@@ -163,15 +165,15 @@ async def health_detailed() -> Dict[str, Any]:
 
 
 @app.get("/api/v1/health/{check_name}")
-async def health_check_specific(check_name: str) -> Dict[str, Any]:
+async def health_check_specific(check_name: str) -> dict[str, Any]:
     """Get specific health check result."""
     try:
         checker = get_default_health_checker()
         result = checker.check(check_name)
-        
+
         if not result:
             raise HTTPException(status_code=404, detail="Health check not found")
-        
+
         return result.to_dict()
     except HTTPException:
         raise
@@ -184,13 +186,13 @@ async def health_check_specific(check_name: str) -> Dict[str, Any]:
 
 @app.get("/api/v1/alerts")
 async def get_alerts(
-    level: Optional[str] = Query(None, description="Filter by alert level"),
+    level: str | None = Query(None, description="Filter by alert level"),
     active_only: bool = Query(True, description="Show only active alerts")
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get alerts."""
     try:
         manager = get_default_alert_manager()
-        
+
         # Parse level
         alert_level = None
         if level:
@@ -198,13 +200,13 @@ async def get_alerts(
                 alert_level = AlertLevel(level.lower())
             except ValueError:
                 raise HTTPException(status_code=400, detail=f"Invalid alert level: {level}")
-        
+
         # Get alerts
         if active_only:
             alerts = manager.get_active_alerts(level=alert_level)
         else:
             alerts = manager.get_alert_history(level=alert_level, limit=100)
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "alerts": [a.to_dict() for a in alerts],
@@ -218,17 +220,17 @@ async def get_alerts(
 
 
 @app.post("/api/v1/alerts")
-async def create_alert(request: AlertRequest) -> Dict[str, Any]:
+async def create_alert(request: AlertRequest) -> dict[str, Any]:
     """Create a new alert."""
     try:
         manager = get_default_alert_manager()
-        
+
         # Parse level
         try:
             level = AlertLevel(request.level.lower())
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid alert level: {request.level}")
-        
+
         # Create alert
         alert = manager.create_alert(
             level=level,
@@ -237,7 +239,7 @@ async def create_alert(request: AlertRequest) -> Dict[str, Any]:
             source="api",
             tags=request.tags or {}
         )
-        
+
         return alert.to_dict()
     except HTTPException:
         raise
@@ -247,14 +249,14 @@ async def create_alert(request: AlertRequest) -> Dict[str, Any]:
 
 
 @app.post("/api/v1/alerts/{alert_id}/resolve")
-async def resolve_alert(alert_id: str) -> Dict[str, str]:
+async def resolve_alert(alert_id: str) -> dict[str, str]:
     """Resolve an alert."""
     try:
         manager = get_default_alert_manager()
-        
+
         if not manager.resolve_alert(alert_id):
             raise HTTPException(status_code=404, detail="Alert not found")
-        
+
         return {"status": "resolved", "alert_id": alert_id}
     except HTTPException:
         raise
@@ -266,7 +268,7 @@ async def resolve_alert(alert_id: str) -> Dict[str, str]:
 @app.get("/api/v1/alerts/stats")
 async def get_alert_stats(
     hours: int = Query(24, description="Time window in hours")
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get alert statistics."""
     try:
         manager = get_default_alert_manager()
@@ -280,18 +282,18 @@ async def get_alert_stats(
 
 @app.get("/api/v1/logs")
 async def get_logs(
-    level: Optional[str] = Query(None, description="Filter by log level"),
+    level: str | None = Query(None, description="Filter by log level"),
     limit: int = Query(100, ge=1, le=1000, description="Number of logs to return")
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get recent logs."""
     try:
         log_system = get_default_logger()
-        
+
         if level and level.lower() == "error":
             logs = log_system.get_errors(n=limit)
         else:
             logs = log_system.get_recent_logs(n=limit)
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "logs": logs,
@@ -306,13 +308,13 @@ async def get_logs(
 
 @app.get("/api/v1/profiling/stats")
 async def get_profiling_stats(
-    function: Optional[str] = Query(None, description="Filter by function name")
-) -> Dict[str, Any]:
+    function: str | None = Query(None, description="Filter by function name")
+) -> dict[str, Any]:
     """Get profiling statistics."""
     try:
         profiler = get_default_profiler()
         stats = profiler.get_stats(name=function)
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "stats": stats
@@ -324,18 +326,18 @@ async def get_profiling_stats(
 
 @app.get("/api/v1/tracing/traces")
 async def get_traces(
-    min_duration_ms: Optional[float] = Query(None, description="Minimum duration in ms"),
+    min_duration_ms: float | None = Query(None, description="Minimum duration in ms"),
     limit: int = Query(100, ge=1, le=1000, description="Number of traces to return")
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get distributed traces."""
     try:
         tracer = get_default_tracer()
-        
+
         traces = tracer.get_traces(
             min_duration_ms=min_duration_ms,
             limit=limit
         )
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "traces": [
@@ -359,21 +361,21 @@ async def get_traces(
 # ============= System Status Endpoint =============
 
 @app.get("/api/v1/status")
-async def get_system_status() -> Dict[str, Any]:
+async def get_system_status() -> dict[str, Any]:
     """Get overall system status."""
     try:
         # Get health status
         checker = get_default_health_checker()
         health = checker.get_summary()
-        
+
         # Get alert stats
         alert_manager = get_default_alert_manager()
         alerts = alert_manager.get_alert_stats(hours=1)
-        
+
         # Get metrics count
         collector = get_default_collector()
         metrics = collector.get_all_metrics()
-        
+
         return {
             "timestamp": datetime.now().isoformat(),
             "health": {
@@ -412,11 +414,11 @@ def get_uptime_seconds() -> float:
 async def startup_event():
     """Run on application startup."""
     logger.info("Monitoring API started")
-    
+
     # Start health monitoring
     checker = get_default_health_checker()
     checker.start_monitoring(interval_seconds=30)
-    
+
     # Start alert monitoring
     alert_manager = get_default_alert_manager()
     alert_manager.start_monitoring(check_interval=60)
@@ -426,10 +428,10 @@ async def startup_event():
 async def shutdown_event():
     """Run on application shutdown."""
     logger.info("Monitoring API shutting down")
-    
+
     # Stop monitoring
     checker = get_default_health_checker()
     checker.stop_monitoring()
-    
+
     alert_manager = get_default_alert_manager()
     alert_manager.stop_monitoring()

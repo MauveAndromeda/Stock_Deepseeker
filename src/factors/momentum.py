@@ -4,12 +4,11 @@ Momentum factors.
 Price and earnings momentum factors for cross-sectional ranking.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class PriceMomentum(Factor):
@@ -32,7 +31,7 @@ class PriceMomentum(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"{lookback}-day price momentum (skipping last {skip} days)",
             formula=f"(close_t-{skip} - close_t-{lookback}) / close_t-{lookback}",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -42,10 +41,10 @@ class PriceMomentum(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate price momentum."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate momentum skipping recent period
         if self.skip > 0:
@@ -86,7 +85,7 @@ class RSI(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"{period}-day Relative Strength Index",
             formula=f"100 - 100 / (1 + RS_{period})",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=period * 2,  # Need extra for warmup
         )
         super().__init__(metadata)
@@ -95,10 +94,10 @@ class RSI(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate RSI."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate price changes
         delta = closes.diff()
@@ -154,7 +153,7 @@ class MACD(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"MACD ({fast},{slow},{signal}) histogram",
             formula=f"EMA_{fast} - EMA_{slow} - EMA_signal",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=slow * 2,
         )
         super().__init__(metadata)
@@ -165,10 +164,10 @@ class MACD(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate MACD histogram."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate EMAs
         ema_fast = closes.ewm(span=self.fast, adjust=False).mean()
@@ -213,7 +212,7 @@ class VolumeMomentum(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"Volume deviation from {lookback}-day average",
             formula=f"(volume_t - SMA_volume_{lookback}) / SMA_volume_{lookback}",
-            data_requirements=['volume'],
+            data_requirements=["volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -222,10 +221,10 @@ class VolumeMomentum(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate volume momentum."""
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate average volume
         avg_volume = volumes.rolling(window=self.lookback).mean()
@@ -261,7 +260,7 @@ class PriceAcceleration(Factor):
             category=FactorCategory.MOMENTUM,
             description="Price momentum acceleration",
             formula=f"Momentum_{short_period} - Momentum_{long_period}",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=long_period,
         )
         super().__init__(metadata)
@@ -271,10 +270,10 @@ class PriceAcceleration(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate price acceleration."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Short-term momentum
         short_mom = closes.pct_change(periods=self.short_period)
@@ -312,7 +311,7 @@ class ReversalFactor(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"{lookback}-day price reversal (mean reversion)",
             formula=f"-1 * (close_t - close_t-{lookback}) / close_t-{lookback}",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -321,10 +320,10 @@ class ReversalFactor(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate reversal factor."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Short-term returns (negative for reversal)
         returns = closes.pct_change(periods=self.lookback)
@@ -357,7 +356,7 @@ class TrendStrength(Factor):
             category=FactorCategory.MOMENTUM,
             description=f"{period}-day trend strength (ADX)",
             formula="ADX based on +DI and -DI",
-            data_requirements=['high', 'low', 'close'],
+            data_requirements=["high", "low", "close"],
             lookback_period=period * 2,
         )
         super().__init__(metadata)
@@ -366,12 +365,12 @@ class TrendStrength(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate trend strength (simplified ADX)."""
-        highs = data['high'].unstack(fill_value=np.nan)
-        lows = data['low'].unstack(fill_value=np.nan)
-        closes = data['close'].unstack(fill_value=np.nan)
+        highs = data["high"].unstack(fill_value=np.nan)
+        lows = data["low"].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # True Range
         tr1 = highs - lows
@@ -412,7 +411,7 @@ class TrendStrength(Factor):
 
 
 # Factory function to create all momentum factors
-def create_momentum_factors() -> List[Factor]:
+def create_momentum_factors() -> list[Factor]:
     """
     Create standard set of momentum factors.
 

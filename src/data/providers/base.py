@@ -8,9 +8,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any
-import pandas as pd
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 
 class DataProviderType(Enum):
@@ -26,17 +27,14 @@ class DataProviderType(Enum):
 
 class DataProviderError(Exception):
     """Base exception for data provider errors."""
-    pass
 
 
 class DataFetchError(DataProviderError):
     """Raised when data fetching fails."""
-    pass
 
 
 class DataValidationError(DataProviderError):
     """Raised when data validation fails."""
-    pass
 
 
 @dataclass
@@ -61,11 +59,11 @@ class PriceData:
     adjusted: bool = True
     provider: DataProviderType = DataProviderType.YAHOO_FINANCE
     fetch_time: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Validate price data after initialization."""
-        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        required_columns = ["open", "high", "low", "close", "volume"]
         missing = set(required_columns) - set(self.data.columns.str.lower())
         if missing:
             raise DataValidationError(f"Missing required columns: {missing}")
@@ -79,31 +77,31 @@ class PriceData:
             raise DataValidationError(f"Empty data for {self.symbol}")
 
         # Check for negative prices
-        price_cols = ['open', 'high', 'low', 'close']
+        price_cols = ["open", "high", "low", "close"]
         for col in price_cols:
             if (self.data[col] < 0).any():
                 raise DataValidationError(f"Negative prices found in {col}")
 
         # Check high >= low
-        if (self.data['high'] < self.data['low']).any():
+        if (self.data["high"] < self.data["low"]).any():
             raise DataValidationError("High prices less than low prices")
 
     def get_returns(self, periods: int = 1) -> pd.Series:
         """Calculate returns."""
-        return self.data['close'].pct_change(periods=periods)
+        return self.data["close"].pct_change(periods=periods)
 
     def get_log_returns(self, periods: int = 1) -> pd.Series:
         """Calculate log returns."""
-        return np.log(self.data['close'] / self.data['close'].shift(periods))
+        return np.log(self.data["close"] / self.data["close"].shift(periods))
 
-    def resample(self, freq: str = '1D') -> pd.DataFrame:
+    def resample(self, freq: str = "1D") -> pd.DataFrame:
         """Resample data to different frequency."""
         resampled = self.data.resample(freq).agg({
-            'open': 'first',
-            'high': 'max',
-            'low': 'min',
-            'close': 'last',
-            'volume': 'sum'
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last",
+            "volume": "sum"
         })
         return resampled.dropna()
 
@@ -122,7 +120,7 @@ class FundamentalData:
         fetch_time: When data was fetched
     """
     symbol: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
     report_date: datetime
     period_type: str = "quarterly"  # or "annual"
     provider: DataProviderType = DataProviderType.YAHOO_FINANCE
@@ -155,7 +153,7 @@ class CorporateAction:
     ex_date: datetime
     value: float
     currency: str = "USD"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class DataProvider(ABC):
@@ -165,7 +163,7 @@ class DataProvider(ABC):
     All data providers must implement these methods.
     """
 
-    def __init__(self, api_key: Optional[str] = None, **kwargs: Any) -> None:
+    def __init__(self, api_key: str | None = None, **kwargs: Any) -> None:
         """
         Initialize data provider.
 
@@ -202,13 +200,12 @@ class DataProvider(ABC):
             DataFetchError: If fetching fails
             DataValidationError: If validation fails
         """
-        pass
 
     @abstractmethod
     def get_fundamentals(
         self,
         symbol: str,
-        report_date: Optional[datetime] = None,
+        report_date: datetime | None = None,
         **kwargs: Any
     ) -> FundamentalData:
         """
@@ -225,7 +222,6 @@ class DataProvider(ABC):
         Raises:
             DataFetchError: If fetching fails
         """
-        pass
 
     @abstractmethod
     def get_corporate_actions(
@@ -234,7 +230,7 @@ class DataProvider(ABC):
         start_date: datetime,
         end_date: datetime,
         **kwargs: Any
-    ) -> List[CorporateAction]:
+    ) -> list[CorporateAction]:
         """
         Fetch corporate actions (splits, dividends).
 
@@ -250,7 +246,6 @@ class DataProvider(ABC):
         Raises:
             DataFetchError: If fetching fails
         """
-        pass
 
     @abstractmethod
     def search_symbols(
@@ -258,7 +253,7 @@ class DataProvider(ABC):
         query: str,
         limit: int = 10,
         **kwargs: Any
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Search for symbols.
 
@@ -273,7 +268,6 @@ class DataProvider(ABC):
         Raises:
             DataFetchError: If search fails
         """
-        pass
 
     @abstractmethod
     def is_available(self) -> bool:
@@ -283,16 +277,15 @@ class DataProvider(ABC):
         Returns:
             True if provider is operational
         """
-        pass
 
     def get_multiple_symbols(
         self,
-        symbols: List[str],
+        symbols: list[str],
         start_date: datetime,
         end_date: datetime,
         adjusted: bool = True,
         **kwargs: Any
-    ) -> Dict[str, PriceData]:
+    ) -> dict[str, PriceData]:
         """
         Fetch historical data for multiple symbols.
 
@@ -374,13 +367,13 @@ class CachedDataProvider(DataProvider):
     def _read_cache(self, cache_path: str) -> Any:
         """Read data from cache."""
         import pickle
-        with open(cache_path, 'rb') as f:
+        with open(cache_path, "rb") as f:
             return pickle.load(f)
 
     def _write_cache(self, cache_path: str, data: Any) -> None:
         """Write data to cache."""
         import pickle
-        with open(cache_path, 'wb') as f:
+        with open(cache_path, "wb") as f:
             pickle.dump(data, f)
 
     def get_historical_prices(
@@ -407,7 +400,7 @@ class CachedDataProvider(DataProvider):
     def get_fundamentals(
         self,
         symbol: str,
-        report_date: Optional[datetime] = None,
+        report_date: datetime | None = None,
         **kwargs: Any
     ) -> FundamentalData:
         """Fetch with caching."""
@@ -427,7 +420,7 @@ class CachedDataProvider(DataProvider):
         start_date: datetime,
         end_date: datetime,
         **kwargs: Any
-    ) -> List[CorporateAction]:
+    ) -> list[CorporateAction]:
         """Fetch with caching."""
         cache_key = f"actions_{symbol}_{start_date.date()}_{end_date.date()}"
         cache_path = self._get_cache_path(cache_key)
@@ -444,7 +437,7 @@ class CachedDataProvider(DataProvider):
         query: str,
         limit: int = 10,
         **kwargs: Any
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Delegate to underlying provider (no caching for search)."""
         return self.provider.search_symbols(query, limit, **kwargs)
 

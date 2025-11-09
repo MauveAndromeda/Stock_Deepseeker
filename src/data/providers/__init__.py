@@ -4,15 +4,15 @@ Data providers package.
 Multi-source data providers for robustness and completeness.
 """
 
+from src.data.providers.aggregator import MultiSourceAggregator
 from src.data.providers.base import (
     DataProvider,
     DataProviderError,
     DataProviderType,
-    PriceData,
     FundamentalData,
+    PriceData,
 )
 from src.data.providers.yahoo import YahooFinanceProvider
-from src.data.providers.aggregator import MultiSourceAggregator
 
 # TODO: Polygon and Alpaca providers not yet implemented
 # from src.data.providers.polygon import PolygonProvider
@@ -22,10 +22,10 @@ __all__ = [
     "DataProvider",
     "DataProviderError",
     "DataProviderType",
-    "PriceData",
     "FundamentalData",
-    "YahooFinanceProvider",
     "MultiSourceAggregator",
+    "PriceData",
+    "YahooFinanceProvider",
     # "PolygonProvider",
     # "AlpacaProvider",
 ]

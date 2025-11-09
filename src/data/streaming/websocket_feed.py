@@ -2,16 +2,13 @@
 Generic WebSocket data feed implementation.
 """
 
-from typing import List, Optional, Any, Dict, Callable
 import asyncio
-import json
+from collections.abc import Callable
 from datetime import datetime
+import json
+from typing import Any
 
-from src.data.streaming.base import (
-    StreamingDataProvider,
-    StreamingMessage,
-    MessageType
-)
+from src.data.streaming.base import MessageType, StreamingDataProvider, StreamingMessage
 
 try:
     import websockets
@@ -31,9 +28,9 @@ class WebSocketFeed(StreamingDataProvider):
     def __init__(
         self,
         url: str,
-        auth_handler: Optional[Callable[[Any], Dict]] = None,
-        message_parser: Optional[Callable[[Dict], Optional[StreamingMessage]]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        auth_handler: Callable[[Any], dict] | None = None,
+        message_parser: Callable[[dict], StreamingMessage | None] | None = None,
+        headers: dict[str, str] | None = None,
         **kwargs
     ):
         """
@@ -111,8 +108,8 @@ class WebSocketFeed(StreamingDataProvider):
 
     async def subscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """
         Subscribe to symbols.
@@ -142,8 +139,8 @@ class WebSocketFeed(StreamingDataProvider):
 
     async def unsubscribe(
         self,
-        symbols: List[str],
-        message_types: Optional[List[MessageType]] = None
+        symbols: list[str],
+        message_types: list[MessageType] | None = None
     ) -> bool:
         """Unsubscribe from symbols."""
         if not self._connected:
@@ -197,7 +194,7 @@ class WebSocketFeed(StreamingDataProvider):
                 else:
                     break
 
-    async def _process_message(self, raw_message: Dict[str, Any]) -> Optional[StreamingMessage]:
+    async def _process_message(self, raw_message: dict[str, Any]) -> StreamingMessage | None:
         """Process raw message using custom parser."""
         try:
             return self.message_parser(raw_message)
@@ -205,7 +202,7 @@ class WebSocketFeed(StreamingDataProvider):
             self.logger.error(f"Error processing message: {e}")
             return None
 
-    def _default_message_parser(self, data: Dict[str, Any]) -> Optional[StreamingMessage]:
+    def _default_message_parser(self, data: dict[str, Any]) -> StreamingMessage | None:
         """
         Default message parser.
 
@@ -265,7 +262,7 @@ class WebSocketFeed(StreamingDataProvider):
                 self.logger.error(f"Ping error: {e}")
                 break
 
-    async def send_message(self, message: Dict[str, Any]) -> bool:
+    async def send_message(self, message: dict[str, Any]) -> bool:
         """
         Send custom message to server.
 

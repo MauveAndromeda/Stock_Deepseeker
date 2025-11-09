@@ -9,12 +9,12 @@ Features:
 - Trade history
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 
 from src.backtest.events import FillEvent
 
@@ -122,11 +122,11 @@ class PortfolioV2:
         self.slippage_rate = slippage_rate
 
         # Positions
-        self.positions: Dict[str, Position] = {}
+        self.positions: dict[str, Position] = {}
 
         # History
-        self.trades: List[Trade] = []
-        self.equity_history: List[Dict] = []
+        self.trades: list[Trade] = []
+        self.equity_history: list[dict] = []
 
         # Statistics
         self.total_commission_paid = 0.0
@@ -149,7 +149,7 @@ class PortfolioV2:
         """Total return as decimal."""
         return (self.total_value - self.initial_capital) / self.initial_capital
 
-    def get_position(self, symbol: str) -> Optional[Position]:
+    def get_position(self, symbol: str) -> Position | None:
         """
         Get position for a symbol.
 
@@ -169,7 +169,7 @@ class PortfolioV2:
             fill: Fill event
         """
         symbol = fill.symbol
-        quantity = fill.quantity if fill.direction == 'BUY' else -fill.quantity
+        quantity = fill.quantity if fill.direction == "BUY" else -fill.quantity
         price = fill.fill_price
 
         # Get or create position
@@ -236,7 +236,7 @@ class PortfolioV2:
             f"P&L: ${realized_pnl:.2f}"
         )
 
-    def update_prices(self, date: datetime, prices: Dict[str, float]) -> None:
+    def update_prices(self, date: datetime, prices: dict[str, float]) -> None:
         """
         Update positions with latest prices.
 
@@ -250,21 +250,21 @@ class PortfolioV2:
 
         # Record equity point
         self.equity_history.append({
-            'date': date,
-            'cash': self.cash,
-            'positions_value': self.positions_value,
-            'total_value': self.total_value,
-            'total_return': self.total_return,
+            "date": date,
+            "cash": self.cash,
+            "positions_value": self.positions_value,
+            "total_value": self.total_value,
+            "total_return": self.total_return,
         })
 
-    def get_all_positions(self) -> Dict[str, Position]:
+    def get_all_positions(self) -> dict[str, Position]:
         """Get all positions."""
         return {
             symbol: pos for symbol, pos in self.positions.items()
             if pos.quantity != 0
         }
 
-    def get_trade_history(self) -> List[Trade]:
+    def get_trade_history(self) -> list[Trade]:
         """Get trade history."""
         return self.trades.copy()
 
@@ -279,7 +279,7 @@ class PortfolioV2:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.equity_history)
-        df.set_index('date', inplace=True)
+        df.set_index("date", inplace=True)
         return df
 
     def close_all_positions(self, date: datetime) -> None:
@@ -299,13 +299,13 @@ class PortfolioV2:
                     fill_price=position.last_price,
                     commission=0.0,  # No commission on forced close
                     slippage=0.0,
-                    direction='SELL' if position.quantity > 0 else 'BUY'
+                    direction="SELL" if position.quantity > 0 else "BUY"
                 )
                 self.update_fill(fill)
 
         logger.info(f"Closed all positions on {date.date()}")
 
-    def get_performance_stats(self) -> Dict:
+    def get_performance_stats(self) -> dict:
         """
         Calculate performance statistics.
 
@@ -317,26 +317,26 @@ class PortfolioV2:
 
         df = self.get_equity_curve()
 
-        returns = df['total_value'].pct_change().dropna()
+        returns = df["total_value"].pct_change().dropna()
 
         stats = {
-            'total_return': self.total_return,
-            'total_trades': len(self.trades),
-            'total_commission': self.total_commission_paid,
-            'total_slippage': self.total_slippage_paid,
-            'final_value': self.total_value,
+            "total_return": self.total_return,
+            "total_trades": len(self.trades),
+            "total_commission": self.total_commission_paid,
+            "total_slippage": self.total_slippage_paid,
+            "final_value": self.total_value,
         }
 
         if len(returns) > 0:
             stats.update({
-                'sharpe_ratio': np.sqrt(252) * returns.mean() / returns.std() if returns.std() > 0 else 0,
-                'max_drawdown': self._calculate_max_drawdown(df['total_value']),
-                'winning_trades': sum(1 for t in self.trades if t.pnl > 0),
-                'losing_trades': sum(1 for t in self.trades if t.pnl < 0),
+                "sharpe_ratio": np.sqrt(252) * returns.mean() / returns.std() if returns.std() > 0 else 0,
+                "max_drawdown": self._calculate_max_drawdown(df["total_value"]),
+                "winning_trades": sum(1 for t in self.trades if t.pnl > 0),
+                "losing_trades": sum(1 for t in self.trades if t.pnl < 0),
             })
 
-            if stats['total_trades'] > 0:
-                stats['win_rate'] = stats['winning_trades'] / stats['total_trades']
+            if stats["total_trades"] > 0:
+                stats["win_rate"] = stats["winning_trades"] / stats["total_trades"]
 
         return stats
 

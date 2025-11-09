@@ -4,13 +4,14 @@
 """
 
 import asyncio
-import threading
-from typing import Dict, List, Callable, Any, Optional
-from enum import Enum
+from collections import defaultdict, deque
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
-from collections import defaultdict, deque
-from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
+import threading
+from typing import Any
 import uuid
 
 
@@ -76,11 +77,11 @@ class Event:
     event_type: EventType = EventType.SYSTEM_STARTED
     timestamp: datetime = field(default_factory=datetime.now)
     source: str = "system"
-    data: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    data: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     priority: int = 0  # 0=normal, 1=high, 2=critical
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             "event_id": self.event_id,
@@ -93,7 +94,7 @@ class Event:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Event':
+    def from_dict(cls, data: dict[str, Any]) -> "Event":
         """从字典创建"""
         return cls(
             event_id=data.get("event_id", str(uuid.uuid4())),
@@ -120,12 +121,12 @@ class EventBus:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized'):
+        if not hasattr(self, "_initialized"):
             # 订阅者字典 {event_type: [handlers]}
-            self._subscribers: Dict[EventType, List[Callable]] = defaultdict(list)
+            self._subscribers: dict[EventType, list[Callable]] = defaultdict(list)
 
             # 异步订阅者
-            self._async_subscribers: Dict[EventType, List[Callable]] = defaultdict(list)
+            self._async_subscribers: dict[EventType, list[Callable]] = defaultdict(list)
 
             # 事件历史
             self._event_history = deque(maxlen=10000)
@@ -288,9 +289,9 @@ class EventBus:
 
     def get_history(
         self,
-        event_type: Optional[EventType] = None,
+        event_type: EventType | None = None,
         limit: int = 100
-    ) -> List[Event]:
+    ) -> list[Event]:
         """
         获取事件历史
 
@@ -312,7 +313,7 @@ class EventBus:
         """清空事件历史"""
         self._event_history.clear()
 
-    def get_stats(self) -> Dict[str, int]:
+    def get_stats(self) -> dict[str, int]:
         """获取统计信息"""
         return self._stats.copy()
 
@@ -407,7 +408,7 @@ def create_risk_event(
 def create_data_event(
     event_type: EventType,
     symbol: str,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     **kwargs
 ) -> Event:
     """创建数据事件"""
@@ -425,16 +426,16 @@ def create_data_event(
 class EventDispatcher:
     """事件分发器 - 用于复杂的事件路由"""
 
-    def __init__(self, event_bus: Optional[EventBus] = None):
+    def __init__(self, event_bus: EventBus | None = None):
         self.event_bus = event_bus or get_event_bus()
-        self._rules: List[Dict[str, Any]] = []
+        self._rules: list[dict[str, Any]] = []
 
     def add_rule(
         self,
         source_event: EventType,
-        target_events: List[EventType],
-        condition: Optional[Callable[[Event], bool]] = None,
-        transform: Optional[Callable[[Event], Dict[str, Any]]] = None
+        target_events: list[EventType],
+        condition: Callable[[Event], bool] | None = None,
+        transform: Callable[[Event], dict[str, Any]] | None = None
     ):
         """
         添加路由规则

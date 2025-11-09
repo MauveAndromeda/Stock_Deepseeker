@@ -3,15 +3,14 @@
 支持内存缓存、分布式缓存、缓存策略
 """
 
-import time
-import threading
-import pickle
-import hashlib
-from typing import Any, Optional, Dict, Callable, List
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 from collections import OrderedDict
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+import hashlib
+import threading
+from typing import Any
 
 
 class CachePolicy(Enum):
@@ -30,7 +29,7 @@ class CacheEntry:
     created_at: datetime
     accessed_at: datetime
     access_count: int = 0
-    ttl_seconds: Optional[int] = None
+    ttl_seconds: int | None = None
 
     def is_expired(self) -> bool:
         """检查是否过期"""
@@ -93,7 +92,7 @@ class CacheStats:
             total = self.hits + self.misses
             return self.hits / total if total > 0 else 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         with self._lock:
             return {
@@ -123,7 +122,7 @@ class MemoryCache:
     def __init__(
         self,
         max_size: int = 1000,
-        default_ttl: Optional[int] = None,
+        default_ttl: int | None = None,
         policy: CachePolicy = CachePolicy.LRU
     ):
         """
@@ -173,7 +172,7 @@ class MemoryCache:
             self._stats.record_hit()
             return entry.value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+    def set(self, key: str, value: Any, ttl: int | None = None):
         """
         设置缓存值
 
@@ -269,7 +268,7 @@ class MemoryCache:
 
             return len(expired_keys)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """获取统计信息"""
         return {
             **self._stats.to_dict(),
@@ -297,8 +296,8 @@ class CacheManager:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, '_initialized'):
-            self._caches: Dict[str, MemoryCache] = {}
+        if not hasattr(self, "_initialized"):
+            self._caches: dict[str, MemoryCache] = {}
             self._default_cache = MemoryCache(max_size=1000, default_ttl=300)
             self._lock = threading.RLock()
             self._initialized = True
@@ -307,7 +306,7 @@ class CacheManager:
         self,
         name: str,
         max_size: int = 1000,
-        default_ttl: Optional[int] = None,
+        default_ttl: int | None = None,
         policy: CachePolicy = CachePolicy.LRU
     ) -> MemoryCache:
         """
@@ -330,7 +329,7 @@ class CacheManager:
             self._caches[name] = cache
             return cache
 
-    def get_cache(self, name: str) -> Optional[MemoryCache]:
+    def get_cache(self, name: str) -> MemoryCache | None:
         """
         获取命名缓存
 
@@ -369,7 +368,7 @@ class CacheManager:
                 cache.clear()
             self._default_cache.clear()
 
-    def cleanup_all_expired(self) -> Dict[str, int]:
+    def cleanup_all_expired(self) -> dict[str, int]:
         """
         清理所有过期条目
 
@@ -389,7 +388,7 @@ class CacheManager:
 
         return result
 
-    def get_all_stats(self) -> Dict[str, Dict[str, Any]]:
+    def get_all_stats(self) -> dict[str, dict[str, Any]]:
         """获取所有缓存的统计信息"""
         stats = {}
         with self._lock:
@@ -410,21 +409,21 @@ def get_cache_manager() -> CacheManager:
 
 # 便捷函数
 
-def cache_get(key: str, cache_name: Optional[str] = None, default: Any = None) -> Any:
+def cache_get(key: str, cache_name: str | None = None, default: Any = None) -> Any:
     """获取缓存值"""
     manager = get_cache_manager()
     cache = manager.get_cache(cache_name) if cache_name else manager.get_default_cache()
     return cache.get(key, default)
 
 
-def cache_set(key: str, value: Any, ttl: Optional[int] = None, cache_name: Optional[str] = None):
+def cache_set(key: str, value: Any, ttl: int | None = None, cache_name: str | None = None):
     """设置缓存值"""
     manager = get_cache_manager()
     cache = manager.get_cache(cache_name) if cache_name else manager.get_default_cache()
     cache.set(key, value, ttl)
 
 
-def cache_delete(key: str, cache_name: Optional[str] = None) -> bool:
+def cache_delete(key: str, cache_name: str | None = None) -> bool:
     """删除缓存值"""
     manager = get_cache_manager()
     cache = manager.get_cache(cache_name) if cache_name else manager.get_default_cache()
@@ -433,7 +432,7 @@ def cache_delete(key: str, cache_name: Optional[str] = None) -> bool:
 
 # 装饰器
 
-def cached(ttl: Optional[int] = None, cache_name: Optional[str] = None, key_func: Optional[Callable] = None):
+def cached(ttl: int | None = None, cache_name: str | None = None, key_func: Callable | None = None):
     """
     缓存函数结果的装饰器
 

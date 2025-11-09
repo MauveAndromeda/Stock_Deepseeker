@@ -7,21 +7,20 @@ Not ready for production use
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import Dict, List, Optional, Any, Union
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-import asyncio
-import time
-from loguru import logger
+from enum import Enum
 import os
+import time
+from typing import Any
+
+from langchain_anthropic import ChatAnthropic
 
 # LangChain imports
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+from loguru import logger
 
 
 class ModelProvider(Enum):
@@ -50,7 +49,7 @@ class ModelConfig:
     cost_per_1k_tokens: float = 0.0
     max_retries: int = 3
     timeout: int = 30
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -63,7 +62,7 @@ class ModelResponse:
     cost: float
     latency: float  # seconds
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class RateLimiter:
@@ -102,11 +101,10 @@ class ModelUnified(ABC):
     @abstractmethod
     async def generate(
         self,
-        prompt: Union[str, List[Dict[str, str]]],
+        prompt: str | list[dict[str, str]],
         **kwargs
     ) -> ModelResponse:
         """生成响应"""
-        pass
 
     def _calculate_cost(self, tokens: int) -> float:
         """计算成本"""
@@ -114,7 +112,7 @@ class ModelUnified(ABC):
 
     async def generate_with_retry(
         self,
-        prompt: Union[str, List[Dict[str, str]]],
+        prompt: str | list[dict[str, str]],
         **kwargs
     ) -> ModelResponse:
         """带重试的生成"""
@@ -146,7 +144,7 @@ class OpenAIModel(ModelUnified):
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not set")
 
@@ -159,7 +157,7 @@ class OpenAIModel(ModelUnified):
 
     async def generate(
         self,
-        prompt: Union[str, List[Dict[str, str]]],
+        prompt: str | list[dict[str, str]],
         **kwargs
     ) -> ModelResponse:
         """生成响应"""
@@ -171,12 +169,12 @@ class OpenAIModel(ModelUnified):
         else:
             messages = []
             for msg in prompt:
-                if msg['role'] == 'system':
-                    messages.append(SystemMessage(content=msg['content']))
-                elif msg['role'] == 'user':
-                    messages.append(HumanMessage(content=msg['content']))
-                elif msg['role'] == 'assistant':
-                    messages.append(AIMessage(content=msg['content']))
+                if msg["role"] == "system":
+                    messages.append(SystemMessage(content=msg["content"]))
+                elif msg["role"] == "user":
+                    messages.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    messages.append(AIMessage(content=msg["content"]))
 
         # 调用API
         response = await self.client.ainvoke(messages)
@@ -195,7 +193,7 @@ class OpenAIModel(ModelUnified):
             tokens_used=int(tokens_used),
             cost=cost,
             latency=latency,
-            metadata={'response_metadata': response.response_metadata}
+            metadata={"response_metadata": response.response_metadata}
         )
 
 
@@ -204,7 +202,7 @@ class AnthropicModel(ModelUnified):
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY not set")
 
@@ -217,7 +215,7 @@ class AnthropicModel(ModelUnified):
 
     async def generate(
         self,
-        prompt: Union[str, List[Dict[str, str]]],
+        prompt: str | list[dict[str, str]],
         **kwargs
     ) -> ModelResponse:
         """生成响应"""
@@ -229,12 +227,12 @@ class AnthropicModel(ModelUnified):
         else:
             messages = []
             for msg in prompt:
-                if msg['role'] == 'system':
-                    messages.append(SystemMessage(content=msg['content']))
-                elif msg['role'] == 'user':
-                    messages.append(HumanMessage(content=msg['content']))
-                elif msg['role'] == 'assistant':
-                    messages.append(AIMessage(content=msg['content']))
+                if msg["role"] == "system":
+                    messages.append(SystemMessage(content=msg["content"]))
+                elif msg["role"] == "user":
+                    messages.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    messages.append(AIMessage(content=msg["content"]))
 
         response = await self.client.ainvoke(messages)
         latency = time.time() - start_time
@@ -260,8 +258,8 @@ class ModelRouter:
     """
 
     def __init__(self):
-        self.models: Dict[str, ModelUnified] = {}
-        self.fallback_order: List[str] = []
+        self.models: dict[str, ModelUnified] = {}
+        self.fallback_order: list[str] = []
 
         # 预定义的模型配置
         self.configs = {
@@ -293,13 +291,13 @@ class ModelRouter:
         self.models[name] = model
         logger.info(f"Registered model: {name}")
 
-    def set_fallback_order(self, order: List[str]):
+    def set_fallback_order(self, order: list[str]):
         """设置降级顺序"""
         self.fallback_order = order
 
     async def route(
         self,
-        prompt: Union[str, List[Dict[str, str]]],
+        prompt: str | list[dict[str, str]],
         tier: ModelTier = ModelTier.BALANCED,
         **kwargs
     ) -> ModelResponse:
@@ -344,7 +342,7 @@ class ModelRouter:
     async def initialize_default_models(self):
         """初始化默认模型"""
         # 检查API密钥并初始化可用模型
-        if os.getenv('OPENAI_API_KEY'):
+        if os.getenv("OPENAI_API_KEY"):
             try:
                 self.register_model(
                     "gpt-4o-mini",
@@ -354,7 +352,7 @@ class ModelRouter:
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAI: {e}")
 
-        if os.getenv('ANTHROPIC_API_KEY'):
+        if os.getenv("ANTHROPIC_API_KEY"):
             try:
                 self.register_model(
                     "claude-3-5-sonnet",
@@ -368,15 +366,15 @@ class ModelRouter:
         if self.models:
             self.set_fallback_order(list(self.models.keys()))
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """获取使用统计"""
         stats = {}
         for name, model in self.models.items():
             stats[name] = {
-                'call_count': model.call_count,
-                'total_tokens': model.total_tokens_used,
-                'total_cost': model.total_cost,
-                'avg_cost_per_call': model.total_cost / model.call_count if model.call_count > 0 else 0
+                "call_count": model.call_count,
+                "total_tokens": model.total_tokens_used,
+                "total_cost": model.total_cost,
+                "avg_cost_per_call": model.total_cost / model.call_count if model.call_count > 0 else 0
             }
         return stats
 

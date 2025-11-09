@@ -2,11 +2,10 @@
 Comprehensive performance metrics calculator.
 """
 
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass
-from datetime import datetime
 
 
 @dataclass
@@ -51,19 +50,19 @@ class PerformanceStats:
     losing_trades: int
     avg_trade_duration: float
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
-            'Total Return': f"{self.total_return:.2%}",
-            'Annual Return': f"{self.annual_return:.2%}",
-            'Volatility': f"{self.volatility:.2%}",
-            'Sharpe Ratio': f"{self.sharpe_ratio:.2f}",
-            'Sortino Ratio': f"{self.sortino_ratio:.2f}",
-            'Calmar Ratio': f"{self.calmar_ratio:.2f}",
-            'Max Drawdown': f"{self.max_drawdown:.2%}",
-            'Win Rate': f"{self.win_rate:.2%}",
-            'Profit Factor': f"{self.profit_factor:.2f}",
-            'Total Trades': self.total_trades
+            "Total Return": f"{self.total_return:.2%}",
+            "Annual Return": f"{self.annual_return:.2%}",
+            "Volatility": f"{self.volatility:.2%}",
+            "Sharpe Ratio": f"{self.sharpe_ratio:.2f}",
+            "Sortino Ratio": f"{self.sortino_ratio:.2f}",
+            "Calmar Ratio": f"{self.calmar_ratio:.2f}",
+            "Max Drawdown": f"{self.max_drawdown:.2%}",
+            "Win Rate": f"{self.win_rate:.2%}",
+            "Profit Factor": f"{self.profit_factor:.2f}",
+            "Total Trades": self.total_trades
         }
 
 
@@ -78,7 +77,7 @@ class PerformanceMetrics:
     def __init__(
         self,
         returns: pd.Series,
-        benchmark_returns: Optional[pd.Series] = None,
+        benchmark_returns: pd.Series | None = None,
         risk_free_rate: float = 0.02,
         periods_per_year: int = 252
     ):

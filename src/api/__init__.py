@@ -4,11 +4,11 @@ API接口层
 """
 
 from src.api.rest import TradingAPI, create_app
-from src.api.websocket import WebSocketManager, MarketDataStream
+from src.api.websocket import MarketDataStream, WebSocketManager
 
 __all__ = [
-    "TradingAPI",
-    "create_app",
-    "WebSocketManager",
     "MarketDataStream",
+    "TradingAPI",
+    "WebSocketManager",
+    "create_app",
 ]

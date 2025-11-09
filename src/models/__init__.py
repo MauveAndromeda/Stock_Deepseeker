@@ -8,42 +8,42 @@ Note: Deep learning models require torch/transformers (install with: pip install
 # Always available
 from src.models.alpha_factors import AlphaFactorLibrary
 
-__all__ = ['AlphaFactorLibrary']
+__all__ = ["AlphaFactorLibrary"]
 
 # Optional AI/RL dependencies
 try:
-    from src.models.transformer import (
-        MarketTransformer,
-        TransformerConfig,
-        TimeSeriesTransformer,
-    )
-    from src.models.sac import (
-        SACAgent,
-        SACConfig,
-        TradingEnvironment,
+    from src.models.ensemble import (
+        EnsembleModel,
+        ModelRegistry,
     )
     from src.models.gpt5_client import (
         GPT5Client,
         GPT5Config,
         MarketAnalyzer,
     )
-    from src.models.ensemble import (
-        EnsembleModel,
-        ModelRegistry,
+    from src.models.sac import (
+        SACAgent,
+        SACConfig,
+        TradingEnvironment,
+    )
+    from src.models.transformer import (
+        MarketTransformer,
+        TimeSeriesTransformer,
+        TransformerConfig,
     )
 
     __all__ += [
-        "MarketTransformer",
-        "TransformerConfig",
-        "TimeSeriesTransformer",
-        "SACAgent",
-        "SACConfig",
-        "TradingEnvironment",
+        "EnsembleModel",
         "GPT5Client",
         "GPT5Config",
         "MarketAnalyzer",
-        "EnsembleModel",
+        "MarketTransformer",
         "ModelRegistry",
+        "SACAgent",
+        "SACConfig",
+        "TimeSeriesTransformer",
+        "TradingEnvironment",
+        "TransformerConfig",
     ]
 except ImportError as e:
     # AI dependencies not installed

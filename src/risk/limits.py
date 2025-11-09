@@ -4,10 +4,10 @@ Risk limit system for portfolio risk control.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
-import pandas as pd
+
 from loguru import logger
+import pandas as pd
 
 
 class LimitType(Enum):
@@ -35,7 +35,7 @@ class RiskLimit:
     limit_type: LimitType
     soft_limit: float  # Warning threshold
     hard_limit: float  # Breach threshold
-    critical_limit: Optional[float] = None  # Critical threshold
+    critical_limit: float | None = None  # Critical threshold
     enabled: bool = True
 
 
@@ -47,22 +47,22 @@ class LimitViolation:
     current_value: float
     severity: LimitSeverity
     excess: float
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 class RiskLimitSystem:
     """
     Comprehensive risk limit monitoring and enforcement.
     """
-    
+
     def __init__(self):
         """Initialize risk limit system."""
-        self.limits: Dict[str, RiskLimit] = {}
-        self.violation_history: List[LimitViolation] = []
+        self.limits: dict[str, RiskLimit] = {}
+        self.violation_history: list[LimitViolation] = []
         self._create_default_limits()
-        
+
         logger.info("Initialized RiskLimitSystem")
-    
+
     def _create_default_limits(self) -> None:
         """Create standard risk limits."""
         default_limits = [
@@ -102,76 +102,76 @@ class RiskLimitSystem:
                 critical_limit=-0.08  # -8% critical
             ),
         ]
-        
+
         for limit in default_limits:
             self.limits[limit.name] = limit
-    
+
     def add_limit(self, limit: RiskLimit) -> None:
         """Add custom risk limit."""
         self.limits[limit.name] = limit
         logger.info(f"Added risk limit: {limit.name}")
-    
-    def check_limits(self, metrics: Dict[str, float]) -> List[LimitViolation]:
+
+    def check_limits(self, metrics: dict[str, float]) -> list[LimitViolation]:
         """Check all limits against current metrics."""
         violations = []
-        
+
         for name, limit in self.limits.items():
             if not limit.enabled:
                 continue
-            
+
             # Map metric name to limit name
             metric_value = metrics.get(name)
             if metric_value is None:
                 continue
-            
+
             # Check violation
             violation = self._check_single_limit(limit, metric_value)
-            
+
             if violation:
                 violations.append(violation)
                 self.violation_history.append(violation)
-                
+
                 logger.warning(
                     f"Risk limit violation: {limit.name} "
                     f"[{violation.severity.value.upper()}] "
                     f"Value={metric_value:.4f}, Limit={limit.hard_limit:.4f}"
                 )
-        
+
         return violations
-    
+
     def _check_single_limit(
         self,
         limit: RiskLimit,
         value: float
-    ) -> Optional[LimitViolation]:
+    ) -> LimitViolation | None:
         """Check single limit."""
         severity = None
         threshold = None
-        
+
         # Determine severity
         if limit.critical_limit is not None:
-            if (value > limit.critical_limit if limit.critical_limit > 0 
+            if (value > limit.critical_limit if limit.critical_limit > 0
                 else value < limit.critical_limit):
                 severity = LimitSeverity.CRITICAL
                 threshold = limit.critical_limit
-        
+
         if severity is None:
-            if (value > limit.hard_limit if limit.hard_limit > 0 
+            if (value > limit.hard_limit if limit.hard_limit > 0
                 else value < limit.hard_limit):
                 severity = LimitSeverity.BREACH
                 threshold = limit.hard_limit
-        
+
         if severity is None:
-            if (value > limit.soft_limit if limit.soft_limit > 0 
+            if (value > limit.soft_limit if limit.soft_limit > 0
                 else value < limit.soft_limit):
                 severity = LimitSeverity.WARNING
                 threshold = limit.soft_limit
-        
+
         if severity is None:
             return None
-        
+
         excess = abs(value - threshold)
-        
+
         return LimitViolation(
             timestamp=datetime.now(),
             limit=limit,
@@ -179,51 +179,51 @@ class RiskLimitSystem:
             severity=severity,
             excess=excess
         )
-    
+
     def get_limit_status(self) -> pd.DataFrame:
         """Get status of all limits."""
         status_data = []
-        
+
         for name, limit in self.limits.items():
             status_data.append({
-                'name': name,
-                'type': limit.limit_type.value,
-                'soft_limit': limit.soft_limit,
-                'hard_limit': limit.hard_limit,
-                'critical_limit': limit.critical_limit,
-                'enabled': limit.enabled
+                "name": name,
+                "type": limit.limit_type.value,
+                "soft_limit": limit.soft_limit,
+                "hard_limit": limit.hard_limit,
+                "critical_limit": limit.critical_limit,
+                "enabled": limit.enabled
             })
-        
+
         return pd.DataFrame(status_data)
-    
+
     def get_violation_history(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
     ) -> pd.DataFrame:
         """Get violation history."""
         if len(self.violation_history) == 0:
             return pd.DataFrame()
-        
+
         data = []
         for v in self.violation_history:
             if start_date and v.timestamp < start_date:
                 continue
             if end_date and v.timestamp > end_date:
                 continue
-            
+
             data.append({
-                'timestamp': v.timestamp,
-                'limit_name': v.limit.name,
-                'limit_type': v.limit.limit_type.value,
-                'severity': v.severity.value,
-                'value': v.current_value,
-                'threshold': v.limit.hard_limit,
-                'excess': v.excess
+                "timestamp": v.timestamp,
+                "limit_name": v.limit.name,
+                "limit_type": v.limit.limit_type.value,
+                "severity": v.severity.value,
+                "value": v.current_value,
+                "threshold": v.limit.hard_limit,
+                "excess": v.excess
             })
-        
+
         return pd.DataFrame(data)
-    
+
     def reset_violations(self) -> None:
         """Clear violation history."""
         self.violation_history.clear()

@@ -7,7 +7,6 @@ All trading strategies should inherit from BaseStrategy.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
 
 
@@ -25,9 +24,9 @@ class Signal:
     symbol: str
     signal_type: SignalType
     strength: float  # 0.0 to 1.0
-    price: Optional[float] = None
-    quantity: Optional[float] = None
-    metadata: Dict = None
+    price: float | None = None
+    quantity: float | None = None
+    metadata: dict = None
 
 
 class BaseStrategy(ABC):
@@ -36,15 +35,15 @@ class BaseStrategy(ABC):
     
     All strategies must implement on_data() method.
     """
-    
+
     def __init__(self, name: str = "BaseStrategy"):
         """Initialize strategy."""
         self.name = name
         self.positions = {}
         self.signals_history = []
-    
+
     @abstractmethod
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Process new market data and generate signals.
         
@@ -54,16 +53,13 @@ class BaseStrategy(ABC):
         Returns:
             List of trading signals
         """
-        pass
-    
+
     def on_fill(self, fill):
         """Called when order is filled."""
-        pass
-    
+
     def on_order_update(self, order):
         """Called when order status changes."""
-        pass
-    
+
     def reset(self):
         """Reset strategy state."""
         self.positions = {}

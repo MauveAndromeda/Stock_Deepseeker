@@ -6,13 +6,14 @@ Research-grade implementation (Under Development)
 Implements comprehensive risk controls for trading decisions
 """
 
-from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
+from typing import Any
+
+from loguru import logger
 import numpy as np
 import pandas as pd
-from loguru import logger
 
 
 class RiskCheckResult(Enum):
@@ -29,9 +30,9 @@ class RiskMetrics:
     portfolio_var_99: float  # 99% VaR
     max_drawdown: float  # 最大回撤
     current_drawdown: float  # 当前回撤
-    position_concentration: Dict[str, float]  # 仓位集中度
+    position_concentration: dict[str, float]  # 仓位集中度
     leverage: float  # 杠杆率
-    sharpe_ratio: Optional[float] = None
+    sharpe_ratio: float | None = None
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -54,7 +55,7 @@ class RiskAdjustment:
     adjusted_size: float
     adjustment_reason: str
     risk_score: float  # 0-1, 越高风险越大
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class VaRCalculator:
@@ -131,9 +132,9 @@ class RiskManager:
 
     def __init__(
         self,
-        risk_limits: Optional[RiskLimit] = None,
+        risk_limits: RiskLimit | None = None,
         var_lookback_days: int = 252,  # 1年
-        var_method: str = 'historical'  # 'historical' or 'parametric'
+        var_method: str = "historical"  # 'historical' or 'parametric'
     ):
         self.risk_limits = risk_limits or RiskLimit()
         self.var_lookback_days = var_lookback_days
@@ -141,7 +142,7 @@ class RiskManager:
         self.var_calculator = VaRCalculator()
 
         # 风险检查历史
-        self.check_history: List[Dict] = []
+        self.check_history: list[dict] = []
 
         logger.info(f"RiskManager initialized with limits: {self.risk_limits}")
 
@@ -166,7 +167,7 @@ class RiskManager:
         # 使用最近的数据
         recent_returns = portfolio_returns.iloc[-self.var_lookback_days:].values
 
-        if self.var_method == 'historical':
+        if self.var_method == "historical":
             var = self.var_calculator.historical_var(recent_returns, confidence_level)
         else:
             var = self.var_calculator.parametric_var(recent_returns, confidence_level)
@@ -179,7 +180,7 @@ class RiskManager:
         price_history: pd.Series,
         position_size: float,
         portfolio_value: float
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         计算单个仓位的风险指标
 
@@ -198,10 +199,10 @@ class RiskManager:
         if len(returns) < 20:
             logger.warning(f"{symbol}: Insufficient price history for risk calculation")
             return {
-                'var_95': 0.0,
-                'var_99': 0.0,
-                'volatility': 0.0,
-                'position_pct': position_size / portfolio_value if portfolio_value > 0 else 0
+                "var_95": 0.0,
+                "var_99": 0.0,
+                "volatility": 0.0,
+                "position_pct": position_size / portfolio_value if portfolio_value > 0 else 0
             }
 
         recent_returns = returns.iloc[-self.var_lookback_days:].values
@@ -211,20 +212,20 @@ class RiskManager:
         volatility = float(np.std(recent_returns) * np.sqrt(252))  # 年化波动率
 
         return {
-            'var_95': var_95,
-            'var_99': var_99,
-            'volatility': volatility,
-            'position_pct': position_size / portfolio_value if portfolio_value > 0 else 0
+            "var_95": var_95,
+            "var_99": var_99,
+            "volatility": volatility,
+            "position_pct": position_size / portfolio_value if portfolio_value > 0 else 0
         }
 
     def check_position_limits(
         self,
         symbol: str,
         proposed_size: float,
-        current_positions: Dict[str, float],
+        current_positions: dict[str, float],
         portfolio_value: float,
-        price_history: Optional[pd.Series] = None
-    ) -> Tuple[RiskCheckResult, RiskAdjustment]:
+        price_history: pd.Series | None = None
+    ) -> tuple[RiskCheckResult, RiskAdjustment]:
         """
         检查仓位限制
 
@@ -276,7 +277,7 @@ class RiskManager:
                 symbol, price_history, adjusted_size, portfolio_value
             )
             # 如果波动率过高，进一步降低仓位
-            if position_risk['volatility'] > 0.5:  # 年化波动率 > 50%
+            if position_risk["volatility"] > 0.5:  # 年化波动率 > 50%
                 adjusted_size *= 0.7  # 降低30%
                 warnings.append(f"High volatility {position_risk['volatility']:.1%}, reduced position by 30%")
                 result = RiskCheckResult.ADJUSTED
@@ -299,21 +300,21 @@ class RiskManager:
 
         # 记录检查历史
         self.check_history.append({
-            'timestamp': datetime.now(),
-            'symbol': symbol,
-            'result': result.value,
-            'original_size': proposed_size,
-            'adjusted_size': adjusted_size,
-            'risk_score': risk_score
+            "timestamp": datetime.now(),
+            "symbol": symbol,
+            "result": result.value,
+            "original_size": proposed_size,
+            "adjusted_size": adjusted_size,
+            "risk_score": risk_score
         })
 
         return result, adjustment
 
     def check_concentration_risk(
         self,
-        positions: Dict[str, float],
-        sectors: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        positions: dict[str, float],
+        sectors: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """
         检查集中度风险
 
@@ -326,11 +327,11 @@ class RiskManager:
         """
         if not positions:
             return {
-                'total_value': 0,
-                'position_count': 0,
-                'max_position_pct': 0,
-                'herfindahl_index': 0,
-                'concentration_warnings': []
+                "total_value": 0,
+                "position_count": 0,
+                "max_position_pct": 0,
+                "herfindahl_index": 0,
+                "concentration_warnings": []
             }
 
         total_value = sum(positions.values())
@@ -358,7 +359,7 @@ class RiskManager:
         sector_concentration = {}
         if sectors:
             for symbol, value in positions.items():
-                sector = sectors.get(symbol, 'Unknown')
+                sector = sectors.get(symbol, "Unknown")
                 sector_concentration[sector] = sector_concentration.get(sector, 0) + value
 
             for sector, value in sector_concentration.items():
@@ -370,13 +371,13 @@ class RiskManager:
                     )
 
         return {
-            'total_value': total_value,
-            'position_count': position_count,
-            'max_position_pct': max_position_pct,
-            'herfindahl_index': herfindahl_index,
-            'sector_concentration': sector_concentration if sectors else {},
-            'concentration_warnings': warnings,
-            'is_concentrated': len(warnings) > 0
+            "total_value": total_value,
+            "position_count": position_count,
+            "max_position_pct": max_position_pct,
+            "herfindahl_index": herfindahl_index,
+            "sector_concentration": sector_concentration if sectors else {},
+            "concentration_warnings": warnings,
+            "is_concentrated": len(warnings) > 0
         }
 
     def check_stop_loss(
@@ -384,7 +385,7 @@ class RiskManager:
         symbol: str,
         entry_price: float,
         current_price: float
-    ) -> Tuple[bool, float]:
+    ) -> tuple[bool, float]:
         """
         检查止损
 
@@ -415,9 +416,9 @@ class RiskManager:
     def get_risk_metrics(
         self,
         portfolio_value: float,
-        positions: Dict[str, float],
-        portfolio_returns: Optional[pd.Series] = None,
-        peak_value: Optional[float] = None
+        positions: dict[str, float],
+        portfolio_returns: pd.Series | None = None,
+        peak_value: float | None = None
     ) -> RiskMetrics:
         """
         获取完整的风险指标
@@ -477,10 +478,10 @@ class RiskManager:
         proposed_size: float,
         current_price: float,
         portfolio_value: float,
-        current_positions: Dict[str, float],
-        price_history: Optional[pd.Series] = None,
-        entry_prices: Optional[Dict[str, float]] = None
-    ) -> Tuple[bool, Optional[RiskAdjustment]]:
+        current_positions: dict[str, float],
+        price_history: pd.Series | None = None,
+        entry_prices: dict[str, float] | None = None
+    ) -> tuple[bool, RiskAdjustment | None]:
         """
         验证交易（综合风险检查）
 
@@ -498,7 +499,7 @@ class RiskManager:
             (是否批准, 风险调整)
         """
         # 卖出操作：检查止损
-        if action == 'SELL' and symbol in current_positions:
+        if action == "SELL" and symbol in current_positions:
             if entry_prices and symbol in entry_prices:
                 stop_loss_triggered, loss_pct = self.check_stop_loss(
                     symbol, entry_prices[symbol], current_price
@@ -508,7 +509,7 @@ class RiskManager:
                     return True, None
 
         # 买入操作：检查仓位限制
-        if action == 'BUY':
+        if action == "BUY":
             result, adjustment = self.check_position_limits(
                 symbol, proposed_size, current_positions, portfolio_value, price_history
             )
@@ -516,39 +517,38 @@ class RiskManager:
             if result == RiskCheckResult.REJECTED:
                 logger.warning(f"{symbol} trade rejected: {adjustment.adjustment_reason}")
                 return False, adjustment
-            elif result == RiskCheckResult.ADJUSTED:
+            if result == RiskCheckResult.ADJUSTED:
                 logger.info(f"{symbol} trade adjusted: {adjustment.adjustment_reason}")
                 return True, adjustment
-            else:
-                return True, adjustment
+            return True, adjustment
 
         # 默认批准
         return True, None
 
-    def get_check_history_summary(self) -> Dict[str, Any]:
+    def get_check_history_summary(self) -> dict[str, Any]:
         """获取检查历史摘要"""
         if not self.check_history:
             return {
-                'total_checks': 0,
-                'approved': 0,
-                'adjusted': 0,
-                'rejected': 0,
-                'avg_risk_score': 0.0
+                "total_checks": 0,
+                "approved": 0,
+                "adjusted": 0,
+                "rejected": 0,
+                "avg_risk_score": 0.0
             }
 
         total = len(self.check_history)
-        approved = sum(1 for c in self.check_history if c['result'] == 'approved')
-        adjusted = sum(1 for c in self.check_history if c['result'] == 'adjusted')
-        rejected = sum(1 for c in self.check_history if c['result'] == 'rejected')
-        avg_risk_score = np.mean([c['risk_score'] for c in self.check_history])
+        approved = sum(1 for c in self.check_history if c["result"] == "approved")
+        adjusted = sum(1 for c in self.check_history if c["result"] == "adjusted")
+        rejected = sum(1 for c in self.check_history if c["result"] == "rejected")
+        avg_risk_score = np.mean([c["risk_score"] for c in self.check_history])
 
         return {
-            'total_checks': total,
-            'approved': approved,
-            'adjusted': adjusted,
-            'rejected': rejected,
-            'avg_risk_score': float(avg_risk_score),
-            'approval_rate': approved / total if total > 0 else 0,
-            'adjustment_rate': adjusted / total if total > 0 else 0,
-            'rejection_rate': rejected / total if total > 0 else 0
+            "total_checks": total,
+            "approved": approved,
+            "adjusted": adjusted,
+            "rejected": rejected,
+            "avg_risk_score": float(avg_risk_score),
+            "approval_rate": approved / total if total > 0 else 0,
+            "adjustment_rate": adjusted / total if total > 0 else 0,
+            "rejection_rate": rejected / total if total > 0 else 0
         }

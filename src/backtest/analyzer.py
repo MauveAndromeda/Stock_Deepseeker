@@ -3,12 +3,11 @@
 提供性能指标分析和交易分析
 """
 
-import numpy as np
-import pandas as pd
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
-from scipy import stats
+
+import numpy as np
+import pandas as pd
 
 
 @dataclass
@@ -43,7 +42,7 @@ class PerformanceMetrics:
     recovery_factor: float  # 恢复因子
     payoff_ratio: float  # 回报比
 
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -82,8 +81,8 @@ class PerformanceAnalyzer:
         self,
         equity_curve: pd.Series,
         returns: pd.Series,
-        trades: List[Dict],
-        benchmark_returns: Optional[pd.Series] = None
+        trades: list[dict],
+        benchmark_returns: pd.Series | None = None
     ) -> PerformanceMetrics:
         """
         分析回测性能
@@ -118,7 +117,7 @@ class PerformanceAnalyzer:
 
         # 其他指标
         recovery_factor = abs(total_return / max_dd) if max_dd != 0 else 0
-        payoff_ratio = trade_stats['avg_win'] / abs(trade_stats['avg_loss']) if trade_stats['avg_loss'] != 0 else 0
+        payoff_ratio = trade_stats["avg_win"] / abs(trade_stats["avg_loss"]) if trade_stats["avg_loss"] != 0 else 0
 
         return PerformanceMetrics(
             total_return=total_return,
@@ -132,11 +131,11 @@ class PerformanceAnalyzer:
             sortino_ratio=sortino,
             calmar_ratio=calmar,
             omega_ratio=omega,
-            total_trades=trade_stats['total_trades'],
-            win_rate=trade_stats['win_rate'],
-            profit_factor=trade_stats['profit_factor'],
-            avg_win=trade_stats['avg_win'],
-            avg_loss=trade_stats['avg_loss'],
+            total_trades=trade_stats["total_trades"],
+            win_rate=trade_stats["win_rate"],
+            profit_factor=trade_stats["profit_factor"],
+            avg_win=trade_stats["avg_win"],
+            avg_loss=trade_stats["avg_loss"],
             win_loss_ratio=payoff_ratio,
             recovery_factor=recovery_factor,
             payoff_ratio=payoff_ratio
@@ -208,7 +207,7 @@ class PerformanceAnalyzer:
 
         return downside_dev
 
-    def _calculate_max_drawdown(self, equity_curve: pd.Series) -> Tuple[float, int]:
+    def _calculate_max_drawdown(self, equity_curve: pd.Series) -> tuple[float, int]:
         """
         计算最大回撤和持续期
 
@@ -288,41 +287,41 @@ class PerformanceAnalyzer:
 
         return gains_sum / losses_sum if losses_sum != 0 else 0.0
 
-    def _calculate_trade_statistics(self, trades: List[Dict]) -> Dict:
+    def _calculate_trade_statistics(self, trades: list[dict]) -> dict:
         """计算交易统计"""
         if not trades:
             return {
-                'total_trades': 0,
-                'win_rate': 0.0,
-                'profit_factor': 0.0,
-                'avg_win': 0.0,
-                'avg_loss': 0.0
+                "total_trades": 0,
+                "win_rate": 0.0,
+                "profit_factor": 0.0,
+                "avg_win": 0.0,
+                "avg_loss": 0.0
             }
 
         total_trades = len(trades)
 
         # 盈亏分类
-        winning_trades = [t for t in trades if t.get('pnl', 0) > 0]
-        losing_trades = [t for t in trades if t.get('pnl', 0) < 0]
+        winning_trades = [t for t in trades if t.get("pnl", 0) > 0]
+        losing_trades = [t for t in trades if t.get("pnl", 0) < 0]
 
         # 胜率
         win_rate = len(winning_trades) / total_trades if total_trades > 0 else 0
 
         # 平均盈利/亏损
-        avg_win = np.mean([t['pnl'] for t in winning_trades]) if winning_trades else 0
-        avg_loss = np.mean([t['pnl'] for t in losing_trades]) if losing_trades else 0
+        avg_win = np.mean([t["pnl"] for t in winning_trades]) if winning_trades else 0
+        avg_loss = np.mean([t["pnl"] for t in losing_trades]) if losing_trades else 0
 
         # 盈利因子
-        total_wins = sum(t['pnl'] for t in winning_trades)
-        total_losses = abs(sum(t['pnl'] for t in losing_trades))
+        total_wins = sum(t["pnl"] for t in winning_trades)
+        total_losses = abs(sum(t["pnl"] for t in losing_trades))
         profit_factor = total_wins / total_losses if total_losses != 0 else 0
 
         return {
-            'total_trades': total_trades,
-            'win_rate': win_rate,
-            'profit_factor': profit_factor,
-            'avg_win': avg_win,
-            'avg_loss': avg_loss
+            "total_trades": total_trades,
+            "win_rate": win_rate,
+            "profit_factor": profit_factor,
+            "avg_win": avg_win,
+            "avg_loss": avg_loss
         }
 
     def calculate_information_ratio(
@@ -374,9 +373,8 @@ class TradeAnalyzer:
 
     def __init__(self):
         """初始化交易分析器"""
-        pass
 
-    def analyze_trades(self, trades: List[Dict]) -> Dict[str, any]:
+    def analyze_trades(self, trades: list[dict]) -> dict[str, any]:
         """
         分析交易
 
@@ -393,62 +391,62 @@ class TradeAnalyzer:
         trade_metrics = []
 
         for trade in trades:
-            if 'entry_time' in trade and 'exit_time' in trade:
+            if "entry_time" in trade and "exit_time" in trade:
                 # 计算MAE和MFE（如果有价格历史）
                 mae, mfe = self._calculate_mae_mfe(trade)
 
                 tm = TradeMetrics(
-                    trade_id=trade.get('trade_id', ''),
-                    entry_time=trade['entry_time'],
-                    exit_time=trade['exit_time'],
-                    symbol=trade.get('symbol', ''),
-                    side=trade.get('side', 'long'),
-                    entry_price=trade.get('entry_price', 0),
-                    exit_price=trade.get('exit_price', 0),
-                    quantity=trade.get('quantity', 0),
-                    pnl=trade.get('pnl', 0),
-                    pnl_percentage=trade.get('pnl_percentage', 0),
-                    holding_period=trade.get('holding_period', 0),
+                    trade_id=trade.get("trade_id", ""),
+                    entry_time=trade["entry_time"],
+                    exit_time=trade["exit_time"],
+                    symbol=trade.get("symbol", ""),
+                    side=trade.get("side", "long"),
+                    entry_price=trade.get("entry_price", 0),
+                    exit_price=trade.get("exit_price", 0),
+                    quantity=trade.get("quantity", 0),
+                    pnl=trade.get("pnl", 0),
+                    pnl_percentage=trade.get("pnl_percentage", 0),
+                    holding_period=trade.get("holding_period", 0),
                     mae=mae,
                     mfe=mfe,
-                    commission=trade.get('commission', 0),
-                    slippage=trade.get('slippage', 0)
+                    commission=trade.get("commission", 0),
+                    slippage=trade.get("slippage", 0)
                 )
 
                 trade_metrics.append(tm)
 
         # 分析
         analysis = {
-            'total_trades': len(trade_metrics),
-            'long_trades': sum(1 for t in trade_metrics if t.side == 'long'),
-            'short_trades': sum(1 for t in trade_metrics if t.side == 'short'),
-            'winning_trades': sum(1 for t in trade_metrics if t.pnl > 0),
-            'losing_trades': sum(1 for t in trade_metrics if t.pnl < 0),
-            'win_rate': sum(1 for t in trade_metrics if t.pnl > 0) / len(trade_metrics),
-            'avg_pnl': np.mean([t.pnl for t in trade_metrics]),
-            'avg_win': np.mean([t.pnl for t in trade_metrics if t.pnl > 0]) if any(t.pnl > 0 for t in trade_metrics) else 0,
-            'avg_loss': np.mean([t.pnl for t in trade_metrics if t.pnl < 0]) if any(t.pnl < 0 for t in trade_metrics) else 0,
-            'largest_win': max([t.pnl for t in trade_metrics]) if trade_metrics else 0,
-            'largest_loss': min([t.pnl for t in trade_metrics]) if trade_metrics else 0,
-            'avg_holding_period': np.mean([t.holding_period for t in trade_metrics]),
-            'total_commission': sum(t.commission for t in trade_metrics),
-            'total_slippage': sum(t.slippage for t in trade_metrics),
+            "total_trades": len(trade_metrics),
+            "long_trades": sum(1 for t in trade_metrics if t.side == "long"),
+            "short_trades": sum(1 for t in trade_metrics if t.side == "short"),
+            "winning_trades": sum(1 for t in trade_metrics if t.pnl > 0),
+            "losing_trades": sum(1 for t in trade_metrics if t.pnl < 0),
+            "win_rate": sum(1 for t in trade_metrics if t.pnl > 0) / len(trade_metrics),
+            "avg_pnl": np.mean([t.pnl for t in trade_metrics]),
+            "avg_win": np.mean([t.pnl for t in trade_metrics if t.pnl > 0]) if any(t.pnl > 0 for t in trade_metrics) else 0,
+            "avg_loss": np.mean([t.pnl for t in trade_metrics if t.pnl < 0]) if any(t.pnl < 0 for t in trade_metrics) else 0,
+            "largest_win": max([t.pnl for t in trade_metrics]) if trade_metrics else 0,
+            "largest_loss": min([t.pnl for t in trade_metrics]) if trade_metrics else 0,
+            "avg_holding_period": np.mean([t.holding_period for t in trade_metrics]),
+            "total_commission": sum(t.commission for t in trade_metrics),
+            "total_slippage": sum(t.slippage for t in trade_metrics),
         }
 
         # 连续盈亏
-        analysis['max_consecutive_wins'] = self._max_consecutive(trade_metrics, True)
-        analysis['max_consecutive_losses'] = self._max_consecutive(trade_metrics, False)
+        analysis["max_consecutive_wins"] = self._max_consecutive(trade_metrics, True)
+        analysis["max_consecutive_losses"] = self._max_consecutive(trade_metrics, False)
 
         # MAE/MFE分析
-        analysis['avg_mae'] = np.mean([t.mae for t in trade_metrics])
-        analysis['avg_mfe'] = np.mean([t.mfe for t in trade_metrics])
+        analysis["avg_mae"] = np.mean([t.mae for t in trade_metrics])
+        analysis["avg_mfe"] = np.mean([t.mfe for t in trade_metrics])
 
         # 持仓时间分布
-        analysis['holding_period_distribution'] = self._analyze_holding_periods(trade_metrics)
+        analysis["holding_period_distribution"] = self._analyze_holding_periods(trade_metrics)
 
         return analysis
 
-    def _calculate_mae_mfe(self, trade: Dict) -> Tuple[float, float]:
+    def _calculate_mae_mfe(self, trade: dict) -> tuple[float, float]:
         """
         计算MAE (Maximum Adverse Excursion) 和 MFE (Maximum Favorable Excursion)
 
@@ -459,12 +457,12 @@ class TradeAnalyzer:
             (MAE, MFE)
         """
         # 如果交易字典中已有价格历史，使用它
-        if 'price_history' in trade:
-            prices = trade['price_history']
-            entry_price = trade['entry_price']
-            side = trade.get('side', 'long')
+        if "price_history" in trade:
+            prices = trade["price_history"]
+            entry_price = trade["entry_price"]
+            side = trade.get("side", "long")
 
-            if side == 'long':
+            if side == "long":
                 # 做多：MAE是最大跌幅，MFE是最大涨幅
                 mae = min([(p - entry_price) / entry_price for p in prices])
                 mfe = max([(p - entry_price) / entry_price for p in prices])
@@ -474,20 +472,19 @@ class TradeAnalyzer:
                 mfe = min([(entry_price - p) / entry_price for p in prices])
 
             return abs(mae), abs(mfe)
+        # 如果没有历史数据，使用简化计算
+        pnl_pct = trade.get("pnl_percentage", 0)
+        # 假设MAE是PNL的一半，MFE是PNL的1.5倍（简化）
+        if pnl_pct > 0:
+            mae = abs(pnl_pct * 0.3)
+            mfe = abs(pnl_pct * 1.2)
         else:
-            # 如果没有历史数据，使用简化计算
-            pnl_pct = trade.get('pnl_percentage', 0)
-            # 假设MAE是PNL的一半，MFE是PNL的1.5倍（简化）
-            if pnl_pct > 0:
-                mae = abs(pnl_pct * 0.3)
-                mfe = abs(pnl_pct * 1.2)
-            else:
-                mae = abs(pnl_pct * 1.2)
-                mfe = abs(pnl_pct * 0.3)
+            mae = abs(pnl_pct * 1.2)
+            mfe = abs(pnl_pct * 0.3)
 
-            return mae, mfe
+        return mae, mfe
 
-    def _max_consecutive(self, trades: List[TradeMetrics], winning: bool) -> int:
+    def _max_consecutive(self, trades: list[TradeMetrics], winning: bool) -> int:
         """计算最大连续盈亏次数"""
         max_consecutive = 0
         current_consecutive = 0
@@ -501,7 +498,7 @@ class TradeAnalyzer:
 
         return max_consecutive
 
-    def _analyze_holding_periods(self, trades: List[TradeMetrics]) -> Dict[str, int]:
+    def _analyze_holding_periods(self, trades: list[TradeMetrics]) -> dict[str, int]:
         """分析持仓时间分布"""
         periods = [t.holding_period for t in trades]
 
@@ -509,18 +506,18 @@ class TradeAnalyzer:
             return {}
 
         return {
-            'min': min(periods),
-            'max': max(periods),
-            'median': int(np.median(periods)),
-            'mean': int(np.mean(periods)),
-            'std': int(np.std(periods))
+            "min": min(periods),
+            "max": max(periods),
+            "median": int(np.median(periods)),
+            "mean": int(np.mean(periods)),
+            "std": int(np.std(periods))
         }
 
     def identify_best_worst_trades(
         self,
-        trades: List[Dict],
+        trades: list[dict],
         n: int = 10
-    ) -> Dict[str, List[Dict]]:
+    ) -> dict[str, list[dict]]:
         """
         识别最好和最差的交易
 
@@ -531,19 +528,19 @@ class TradeAnalyzer:
         Returns:
             {'best': [...], 'worst': [...]}
         """
-        sorted_by_pnl = sorted(trades, key=lambda t: t.get('pnl', 0))
+        sorted_by_pnl = sorted(trades, key=lambda t: t.get("pnl", 0))
 
         return {
-            'worst': sorted_by_pnl[:n],
-            'best': sorted_by_pnl[-n:][::-1]
+            "worst": sorted_by_pnl[:n],
+            "best": sorted_by_pnl[-n:][::-1]
         }
 
-    def analyze_by_symbol(self, trades: List[Dict]) -> Dict[str, Dict]:
+    def analyze_by_symbol(self, trades: list[dict]) -> dict[str, dict]:
         """按股票分析交易"""
         symbol_trades = {}
 
         for trade in trades:
-            symbol = trade.get('symbol', 'UNKNOWN')
+            symbol = trade.get("symbol", "UNKNOWN")
             if symbol not in symbol_trades:
                 symbol_trades[symbol] = []
             symbol_trades[symbol].append(trade)
@@ -552,14 +549,14 @@ class TradeAnalyzer:
         symbol_stats = {}
 
         for symbol, symbol_trade_list in symbol_trades.items():
-            total_pnl = sum(t.get('pnl', 0) for t in symbol_trade_list)
-            win_count = sum(1 for t in symbol_trade_list if t.get('pnl', 0) > 0)
+            total_pnl = sum(t.get("pnl", 0) for t in symbol_trade_list)
+            win_count = sum(1 for t in symbol_trade_list if t.get("pnl", 0) > 0)
 
             symbol_stats[symbol] = {
-                'total_trades': len(symbol_trade_list),
-                'total_pnl': total_pnl,
-                'win_rate': win_count / len(symbol_trade_list) if symbol_trade_list else 0,
-                'avg_pnl': total_pnl / len(symbol_trade_list) if symbol_trade_list else 0
+                "total_trades": len(symbol_trade_list),
+                "total_pnl": total_pnl,
+                "win_rate": win_count / len(symbol_trade_list) if symbol_trade_list else 0,
+                "avg_pnl": total_pnl / len(symbol_trade_list) if symbol_trade_list else 0
             }
 
         return symbol_stats

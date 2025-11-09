@@ -4,14 +4,14 @@
 """
 
 from src.ml.features import FeatureExtractor, FeatureSelector
-from src.ml.training import ModelTrainer, TrainingConfig
 from src.ml.inference import ModelInference, PredictionResult
+from src.ml.training import ModelTrainer, TrainingConfig
 
 __all__ = [
     "FeatureExtractor",
     "FeatureSelector",
-    "ModelTrainer",
-    "TrainingConfig",
     "ModelInference",
+    "ModelTrainer",
     "PredictionResult",
+    "TrainingConfig",
 ]

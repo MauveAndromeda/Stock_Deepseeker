@@ -6,10 +6,10 @@ Tests factor significance using Fama-MacBeth regressions.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-import pandas as pd
-import numpy as np
+
 from loguru import logger
+import numpy as np
+import pandas as pd
 from scipy import stats
 
 
@@ -29,16 +29,16 @@ class RegressionResult:
         std_errors: Standard errors of coefficients
         newey_west_t_stats: Newey-West corrected t-stats
     """
-    factor_coefficients: Dict[str, float]
-    t_statistics: Dict[str, float]
-    p_values: Dict[str, float]
+    factor_coefficients: dict[str, float]
+    t_statistics: dict[str, float]
+    p_values: dict[str, float]
     r_squared: float
     adjusted_r_squared: float
     num_periods: int
     coefficients_series: pd.DataFrame
-    std_errors: Dict[str, float]
-    newey_west_t_stats: Optional[Dict[str, float]] = None
-    metadata: Dict = field(default_factory=dict)
+    std_errors: dict[str, float]
+    newey_west_t_stats: dict[str, float] | None = None
+    metadata: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         """Generate summary report."""
@@ -101,11 +101,11 @@ class CrossSectionalRegression:
 
     def run_fama_macbeth(
         self,
-        factor_values: Dict[str, pd.Series],  # factor_name -> (date, symbol) values
+        factor_values: dict[str, pd.Series],  # factor_name -> (date, symbol) values
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime,
-        control_factors: Optional[List[str]] = None
+        control_factors: list[str] | None = None
     ) -> RegressionResult:
         """
         Run Fama-MacBeth cross-sectional regression.
@@ -152,7 +152,7 @@ class CrossSectionalRegression:
                 continue
 
             # Add forward returns as dependent variable
-            period_data['forward_return'] = forward_returns
+            period_data["forward_return"] = forward_returns
 
             # Drop any rows with NaN
             period_data = period_data.dropna()
@@ -168,10 +168,10 @@ class CrossSectionalRegression:
 
             if coeffs is not None:
                 result = {
-                    'date': date,
-                    'r_squared': r2,
-                    'adj_r_squared': adj_r2,
-                    'n_stocks': len(y),
+                    "date": date,
+                    "r_squared": r2,
+                    "adj_r_squared": adj_r2,
+                    "n_stocks": len(y),
                     **coeffs
                 }
                 period_results.append(result)
@@ -181,11 +181,11 @@ class CrossSectionalRegression:
             return self._empty_result()
 
         # Convert to DataFrame
-        coeffs_df = pd.DataFrame(period_results).set_index('date')
+        coeffs_df = pd.DataFrame(period_results).set_index("date")
 
         # Calculate time-series statistics
         factor_names = [col for col in coeffs_df.columns
-                       if col not in ['r_squared', 'adj_r_squared', 'n_stocks']]
+                       if col not in ["r_squared", "adj_r_squared", "n_stocks"]]
 
         mean_coeffs = {}
         t_stats = {}
@@ -222,8 +222,8 @@ class CrossSectionalRegression:
             factor_coefficients=mean_coeffs,
             t_statistics=t_stats,
             p_values=p_values,
-            r_squared=coeffs_df['r_squared'].mean(),
-            adjusted_r_squared=coeffs_df['adj_r_squared'].mean(),
+            r_squared=coeffs_df["r_squared"].mean(),
+            adjusted_r_squared=coeffs_df["adj_r_squared"].mean(),
             num_periods=len(period_results),
             coefficients_series=coeffs_df[factor_names],
             std_errors=std_errors,
@@ -239,7 +239,7 @@ class CrossSectionalRegression:
 
     def rolling_regression(
         self,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         price_data: pd.DataFrame,
         window: int = 252,
         step: int = 21
@@ -272,18 +272,18 @@ class CrossSectionalRegression:
 
             if result.num_periods > 0:
                 result_row = {
-                    'date': end_date,
-                    'r_squared': result.r_squared,
-                    'n_periods': result.num_periods,
+                    "date": end_date,
+                    "r_squared": result.r_squared,
+                    "n_periods": result.num_periods,
                     **result.factor_coefficients
                 }
                 rolling_results.append(result_row)
 
-        return pd.DataFrame(rolling_results).set_index('date')
+        return pd.DataFrame(rolling_results).set_index("date")
 
     def factor_significance_test(
         self,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime,
@@ -310,23 +310,23 @@ class CrossSectionalRegression:
 
         for factor in result.factor_coefficients.keys():
             significance_results.append({
-                'factor': factor,
-                'coefficient': result.factor_coefficients[factor],
-                't_statistic': result.t_statistics[factor],
-                'p_value': result.p_values[factor],
-                'significant': result.p_values[factor] < significance_level,
-                'std_error': result.std_errors[factor],
+                "factor": factor,
+                "coefficient": result.factor_coefficients[factor],
+                "t_statistic": result.t_statistics[factor],
+                "p_value": result.p_values[factor],
+                "significant": result.p_values[factor] < significance_level,
+                "std_error": result.std_errors[factor],
             })
 
         df = pd.DataFrame(significance_results)
-        return df.sort_values('t_statistic', key=abs, ascending=False)
+        return df.sort_values("t_statistic", key=abs, ascending=False)
 
     def _get_common_dates(
         self,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         start_date: datetime,
         end_date: datetime
-    ) -> List[datetime]:
+    ) -> list[datetime]:
         """Get dates common to all factors."""
         if len(factor_values) == 0:
             return []
@@ -361,8 +361,8 @@ class CrossSectionalRegression:
             return pd.Series()
 
         # Get prices at both dates
-        start_prices = price_data.loc[start_date, 'close']
-        end_prices = price_data.loc[end_date, 'close']
+        start_prices = price_data.loc[start_date, "close"]
+        end_prices = price_data.loc[end_date, "close"]
 
         # Calculate returns
         forward_returns = (end_prices - start_prices) / start_prices
@@ -371,9 +371,9 @@ class CrossSectionalRegression:
 
     def _align_factor_data(
         self,
-        factor_values: Dict[str, pd.Series],
+        factor_values: dict[str, pd.Series],
         date: datetime,
-        symbols: List[str]
+        symbols: list[str]
     ) -> pd.DataFrame:
         """Align factor values for given date and symbols."""
         data = pd.DataFrame(index=symbols)
@@ -389,11 +389,11 @@ class CrossSectionalRegression:
     def _preprocess_data(
         self,
         data: pd.DataFrame
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.Series]:
         """Preprocess data for regression."""
         # Separate X and y
-        y = data['forward_return']
-        X = data.drop('forward_return', axis=1)
+        y = data["forward_return"]
+        X = data.drop("forward_return", axis=1)
 
         # Winsorize
         if self.winsorize > 0:
@@ -424,7 +424,7 @@ class CrossSectionalRegression:
         self,
         X: pd.DataFrame,
         y: pd.Series
-    ) -> Tuple[Optional[Dict], float, float]:
+    ) -> tuple[dict | None, float, float]:
         """Run OLS regression."""
         try:
             from sklearn.linear_model import LinearRegression
@@ -452,7 +452,7 @@ class CrossSectionalRegression:
     def _calculate_newey_west_t_stats(
         self,
         coeffs_df: pd.DataFrame
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Calculate Newey-West corrected t-statistics."""
         nw_t_stats = {}
 

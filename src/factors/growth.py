@@ -4,12 +4,12 @@ Growth factors.
 Growth metrics based on earnings, revenue, and fundamental trends.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+from loguru import logger
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class RevenueGrowth(Factor):
@@ -32,7 +32,7 @@ class RevenueGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day revenue growth rate",
             formula=f"(Revenue_t - Revenue_t-{lookback}) / Revenue_t-{lookback}",
-            data_requirements=['revenue'],
+            data_requirements=["revenue"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -41,14 +41,14 @@ class RevenueGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate revenue growth."""
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for growth calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
@@ -85,7 +85,7 @@ class EarningsGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day earnings growth rate",
             formula=f"(Earnings_t - Earnings_t-{lookback}) / Earnings_t-{lookback}",
-            data_requirements=['net_income'],
+            data_requirements=["net_income"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -94,14 +94,14 @@ class EarningsGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate earnings growth."""
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing earnings data for growth calculation")
             return pd.Series(dtype=float)
 
-        earnings = data['net_income'].unstack(fill_value=np.nan)
+        earnings = data["net_income"].unstack(fill_value=np.nan)
 
         # Calculate TTM earnings
         earnings_ttm = earnings.rolling(window=4, min_periods=4).sum()
@@ -138,7 +138,7 @@ class EPSGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day EPS growth rate",
             formula=f"(EPS_t - EPS_t-{lookback}) / EPS_t-{lookback}",
-            data_requirements=['eps'],
+            data_requirements=["eps"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -147,14 +147,14 @@ class EPSGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate EPS growth."""
-        if 'eps' not in data.columns:
+        if "eps" not in data.columns:
             logger.warning("Missing EPS data for growth calculation")
             return pd.Series(dtype=float)
 
-        eps = data['eps'].unstack(fill_value=np.nan)
+        eps = data["eps"].unstack(fill_value=np.nan)
 
         # Calculate TTM EPS
         eps_ttm = eps.rolling(window=4, min_periods=4).sum()
@@ -191,7 +191,7 @@ class BookValueGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day book value growth rate",
             formula=f"(BV_t - BV_t-{lookback}) / BV_t-{lookback}",
-            data_requirements=['book_value'],
+            data_requirements=["book_value"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -200,14 +200,14 @@ class BookValueGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate book value growth."""
-        if 'book_value' not in data.columns:
+        if "book_value" not in data.columns:
             logger.warning("Missing book value data for growth calculation")
             return pd.Series(dtype=float)
 
-        book_value = data['book_value'].unstack(fill_value=np.nan)
+        book_value = data["book_value"].unstack(fill_value=np.nan)
 
         # Calculate growth rate
         book_value_old = book_value.shift(periods=4)  # YoY comparison
@@ -253,7 +253,7 @@ class CashFlowGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate cash flow growth."""
         if self.cf_column not in data.columns:
@@ -297,7 +297,7 @@ class ROEGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day ROE improvement",
             formula=f"ROE_t - ROE_t-{lookback}",
-            data_requirements=['roe'],
+            data_requirements=["roe"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -306,14 +306,14 @@ class ROEGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate ROE growth."""
-        if 'roe' not in data.columns:
+        if "roe" not in data.columns:
             logger.warning("Missing ROE data for growth calculation")
             return pd.Series(dtype=float)
 
-        roe = data['roe'].unstack(fill_value=np.nan)
+        roe = data["roe"].unstack(fill_value=np.nan)
 
         # Calculate change in ROE
         roe_old = roe.shift(periods=4)  # YoY comparison
@@ -347,7 +347,7 @@ class MarginExpansion(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day operating margin expansion",
             formula=f"OpMargin_t - OpMargin_t-{lookback}",
-            data_requirements=['operating_margin'],
+            data_requirements=["operating_margin"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -356,14 +356,14 @@ class MarginExpansion(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate margin expansion."""
-        if 'operating_margin' not in data.columns:
+        if "operating_margin" not in data.columns:
             logger.warning("Missing operating margin data for expansion calculation")
             return pd.Series(dtype=float)
 
-        margin = data['operating_margin'].unstack(fill_value=np.nan)
+        margin = data["operating_margin"].unstack(fill_value=np.nan)
 
         # Calculate change in margin
         margin_old = margin.shift(periods=4)  # YoY comparison
@@ -397,7 +397,7 @@ class SalesAcceleration(Factor):
             category=FactorCategory.GROWTH,
             description="Sales growth acceleration",
             formula=f"Growth_{short_period}d - Growth_{long_period}d",
-            data_requirements=['revenue'],
+            data_requirements=["revenue"],
             lookback_period=long_period,
         )
         super().__init__(metadata)
@@ -407,14 +407,14 @@ class SalesAcceleration(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate sales acceleration."""
-        if 'revenue' not in data.columns:
+        if "revenue" not in data.columns:
             logger.warning("Missing revenue data for acceleration calculation")
             return pd.Series(dtype=float)
 
-        revenue = data['revenue'].unstack(fill_value=np.nan)
+        revenue = data["revenue"].unstack(fill_value=np.nan)
 
         # Calculate TTM revenue
         revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
@@ -456,7 +456,7 @@ class EarningsAcceleration(Factor):
             category=FactorCategory.GROWTH,
             description="Earnings growth acceleration",
             formula=f"Growth_{short_period}d - Growth_{long_period}d",
-            data_requirements=['net_income'],
+            data_requirements=["net_income"],
             lookback_period=long_period,
         )
         super().__init__(metadata)
@@ -466,14 +466,14 @@ class EarningsAcceleration(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate earnings acceleration."""
-        if 'net_income' not in data.columns:
+        if "net_income" not in data.columns:
             logger.warning("Missing earnings data for acceleration calculation")
             return pd.Series(dtype=float)
 
-        earnings = data['net_income'].unstack(fill_value=np.nan)
+        earnings = data["net_income"].unstack(fill_value=np.nan)
 
         # Calculate TTM earnings
         earnings_ttm = earnings.rolling(window=4, min_periods=4).sum()
@@ -515,7 +515,7 @@ class AssetGrowth(Factor):
             category=FactorCategory.GROWTH,
             description=f"{lookback}-day total assets growth rate",
             formula=f"(Assets_t - Assets_t-{lookback}) / Assets_t-{lookback}",
-            data_requirements=['total_assets'],
+            data_requirements=["total_assets"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -524,14 +524,14 @@ class AssetGrowth(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate asset growth."""
-        if 'total_assets' not in data.columns:
+        if "total_assets" not in data.columns:
             logger.warning("Missing total assets data for growth calculation")
             return pd.Series(dtype=float)
 
-        assets = data['total_assets'].unstack(fill_value=np.nan)
+        assets = data["total_assets"].unstack(fill_value=np.nan)
 
         # Calculate growth rate
         assets_old = assets.shift(periods=4)  # YoY comparison
@@ -560,7 +560,7 @@ class SustainableGrowthRate(Factor):
             category=FactorCategory.GROWTH,
             description="Sustainable growth rate (ROE * retention ratio)",
             formula="ROE * (1 - Dividend Payout Ratio)",
-            data_requirements=['roe', 'dividend_payout_ratio'],
+            data_requirements=["roe", "dividend_payout_ratio"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -568,18 +568,18 @@ class SustainableGrowthRate(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate sustainable growth rate."""
-        if 'roe' not in data.columns:
+        if "roe" not in data.columns:
             logger.warning("Missing ROE data for SGR calculation")
             return pd.Series(dtype=float)
 
-        roe = data['roe'].unstack(fill_value=np.nan)
+        roe = data["roe"].unstack(fill_value=np.nan)
 
         # Get dividend payout ratio
-        if 'dividend_payout_ratio' in data.columns:
-            payout = data['dividend_payout_ratio'].unstack(fill_value=np.nan)
+        if "dividend_payout_ratio" in data.columns:
+            payout = data["dividend_payout_ratio"].unstack(fill_value=np.nan)
         else:
             # Assume 30% payout if not available
             payout = 0.30
@@ -596,7 +596,7 @@ class SustainableGrowthRate(Factor):
 
 
 # Factory function to create all growth factors
-def create_growth_factors() -> List[Factor]:
+def create_growth_factors() -> list[Factor]:
     """
     Create standard set of growth factors.
 

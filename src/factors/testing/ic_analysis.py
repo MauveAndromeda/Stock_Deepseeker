@@ -6,11 +6,11 @@ Analyzes the predictive power of factors using IC metrics.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
-import pandas as pd
-import numpy as np
+
 from loguru import logger
-from scipy.stats import spearmanr, pearsonr
+import numpy as np
+import pandas as pd
+from scipy.stats import pearsonr, spearmanr
 
 
 @dataclass
@@ -70,8 +70,8 @@ class ICAnalyzer:
 
     def __init__(
         self,
-        forward_periods: List[int] = None,
-        ic_type: str = 'both',  # 'pearson', 'spearman', 'both'
+        forward_periods: list[int] = None,
+        ic_type: str = "both",  # 'pearson', 'spearman', 'both'
         min_stocks: int = 20,
     ) -> None:
         """
@@ -94,7 +94,7 @@ class ICAnalyzer:
         price_data: pd.DataFrame,
         start_date: datetime,
         end_date: datetime
-    ) -> Dict[int, ICMetrics]:
+    ) -> dict[int, ICMetrics]:
         """
         Analyze IC for different forward periods.
 
@@ -136,7 +136,7 @@ class ICAnalyzer:
         forward_period: int,
         start_date: datetime,
         end_date: datetime
-    ) -> Optional[ICMetrics]:
+    ) -> ICMetrics | None:
         """Calculate IC for a specific forward period."""
         # Get unique dates
         dates = sorted(factor_values.index.get_level_values(0).unique())
@@ -172,7 +172,7 @@ class ICAnalyzer:
             returns = [forward_returns[s] for s in common_symbols]
 
             # Calculate IC
-            if self.ic_type in ['pearson', 'both']:
+            if self.ic_type in ["pearson", "both"]:
                 try:
                     ic_p, _ = pearsonr(factor_vals, returns)
                     if not np.isnan(ic_p):
@@ -180,7 +180,7 @@ class ICAnalyzer:
                 except Exception:
                     pass
 
-            if self.ic_type in ['spearman', 'both']:
+            if self.ic_type in ["spearman", "both"]:
                 try:
                     ic_s, _ = spearmanr(factor_vals, returns)
                     if not np.isnan(ic_s):
@@ -239,11 +239,11 @@ class ICAnalyzer:
 
     def _calculate_forward_returns(
         self,
-        symbols: List[str],
+        symbols: list[str],
         price_data: pd.DataFrame,
         start_date: datetime,
         forward_period: int
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """
         Calculate forward returns for symbols.
 
@@ -271,8 +271,8 @@ class ICAnalyzer:
 
         for symbol in symbols:
             try:
-                start_price = price_data.loc[(start_date, symbol), 'close']
-                end_price = price_data.loc[(end_date, symbol), 'close']
+                start_price = price_data.loc[(start_date, symbol), "close"]
+                end_price = price_data.loc[(end_date, symbol), "close"]
 
                 if start_price > 0:
                     ret = (end_price - start_price) / start_price
@@ -321,21 +321,21 @@ class ICAnalyzer:
 
             if ic_metrics is not None:
                 rolling_results.append({
-                    'date': end_date,
-                    'mean_ic': ic_metrics.mean_ic,
-                    'ic_ir': ic_metrics.ic_ir,
-                    'positive_ratio': ic_metrics.positive_ic_ratio,
+                    "date": end_date,
+                    "mean_ic": ic_metrics.mean_ic,
+                    "ic_ir": ic_metrics.ic_ir,
+                    "positive_ratio": ic_metrics.positive_ic_ratio,
                 })
 
-        return pd.DataFrame(rolling_results).set_index('date')
+        return pd.DataFrame(rolling_results).set_index("date")
 
     def ic_decay_analysis(
         self,
         factor_values: pd.Series,
         price_data: pd.DataFrame,
         max_period: int = 63,  # 3 months
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
     ) -> pd.DataFrame:
         """
         Analyze how IC decays over time.
@@ -370,13 +370,13 @@ class ICAnalyzer:
 
             if ic_metrics is not None:
                 decay_results.append({
-                    'forward_period': period,
-                    'mean_ic': ic_metrics.mean_ic,
-                    'ic_ir': ic_metrics.ic_ir,
-                    'positive_ratio': ic_metrics.positive_ic_ratio,
+                    "forward_period": period,
+                    "mean_ic": ic_metrics.mean_ic,
+                    "ic_ir": ic_metrics.ic_ir,
+                    "positive_ratio": ic_metrics.positive_ic_ratio,
                 })
 
-        return pd.DataFrame(decay_results).set_index('forward_period')
+        return pd.DataFrame(decay_results).set_index("forward_period")
 
     def cross_sectional_ic_distribution(
         self,

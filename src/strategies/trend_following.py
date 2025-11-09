@@ -2,10 +2,10 @@
 Trend following strategy using multiple trend indicators.
 """
 
-from typing import Dict, List, Optional, Tuple
-from enum import Enum
-import numpy as np
 from collections import deque
+from enum import Enum
+
+import numpy as np
 
 from src.strategies.base import BaseStrategy, Signal, SignalType
 
@@ -69,12 +69,12 @@ class TrendFollowingStrategy(BaseStrategy):
         self.max_positions = max_positions
 
         # State
-        self.price_history: Dict[str, deque] = {}
-        self.high_history: Dict[str, deque] = {}
-        self.low_history: Dict[str, deque] = {}
-        self.trend_states: Dict[str, TrendState] = {}
-        self.entry_prices: Dict[str, float] = {}
-        self.trailing_stops: Dict[str, float] = {}
+        self.price_history: dict[str, deque] = {}
+        self.high_history: dict[str, deque] = {}
+        self.low_history: dict[str, deque] = {}
+        self.trend_states: dict[str, TrendState] = {}
+        self.entry_prices: dict[str, float] = {}
+        self.trailing_stops: dict[str, float] = {}
 
     def on_start(self) -> None:
         """Initialize strategy."""
@@ -86,7 +86,7 @@ class TrendFollowingStrategy(BaseStrategy):
             f"ADX threshold: {self.adx_threshold}"
         )
 
-    def on_data(self, data: Dict) -> List[Signal]:
+    def on_data(self, data: dict) -> list[Signal]:
         """
         Generate trend following signals.
 
@@ -99,20 +99,20 @@ class TrendFollowingStrategy(BaseStrategy):
         self.days_elapsed += 1
 
         # Update price data
-        if 'prices' in data:
-            for symbol, price in data['prices'].items():
+        if "prices" in data:
+            for symbol, price in data["prices"].items():
                 if symbol not in self.price_history:
                     self.price_history[symbol] = deque(maxlen=max(self.slow_ma * 3, 252))
                 self.price_history[symbol].append(price)
 
-        if 'highs' in data:
-            for symbol, high in data['highs'].items():
+        if "highs" in data:
+            for symbol, high in data["highs"].items():
                 if symbol not in self.high_history:
                     self.high_history[symbol] = deque(maxlen=max(self.slow_ma * 3, 252))
                 self.high_history[symbol].append(high)
 
-        if 'lows' in data:
-            for symbol, low in data['lows'].items():
+        if "lows" in data:
+            for symbol, low in data["lows"].items():
                 if symbol not in self.low_history:
                     self.low_history[symbol] = deque(maxlen=max(self.slow_ma * 3, 252))
                 self.low_history[symbol].append(low)
@@ -139,7 +139,7 @@ class TrendFollowingStrategy(BaseStrategy):
 
         return signals
 
-    def _analyze_trend(self, symbol: str) -> Optional[Signal]:
+    def _analyze_trend(self, symbol: str) -> Signal | None:
         """Analyze trend and generate signal if appropriate."""
         prices = np.array(self.price_history[symbol])
         highs = np.array(self.high_history.get(symbol, prices))
@@ -187,13 +187,13 @@ class TrendFollowingStrategy(BaseStrategy):
                         signal_type=SignalType.BUY,
                         strength=strength,
                         metadata={
-                            'strategy': 'trend_following',
-                            'trend_state': trend_state.value,
-                            'adx': adx,
-                            'ma_fast': ma_fast,
-                            'ma_slow': ma_slow,
-                            'atr': atr,
-                            'stop_loss': stop_loss
+                            "strategy": "trend_following",
+                            "trend_state": trend_state.value,
+                            "adx": adx,
+                            "ma_fast": ma_fast,
+                            "ma_slow": ma_slow,
+                            "atr": atr,
+                            "stop_loss": stop_loss
                         }
                     )
 
@@ -206,9 +206,9 @@ class TrendFollowingStrategy(BaseStrategy):
                     signal_type=SignalType.SELL,
                     strength=1.0,
                     metadata={
-                        'strategy': 'trend_following_exit',
-                        'reason': 'trend_reversal',
-                        'trend_state': trend_state.value
+                        "strategy": "trend_following_exit",
+                        "reason": "trend_reversal",
+                        "trend_state": trend_state.value
                     }
                 )
 
@@ -219,10 +219,10 @@ class TrendFollowingStrategy(BaseStrategy):
                     signal_type=SignalType.SELL,
                     strength=1.0,
                     metadata={
-                        'strategy': 'trend_following_exit',
-                        'reason': 'ma_crossover',
-                        'ma_fast': ma_fast,
-                        'ma_slow': ma_slow
+                        "strategy": "trend_following_exit",
+                        "reason": "ma_crossover",
+                        "ma_fast": ma_fast,
+                        "ma_slow": ma_slow
                     }
                 )
 
@@ -302,15 +302,12 @@ class TrendFollowingStrategy(BaseStrategy):
         if ma_fast > ma_slow:
             if adx > 40:
                 return TrendState.STRONG_UPTREND
-            else:
-                return TrendState.WEAK_UPTREND
+            return TrendState.WEAK_UPTREND
 
         # Downtrend
-        else:
-            if adx > 40:
-                return TrendState.STRONG_DOWNTREND
-            else:
-                return TrendState.WEAK_DOWNTREND
+        if adx > 40:
+            return TrendState.STRONG_DOWNTREND
+        return TrendState.WEAK_DOWNTREND
 
     def _check_multiple_timeframes(self, prices: np.ndarray) -> bool:
         """
@@ -358,7 +355,7 @@ class TrendFollowingStrategy(BaseStrategy):
                         f"Trailing stop moved to breakeven for {symbol}: {new_stop:.2f}"
                     )
 
-    def _check_stops(self) -> List[Signal]:
+    def _check_stops(self) -> list[Signal]:
         """Check if any positions hit their trailing stops."""
         signals = []
 
@@ -375,10 +372,10 @@ class TrendFollowingStrategy(BaseStrategy):
                     signal_type=SignalType.SELL,
                     strength=1.0,
                     metadata={
-                        'strategy': 'trend_following_exit',
-                        'reason': 'trailing_stop',
-                        'stop_price': stop_price,
-                        'exit_price': current_price
+                        "strategy": "trend_following_exit",
+                        "reason": "trailing_stop",
+                        "stop_price": stop_price,
+                        "exit_price": current_price
                     }
                 ))
 

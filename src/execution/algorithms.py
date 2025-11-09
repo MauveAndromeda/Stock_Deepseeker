@@ -4,13 +4,12 @@ VWAP, TWAP, Implementation Shortfall等
 """
 
 from abc import ABC, abstractmethod
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
-import numpy as np
+from enum import Enum
+from typing import Any
 
-from src.execution.engine import Order, OrderType, OrderSide
+import numpy as np
 
 
 class AlgorithmType(Enum):
@@ -31,12 +30,12 @@ class AlgorithmConfig:
     end_time: datetime
     total_quantity: int
     participation_rate: float = 0.1  # 参与率（0-1）
-    max_slice_size: Optional[int] = None  # 最大切片大小
+    max_slice_size: int | None = None  # 最大切片大小
     min_slice_size: int = 1  # 最小切片大小
     urgency: float = 0.5  # 紧急度（0-1）
-    price_limit: Optional[float] = None  # 价格限制
+    price_limit: float | None = None  # 价格限制
     randomize: bool = True  # 是否随机化
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -46,10 +45,10 @@ class AlgorithmSlice:
     parent_order_id: str
     quantity: int
     target_time: datetime
-    limit_price: Optional[float] = None
+    limit_price: float | None = None
     status: str = "pending"  # pending, submitted, filled, cancelled
     filled_quantity: int = 0
-    avg_fill_price: Optional[float] = None
+    avg_fill_price: float | None = None
     created_at: datetime = field(default_factory=datetime.now)
 
 
@@ -58,20 +57,18 @@ class ExecutionAlgorithm(ABC):
 
     def __init__(self, config: AlgorithmConfig):
         self.config = config
-        self.slices: List[AlgorithmSlice] = []
+        self.slices: list[AlgorithmSlice] = []
         self.filled_quantity = 0
         self.total_cost = 0.0
         self.start_time = datetime.now()
 
     @abstractmethod
-    def generate_slices(self, market_data: Dict) -> List[AlgorithmSlice]:
+    def generate_slices(self, market_data: dict) -> list[AlgorithmSlice]:
         """生成订单切片"""
-        pass
 
     @abstractmethod
-    def should_adjust(self, market_data: Dict) -> bool:
+    def should_adjust(self, market_data: dict) -> bool:
         """是否需要调整策略"""
-        pass
 
     def get_completion_rate(self) -> float:
         """获取完成率"""
@@ -92,12 +89,12 @@ class VWAPAlgorithm(ExecutionAlgorithm):
         super().__init__(config)
         self.volume_profile = None
 
-    def generate_slices(self, market_data: Dict) -> List[AlgorithmSlice]:
+    def generate_slices(self, market_data: dict) -> list[AlgorithmSlice]:
         """根据成交量曲线生成切片"""
 
         # 获取历史成交量曲线（如果没有，使用标准U型曲线）
-        if 'volume_profile' in market_data:
-            self.volume_profile = market_data['volume_profile']
+        if "volume_profile" in market_data:
+            self.volume_profile = market_data["volume_profile"]
         else:
             self.volume_profile = self._generate_standard_volume_profile()
 
@@ -150,7 +147,7 @@ class VWAPAlgorithm(ExecutionAlgorithm):
         self.slices = slices
         return slices
 
-    def _generate_standard_volume_profile(self) -> List[float]:
+    def _generate_standard_volume_profile(self) -> list[float]:
         """生成标准U型成交量曲线"""
         num_intervals = 24  # 一天24个半小时
         profile = []
@@ -172,11 +169,11 @@ class VWAPAlgorithm(ExecutionAlgorithm):
 
         return profile
 
-    def should_adjust(self, market_data: Dict) -> bool:
+    def should_adjust(self, market_data: dict) -> bool:
         """检查是否需要调整"""
         # 如果价格偏离VWAP过多，可能需要调整
-        current_vwap = market_data.get('vwap')
-        current_price = market_data.get('close')
+        current_vwap = market_data.get("vwap")
+        current_price = market_data.get("close")
 
         if current_vwap and current_price:
             deviation = abs(current_price - current_vwap) / current_vwap
@@ -191,7 +188,7 @@ class TWAPAlgorithm(ExecutionAlgorithm):
     在指定时间内均匀分配订单
     """
 
-    def generate_slices(self, market_data: Dict) -> List[AlgorithmSlice]:
+    def generate_slices(self, market_data: dict) -> list[AlgorithmSlice]:
         """均匀时间切片"""
 
         duration = (self.config.end_time - self.config.start_time).total_seconds()
@@ -236,11 +233,11 @@ class TWAPAlgorithm(ExecutionAlgorithm):
         self.slices = slices
         return slices
 
-    def should_adjust(self, market_data: Dict) -> bool:
+    def should_adjust(self, market_data: dict) -> bool:
         """TWAP通常不需要动态调整"""
         # 除非价格触及限价
         if self.config.price_limit:
-            current_price = market_data.get('close')
+            current_price = market_data.get("close")
             if current_price and abs(current_price - self.config.price_limit) / self.config.price_limit < 0.005:
                 return True
 
@@ -258,17 +255,17 @@ class ImplementationShortfall(ExecutionAlgorithm):
         self.decision_price = None  # 决策价格
         self.risk_aversion = 1.0 - config.urgency  # 风险厌恶系数
 
-    def generate_slices(self, market_data: Dict) -> List[AlgorithmSlice]:
+    def generate_slices(self, market_data: dict) -> list[AlgorithmSlice]:
         """基于Implementation Shortfall最优化生成切片"""
 
         # 记录决策价格
         if self.decision_price is None:
-            self.decision_price = market_data.get('close')
+            self.decision_price = market_data.get("close")
 
         # 获取市场参数
-        volatility = market_data.get('volatility', 0.02)  # 日波动率
-        avg_volume = market_data.get('avg_volume', 1000000)  # 平均成交量
-        current_volume = market_data.get('volume', avg_volume)
+        volatility = market_data.get("volatility", 0.02)  # 日波动率
+        avg_volume = market_data.get("avg_volume", 1000000)  # 平均成交量
+        current_volume = market_data.get("volume", avg_volume)
 
         # 估计价格冲击参数
         # 永久冲击 = gamma * (quantity / daily_volume)
@@ -332,11 +329,11 @@ class ImplementationShortfall(ExecutionAlgorithm):
         self.slices = slices
         return slices
 
-    def should_adjust(self, market_data: Dict) -> bool:
+    def should_adjust(self, market_data: dict) -> bool:
         """根据市场变化动态调整"""
         # 如果价格变化超过预期，需要调整
         if self.decision_price:
-            current_price = market_data.get('close')
+            current_price = market_data.get("close")
             if current_price:
                 price_change = abs(current_price - self.decision_price) / self.decision_price
                 # 价格变化超过1%触发调整
@@ -357,11 +354,11 @@ class POVAlgorithm(ExecutionAlgorithm):
     按市场成交量的固定比例执行
     """
 
-    def generate_slices(self, market_data: Dict) -> List[AlgorithmSlice]:
+    def generate_slices(self, market_data: dict) -> list[AlgorithmSlice]:
         """根据参与率生成切片"""
 
         # 获取市场参数
-        avg_volume = market_data.get('avg_volume', 1000000)
+        avg_volume = market_data.get("avg_volume", 1000000)
         duration_seconds = (self.config.end_time - self.config.start_time).total_seconds()
 
         # 预估执行期间的总成交量
@@ -402,11 +399,11 @@ class POVAlgorithm(ExecutionAlgorithm):
         self.slices = slices
         return slices
 
-    def should_adjust(self, market_data: Dict) -> bool:
+    def should_adjust(self, market_data: dict) -> bool:
         """根据实时成交量调整"""
         # 如果市场成交量发生显著变化，需要调整参与率
-        current_volume = market_data.get('volume', 0)
-        avg_volume = market_data.get('avg_volume', 1)
+        current_volume = market_data.get("volume", 0)
+        avg_volume = market_data.get("avg_volume", 1)
 
         volume_ratio = current_volume / avg_volume if avg_volume > 0 else 1.0
 
@@ -441,7 +438,7 @@ class AlgorithmFactory:
     def get_recommended_algorithm(
         cls,
         order_size: int,
-        market_data: Dict,
+        market_data: dict,
         urgency: float = 0.5
     ) -> AlgorithmType:
         """
@@ -455,8 +452,8 @@ class AlgorithmFactory:
         Returns:
             推荐的算法类型
         """
-        avg_volume = market_data.get('avg_volume', 1000000)
-        volatility = market_data.get('volatility', 0.02)
+        avg_volume = market_data.get("avg_volume", 1000000)
+        volatility = market_data.get("volatility", 0.02)
 
         # 订单占日成交量的比例
         size_ratio = order_size / avg_volume if avg_volume > 0 else 0
@@ -470,9 +467,8 @@ class AlgorithmFactory:
             if volatility > 0.03:
                 # 高波动：Implementation Shortfall
                 return AlgorithmType.IS
-            else:
-                # 低波动：VWAP
-                return AlgorithmType.VWAP
+            # 低波动：VWAP
+            return AlgorithmType.VWAP
 
         # 中等订单：POV
         return AlgorithmType.POV

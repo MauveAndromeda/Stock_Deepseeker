@@ -3,10 +3,10 @@
 根据市场状态动态调整因子权重，提升收益并降低风险
 """
 
+from enum import Enum
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List
-from enum import Enum
 
 from src.risk.regime_detection import MarketRegime
 
@@ -97,7 +97,7 @@ class FactorTimingSystem:
         self,
         regime: MarketRegime,
         adjust_for_crowding: bool = True
-    ) -> Dict[FactorCategory, float]:
+    ) -> dict[FactorCategory, float]:
         """
         获取因子权重
 
@@ -135,7 +135,7 @@ class FactorTimingSystem:
 
     def calculate_composite_score(
         self,
-        factor_values: Dict[str, float],
+        factor_values: dict[str, float],
         regime: MarketRegime
     ) -> float:
         """
@@ -164,7 +164,7 @@ class FactorTimingSystem:
 
         return score
 
-    def _default_weights(self) -> Dict[FactorCategory, float]:
+    def _default_weights(self) -> dict[FactorCategory, float]:
         """默认均衡权重"""
         return {
             FactorCategory.MOMENTUM: 0.20,
@@ -175,7 +175,7 @@ class FactorTimingSystem:
             FactorCategory.LIQUIDITY: 0.10
         }
 
-    def _get_crowding_adjustments(self) -> Dict[FactorCategory, float]:
+    def _get_crowding_adjustments(self) -> dict[FactorCategory, float]:
         """
         获取拥挤度调整系数
 
@@ -205,7 +205,7 @@ class FactorTimingSystem:
 
         return adjustments
 
-    def _get_factor_category_map(self) -> Dict[str, FactorCategory]:
+    def _get_factor_category_map(self) -> dict[str, FactorCategory]:
         """
         因子名称到类别的映射
 
@@ -213,41 +213,41 @@ class FactorTimingSystem:
         """
         return {
             # 动量因子
-            'momentum_12m': FactorCategory.MOMENTUM,
-            'momentum_6m': FactorCategory.MOMENTUM,
-            'momentum_1m': FactorCategory.MOMENTUM,
-            'momentum_3m': FactorCategory.MOMENTUM,
-            'acceleration': FactorCategory.MOMENTUM,
+            "momentum_12m": FactorCategory.MOMENTUM,
+            "momentum_6m": FactorCategory.MOMENTUM,
+            "momentum_1m": FactorCategory.MOMENTUM,
+            "momentum_3m": FactorCategory.MOMENTUM,
+            "acceleration": FactorCategory.MOMENTUM,
 
             # 反转因子
-            'reversal_5d': FactorCategory.REVERSAL,
-            'reversal_10d': FactorCategory.REVERSAL,
-            'reversal_20d': FactorCategory.REVERSAL,
+            "reversal_5d": FactorCategory.REVERSAL,
+            "reversal_10d": FactorCategory.REVERSAL,
+            "reversal_20d": FactorCategory.REVERSAL,
 
             # 价值因子
-            'book_to_price': FactorCategory.VALUE,
-            'earnings_to_price': FactorCategory.VALUE,
-            'sales_to_price': FactorCategory.VALUE,
-            'cashflow_to_price': FactorCategory.VALUE,
-            'dividend_yield': FactorCategory.VALUE,
+            "book_to_price": FactorCategory.VALUE,
+            "earnings_to_price": FactorCategory.VALUE,
+            "sales_to_price": FactorCategory.VALUE,
+            "cashflow_to_price": FactorCategory.VALUE,
+            "dividend_yield": FactorCategory.VALUE,
 
             # 质量因子
-            'piotroski_f_score': FactorCategory.QUALITY,
-            'roa': FactorCategory.QUALITY,
-            'roe': FactorCategory.QUALITY,
-            'gross_margin': FactorCategory.QUALITY,
-            'asset_turnover': FactorCategory.QUALITY,
+            "piotroski_f_score": FactorCategory.QUALITY,
+            "roa": FactorCategory.QUALITY,
+            "roe": FactorCategory.QUALITY,
+            "gross_margin": FactorCategory.QUALITY,
+            "asset_turnover": FactorCategory.QUALITY,
 
             # 波动率因子
-            'volatility_60d': FactorCategory.VOLATILITY,
-            'volatility_20d': FactorCategory.VOLATILITY,
-            'atr_14d': FactorCategory.VOLATILITY,
-            'beta': FactorCategory.VOLATILITY,
+            "volatility_60d": FactorCategory.VOLATILITY,
+            "volatility_20d": FactorCategory.VOLATILITY,
+            "atr_14d": FactorCategory.VOLATILITY,
+            "beta": FactorCategory.VOLATILITY,
 
             # 流动性因子
-            'volume_20d': FactorCategory.LIQUIDITY,
-            'turnover_20d': FactorCategory.LIQUIDITY,
-            'amihud_illiquidity': FactorCategory.LIQUIDITY
+            "volume_20d": FactorCategory.LIQUIDITY,
+            "turnover_20d": FactorCategory.LIQUIDITY,
+            "amihud_illiquidity": FactorCategory.LIQUIDITY
         }
 
     def backtest_factor_timing(
@@ -255,7 +255,7 @@ class FactorTimingSystem:
         factor_data: pd.DataFrame,
         regime_series: pd.Series,
         returns: pd.DataFrame
-    ) -> Dict:
+    ) -> dict:
         """
         回测因子择时效果
 
@@ -269,10 +269,10 @@ class FactorTimingSystem:
         """
         # 简化实现
         results = {
-            'total_return': 0.0,
-            'sharpe_ratio': 0.0,
-            'max_drawdown': 0.0,
-            'factor_contributions': {}
+            "total_return": 0.0,
+            "sharpe_ratio": 0.0,
+            "max_drawdown": 0.0,
+            "factor_contributions": {}
         }
 
         # 实际实现需要完整的回测逻辑
@@ -302,11 +302,11 @@ class FactorTimingSystem:
         )
 
         for factor, weight in sorted_weights:
-            bar = '█' * int(weight * 50)
+            bar = "█" * int(weight * 50)
             explanation += f"  {factor.value:12s} {weight:5.1%} {bar}\n"
 
         # 添加解释
-        explanation += f"\n配置理由:\n"
+        explanation += "\n配置理由:\n"
 
         if regime == MarketRegime.TRENDING_BULL:
             explanation += "  • 牛市环境，强调动量和成长因子\n"
@@ -333,10 +333,10 @@ if __name__ == "__main__":
 
     # 测试综合得分计算
     factor_values = {
-        'momentum_12m': 0.15,
-        'value_bp': 0.10,
-        'quality_roa': 0.12,
-        'vol_60d': -0.05
+        "momentum_12m": 0.15,
+        "value_bp": 0.10,
+        "quality_roa": 0.12,
+        "vol_60d": -0.05
     }
 
     score = timing.calculate_composite_score(

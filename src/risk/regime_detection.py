@@ -3,15 +3,15 @@
 用于识别不同的市场状态并动态调整策略
 """
 
+from dataclasses import dataclass
+from enum import Enum
+
+from hmmlearn import hmm
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Tuple, Optional
-from enum import Enum
-from dataclasses import dataclass
 from scipy import stats
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from hmmlearn import hmm
 
 
 class MarketRegime(Enum):
@@ -30,7 +30,7 @@ class RegimeState:
     regime: MarketRegime
     confidence: float  # 置信度 0-1
     duration: int  # 持续天数
-    characteristics: Dict[str, float]  # 特征值
+    characteristics: dict[str, float]  # 特征值
     timestamp: pd.Timestamp
 
 
@@ -61,7 +61,7 @@ class MarketRegimeDetector:
         Returns:
             检测到的regime
         """
-        prices = market_data['close']
+        prices = market_data["close"]
         returns = prices.pct_change()
 
         # 计算关键指标
@@ -110,12 +110,11 @@ class MarketRegimeDetector:
             # 从底部反弹
             regime = MarketRegime.VOLATILE_RECOVERY
 
+        # 默认：震荡市
+        elif current_vol > avg_vol * 1.2:
+            regime = MarketRegime.RANGING_HIGH_VOL
         else:
-            # 默认：震荡市
-            if current_vol > avg_vol * 1.2:
-                regime = MarketRegime.RANGING_HIGH_VOL
-            else:
-                regime = MarketRegime.RANGING_LOW_VOL
+            regime = MarketRegime.RANGING_LOW_VOL
 
         return regime
 
@@ -164,32 +163,32 @@ class MarketRegimeDetector:
 
     def _prepare_features(self, market_data: pd.DataFrame) -> np.ndarray:
         """准备HMM特征"""
-        prices = market_data['close']
+        prices = market_data["close"]
         returns = prices.pct_change()
-        volumes = market_data.get('volume', pd.Series([1] * len(prices)))
+        volumes = market_data.get("volume", pd.Series([1] * len(prices)))
 
         # 特征工程
         features = pd.DataFrame({
             # 收益率
-            'returns': returns,
+            "returns": returns,
 
             # 波动率
-            'volatility': returns.rolling(20).std(),
+            "volatility": returns.rolling(20).std(),
 
             # 趋势
-            'ma_ratio': prices / prices.rolling(50).mean(),
+            "ma_ratio": prices / prices.rolling(50).mean(),
 
             # 动量
-            'momentum': returns.rolling(20).mean(),
+            "momentum": returns.rolling(20).mean(),
 
             # 成交量
-            'volume_ratio': volumes / volumes.rolling(20).mean(),
+            "volume_ratio": volumes / volumes.rolling(20).mean(),
 
             # 偏度
-            'skewness': returns.rolling(60).apply(lambda x: stats.skew(x)),
+            "skewness": returns.rolling(60).apply(lambda x: stats.skew(x)),
 
             # 最大回撤
-            'drawdown': (prices - prices.cummax()) / prices.cummax(),
+            "drawdown": (prices - prices.cummax()) / prices.cummax(),
         })
 
         # 标准化
@@ -211,16 +210,15 @@ class MarketRegimeDetector:
         # 映射逻辑
         if returns_mean > 0.5 and volatility_mean < 0:
             return MarketRegime.TRENDING_BULL
-        elif returns_mean < -0.5 and volatility_mean > 1:
+        if returns_mean < -0.5 and volatility_mean > 1:
             return MarketRegime.VOLATILE_CRASH
-        elif returns_mean < -0.3:
+        if returns_mean < -0.3:
             return MarketRegime.TRENDING_BEAR
-        elif abs(returns_mean) < 0.2 and volatility_mean > 0.5:
+        if abs(returns_mean) < 0.2 and volatility_mean > 0.5:
             return MarketRegime.RANGING_HIGH_VOL
-        elif abs(returns_mean) < 0.2 and volatility_mean < 0.5:
+        if abs(returns_mean) < 0.2 and volatility_mean < 0.5:
             return MarketRegime.RANGING_LOW_VOL
-        else:
-            return MarketRegime.VOLATILE_RECOVERY
+        return MarketRegime.VOLATILE_RECOVERY
 
     # ==================== 方法3: 聚类检测 ====================
 
@@ -260,21 +258,20 @@ class MarketRegimeDetector:
         # 映射到regime
         if returns_mean > 0.3 and trend_mean > 0.3:
             return MarketRegime.TRENDING_BULL
-        elif returns_mean < -0.3 and volatility_mean > 0.5:
+        if returns_mean < -0.3 and volatility_mean > 0.5:
             return MarketRegime.VOLATILE_CRASH
-        elif returns_mean < -0.2:
+        if returns_mean < -0.2:
             return MarketRegime.TRENDING_BEAR
-        elif abs(returns_mean) < 0.1 and volatility_mean > 0.3:
+        if abs(returns_mean) < 0.1 and volatility_mean > 0.3:
             return MarketRegime.RANGING_HIGH_VOL
-        elif abs(returns_mean) < 0.1:
+        if abs(returns_mean) < 0.1:
             return MarketRegime.RANGING_LOW_VOL
-        else:
-            return MarketRegime.VOLATILE_RECOVERY
+        return MarketRegime.VOLATILE_RECOVERY
 
     # ==================== 集成方法 ====================
 
     def detect_regime(self, market_data: pd.DataFrame,
-                     method: str = 'ensemble') -> RegimeState:
+                     method: str = "ensemble") -> RegimeState:
         """
         检测市场regime
 
@@ -285,19 +282,19 @@ class MarketRegimeDetector:
         Returns:
             RegimeState对象
         """
-        if method == 'rule':
+        if method == "rule":
             regime = self.rule_based_detection(market_data)
             confidence = 0.7
 
-        elif method == 'hmm':
+        elif method == "hmm":
             regime = self.hmm_detection(market_data)
             confidence = 0.75
 
-        elif method == 'clustering':
+        elif method == "clustering":
             regime = self.clustering_detection(market_data)
             confidence = 0.7
 
-        elif method == 'ensemble':
+        elif method == "ensemble":
             # 集成三种方法
             regimes = [
                 self.rule_based_detection(market_data),
@@ -351,23 +348,23 @@ class MarketRegimeDetector:
 
         return duration
 
-    def _extract_characteristics(self, market_data: pd.DataFrame) -> Dict[str, float]:
+    def _extract_characteristics(self, market_data: pd.DataFrame) -> dict[str, float]:
         """提取regime特征"""
-        prices = market_data['close']
+        prices = market_data["close"]
         returns = prices.pct_change()
 
         return {
-            'volatility': returns.std() * np.sqrt(252),
-            'trend': (prices.iloc[-1] - prices.iloc[-60]) / prices.iloc[-60] if len(prices) > 60 else 0,
-            'momentum': returns.tail(20).mean(),
-            'max_drawdown': ((prices - prices.cummax()) / prices.cummax()).min(),
-            'skewness': stats.skew(returns.dropna()),
-            'kurtosis': stats.kurtosis(returns.dropna())
+            "volatility": returns.std() * np.sqrt(252),
+            "trend": (prices.iloc[-1] - prices.iloc[-60]) / prices.iloc[-60] if len(prices) > 60 else 0,
+            "momentum": returns.tail(20).mean(),
+            "max_drawdown": ((prices - prices.cummax()) / prices.cummax()).min(),
+            "skewness": stats.skew(returns.dropna()),
+            "kurtosis": stats.kurtosis(returns.dropna())
         }
 
     # ==================== Regime特定策略参数 ====================
 
-    def get_regime_parameters(self, regime: MarketRegime) -> Dict[str, float]:
+    def get_regime_parameters(self, regime: MarketRegime) -> dict[str, float]:
         """
         获取regime特定的策略参数
 
@@ -379,57 +376,57 @@ class MarketRegimeDetector:
         """
         params = {
             MarketRegime.TRENDING_BULL: {
-                'max_position': 0.25,      # 高仓位
-                'stop_loss': 0.08,         # 宽止损
-                'take_profit': 0.20,       # 高止盈
-                'leverage': 1.5,           # 适度杠杆
-                'holding_period': 20,      # 长持仓
-                'rebalance_threshold': 0.15,
+                "max_position": 0.25,      # 高仓位
+                "stop_loss": 0.08,         # 宽止损
+                "take_profit": 0.20,       # 高止盈
+                "leverage": 1.5,           # 适度杠杆
+                "holding_period": 20,      # 长持仓
+                "rebalance_threshold": 0.15,
             },
 
             MarketRegime.TRENDING_BEAR: {
-                'max_position': 0.05,      # 极低仓位
-                'stop_loss': 0.03,         # 紧止损
-                'take_profit': 0.05,       # 低止盈
-                'leverage': 0.3,           # 低杠杆
-                'holding_period': 3,       # 短持仓
-                'rebalance_threshold': 0.05,
+                "max_position": 0.05,      # 极低仓位
+                "stop_loss": 0.03,         # 紧止损
+                "take_profit": 0.05,       # 低止盈
+                "leverage": 0.3,           # 低杠杆
+                "holding_period": 3,       # 短持仓
+                "rebalance_threshold": 0.05,
             },
 
             MarketRegime.RANGING_LOW_VOL: {
-                'max_position': 0.15,      # 中等仓位
-                'stop_loss': 0.05,         # 中等止损
-                'take_profit': 0.08,       # 中等止盈
-                'leverage': 1.0,           # 无杠杆
-                'holding_period': 10,      # 中等持仓
-                'rebalance_threshold': 0.08,
+                "max_position": 0.15,      # 中等仓位
+                "stop_loss": 0.05,         # 中等止损
+                "take_profit": 0.08,       # 中等止盈
+                "leverage": 1.0,           # 无杠杆
+                "holding_period": 10,      # 中等持仓
+                "rebalance_threshold": 0.08,
             },
 
             MarketRegime.RANGING_HIGH_VOL: {
-                'max_position': 0.08,      # 低仓位
-                'stop_loss': 0.04,         # 紧止损
-                'take_profit': 0.10,       # 中高止盈
-                'leverage': 0.7,           # 低杠杆
-                'holding_period': 5,       # 短持仓
-                'rebalance_threshold': 0.10,
+                "max_position": 0.08,      # 低仓位
+                "stop_loss": 0.04,         # 紧止损
+                "take_profit": 0.10,       # 中高止盈
+                "leverage": 0.7,           # 低杠杆
+                "holding_period": 5,       # 短持仓
+                "rebalance_threshold": 0.10,
             },
 
             MarketRegime.VOLATILE_CRASH: {
-                'max_position': 0.02,      # 极低仓位
-                'stop_loss': 0.02,         # 极紧止损
-                'take_profit': 0.03,       # 极低止盈
-                'leverage': 0.2,           # 极低杠杆
-                'holding_period': 1,       # 极短持仓
-                'rebalance_threshold': 0.03,
+                "max_position": 0.02,      # 极低仓位
+                "stop_loss": 0.02,         # 极紧止损
+                "take_profit": 0.03,       # 极低止盈
+                "leverage": 0.2,           # 极低杠杆
+                "holding_period": 1,       # 极短持仓
+                "rebalance_threshold": 0.03,
             },
 
             MarketRegime.VOLATILE_RECOVERY: {
-                'max_position': 0.18,      # 较高仓位
-                'stop_loss': 0.06,         # 中等止损
-                'take_profit': 0.15,       # 高止盈
-                'leverage': 1.2,           # 适度杠杆
-                'holding_period': 7,       # 较短持仓
-                'rebalance_threshold': 0.12,
+                "max_position": 0.18,      # 较高仓位
+                "stop_loss": 0.06,         # 中等止损
+                "take_profit": 0.15,       # 高止盈
+                "leverage": 1.2,           # 适度杠杆
+                "holding_period": 7,       # 较短持仓
+                "rebalance_threshold": 0.12,
             },
         }
 
@@ -443,10 +440,10 @@ class MarketRegimeDetector:
         stats_list = []
         for state in self.regime_history:
             stats_list.append({
-                'timestamp': state.timestamp,
-                'regime': state.regime.value,
-                'confidence': state.confidence,
-                'duration': state.duration,
+                "timestamp": state.timestamp,
+                "regime": state.regime.value,
+                "confidence": state.confidence,
+                "duration": state.duration,
                 **state.characteristics
             })
 
@@ -460,7 +457,7 @@ if __name__ == "__main__":
 
     # 模拟市场数据
     np.random.seed(42)
-    dates = pd.date_range('2020-01-01', '2024-01-01', freq='D')
+    dates = pd.date_range("2020-01-01", "2024-01-01", freq="D")
     n = len(dates)
 
     # 模拟不同regime的数据
@@ -487,30 +484,30 @@ if __name__ == "__main__":
         close_prices.append(current_price)
 
     market_data = pd.DataFrame({
-        'close': close_prices,
-        'volume': np.random.randint(1000000, 5000000, n)
+        "close": close_prices,
+        "volume": np.random.randint(1000000, 5000000, n)
     }, index=dates)
 
     # 检测regime
     print("检测市场regime...")
-    state = detector.detect_regime(market_data, method='ensemble')
+    state = detector.detect_regime(market_data, method="ensemble")
 
     print(f"\n当前Regime: {state.regime.value}")
     print(f"置信度: {state.confidence:.2%}")
     print(f"持续时间: {state.duration} 天")
-    print(f"\n特征:")
+    print("\n特征:")
     for key, value in state.characteristics.items():
         print(f"  {key}: {value:.4f}")
 
     # 获取策略参数
     params = detector.get_regime_parameters(state.regime)
-    print(f"\n推荐策略参数:")
+    print("\n推荐策略参数:")
     for key, value in params.items():
         print(f"  {key}: {value}")
 
     # 获取历史统计
     stats = detector.get_regime_statistics()
-    print(f"\nRegime统计:")
+    print("\nRegime统计:")
     print(stats.tail())
 
 

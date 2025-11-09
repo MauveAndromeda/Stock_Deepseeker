@@ -3,13 +3,12 @@ Transformer模型用于市场预测
 基于最新的Transformer架构（2025）
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-from typing import Optional, Tuple, Dict, Any, List
 from dataclasses import dataclass
 import math
+
+import torch
+from torch import nn
+import torch.nn.functional as F
 
 
 @dataclass
@@ -56,7 +55,7 @@ class PositionalEncoding(nn.Module):
         pe[:, 0, 0::2] = torch.sin(position * div_term)
         pe[:, 0, 1::2] = torch.cos(position * div_term)
 
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -153,8 +152,8 @@ class MultiHeadAttentionWithRelativePosition(nn.Module):
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
-        mask: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        mask: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             query, key, value: [seq_len, batch_size, d_model]
@@ -179,12 +178,12 @@ class MultiHeadAttentionWithRelativePosition(nn.Module):
         # 添加相对位置编码
         relative_positions = self._get_relative_positions(seq_len).to(query.device)
         rel_k = self.relative_position_k(relative_positions)  # [seq_len, seq_len, d_k]
-        rel_scores = torch.einsum('bhqd,qkd->bhqk', Q, rel_k)
+        rel_scores = torch.einsum("bhqd,qkd->bhqk", Q, rel_k)
         scores = scores + rel_scores
 
         # 应用mask
         if mask is not None:
-            scores = scores.masked_fill(mask == 0, float('-inf'))
+            scores = scores.masked_fill(mask == 0, float("-inf"))
 
         # Softmax
         attention_weights = F.softmax(scores, dim=-1)
@@ -196,7 +195,7 @@ class MultiHeadAttentionWithRelativePosition(nn.Module):
         # 添加相对位置到values
         rel_v = self.relative_position_v(relative_positions)  # [seq_len, seq_len, d_k]
         rel_weights = attention_weights.mean(dim=1)  # [batch_size, seq_len, seq_len]
-        rel_context = torch.einsum('bqk,qkd->bqd', rel_weights, rel_v)  # [batch_size, seq_len, d_k]
+        rel_context = torch.einsum("bqk,qkd->bqd", rel_weights, rel_v)  # [batch_size, seq_len, d_k]
         rel_context = rel_context.unsqueeze(1).repeat(1, self.nhead, 1, 1)  # [batch_size, nhead, seq_len, d_k]
         context = context + rel_context
 
@@ -275,9 +274,9 @@ class MarketTransformer(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        temporal_features: Optional[Dict[str, torch.Tensor]] = None,
-        mask: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+        temporal_features: dict[str, torch.Tensor] | None = None,
+        mask: torch.Tensor | None = None
+    ) -> dict[str, torch.Tensor]:
         """
         前向传播
 
@@ -305,10 +304,10 @@ class MarketTransformer(nn.Module):
         # 添加时间编码
         if self.config.use_temporal_encoding and temporal_features is not None:
             temporal_enc = self.temporal_encoding(
-                temporal_features['hour'].transpose(0, 1),
-                temporal_features['day_of_week'].transpose(0, 1),
-                temporal_features['day_of_month'].transpose(0, 1),
-                temporal_features['month'].transpose(0, 1)
+                temporal_features["hour"].transpose(0, 1),
+                temporal_features["day_of_week"].transpose(0, 1),
+                temporal_features["day_of_month"].transpose(0, 1),
+                temporal_features["month"].transpose(0, 1)
             )
             x = x + temporal_enc
 
@@ -332,7 +331,7 @@ class MarketTransformer(nn.Module):
     def predict_next(
         self,
         x: torch.Tensor,
-        temporal_features: Optional[Dict[str, torch.Tensor]] = None,
+        temporal_features: dict[str, torch.Tensor] | None = None,
         num_steps: int = 1
     ) -> torch.Tensor:
         """
@@ -417,8 +416,8 @@ class TimeSeriesTransformer(nn.Module):
         self,
         src: torch.Tensor,
         tgt: torch.Tensor,
-        src_mask: Optional[torch.Tensor] = None,
-        tgt_mask: Optional[torch.Tensor] = None
+        src_mask: torch.Tensor | None = None,
+        tgt_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
         Args:

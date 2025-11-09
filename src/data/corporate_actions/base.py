@@ -9,10 +9,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Tuple
-import pandas as pd
-import numpy as np
+from typing import Any
+
 from loguru import logger
+import pandas as pd
 
 
 class CorporateActionType(Enum):
@@ -61,14 +61,14 @@ class CorporateActionEvent:
     symbol: str
     action_type: CorporateActionType
     ex_date: datetime
-    record_date: Optional[datetime] = None
-    payment_date: Optional[datetime] = None
-    announcement_date: Optional[datetime] = None
-    ratio: Optional[float] = None
-    value: Optional[float] = None
+    record_date: datetime | None = None
+    payment_date: datetime | None = None
+    announcement_date: datetime | None = None
+    ratio: float | None = None
+    value: float | None = None
     currency: str = "USD"
-    new_symbol: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    new_symbol: str | None = None
+    details: dict[str, Any] = field(default_factory=dict)
     source: str = "unknown"
     validated: bool = False
 
@@ -95,10 +95,9 @@ class CorporateActionEvent:
         """String representation."""
         if self.action_type in [CorporateActionType.SPLIT, CorporateActionType.REVERSE_SPLIT]:
             return f"{self.symbol} {self.action_type.value} {self.ratio}:1 on {self.ex_date.date()}"
-        elif self.action_type in [CorporateActionType.DIVIDEND, CorporateActionType.SPECIAL_DIVIDEND]:
+        if self.action_type in [CorporateActionType.DIVIDEND, CorporateActionType.SPECIAL_DIVIDEND]:
             return f"{self.symbol} {self.action_type.value} ${self.value} on {self.ex_date.date()}"
-        else:
-            return f"{self.symbol} {self.action_type.value} on {self.ex_date.date()}"
+        return f"{self.symbol} {self.action_type.value} on {self.ex_date.date()}"
 
 
 class CorporateActionProcessor(ABC):
@@ -110,8 +109,8 @@ class CorporateActionProcessor(ABC):
 
     def __init__(self) -> None:
         """Initialize processor."""
-        self.events: List[CorporateActionEvent] = []
-        self.adjustment_cache: Dict[str, pd.DataFrame] = {}
+        self.events: list[CorporateActionEvent] = []
+        self.adjustment_cache: dict[str, pd.DataFrame] = {}
 
     @abstractmethod
     def process_event(
@@ -131,10 +130,9 @@ class CorporateActionProcessor(ABC):
         Returns:
             Adjusted price data
         """
-        pass
 
     @abstractmethod
-    def validate_event(self, event: CorporateActionEvent) -> Tuple[bool, Optional[str]]:
+    def validate_event(self, event: CorporateActionEvent) -> tuple[bool, str | None]:
         """
         Validate a corporate action event.
 
@@ -144,7 +142,6 @@ class CorporateActionProcessor(ABC):
         Returns:
             Tuple of (is_valid, error_message)
         """
-        pass
 
     def add_event(self, event: CorporateActionEvent) -> None:
         """
@@ -166,11 +163,11 @@ class CorporateActionProcessor(ABC):
 
     def get_events(
         self,
-        symbol: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        action_type: Optional[CorporateActionType] = None
-    ) -> List[CorporateActionEvent]:
+        symbol: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        action_type: CorporateActionType | None = None
+    ) -> list[CorporateActionEvent]:
         """
         Get filtered corporate action events.
 
@@ -231,8 +228,8 @@ class CorporateActionDatabase:
 
     def __init__(self) -> None:
         """Initialize database."""
-        self.events: Dict[str, List[CorporateActionEvent]] = {}
-        self.processors: Dict[CorporateActionType, CorporateActionProcessor] = {}
+        self.events: dict[str, list[CorporateActionEvent]] = {}
+        self.processors: dict[CorporateActionType, CorporateActionProcessor] = {}
 
     def add_event(self, event: CorporateActionEvent) -> None:
         """
@@ -250,10 +247,10 @@ class CorporateActionDatabase:
     def get_events(
         self,
         symbol: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        action_types: Optional[List[CorporateActionType]] = None
-    ) -> List[CorporateActionEvent]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        action_types: list[CorporateActionType] | None = None
+    ) -> list[CorporateActionEvent]:
         """
         Get events for a symbol.
 
@@ -301,8 +298,8 @@ class CorporateActionDatabase:
         self,
         symbol: str,
         price_data: pd.DataFrame,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         method: AdjustmentMethod = AdjustmentMethod.BACKWARD
     ) -> pd.DataFrame:
         """
@@ -341,7 +338,7 @@ class CorporateActionDatabase:
 
         return adjusted_data
 
-    def export_to_dataframe(self, symbol: Optional[str] = None) -> pd.DataFrame:
+    def export_to_dataframe(self, symbol: str | None = None) -> pd.DataFrame:
         """
         Export events to DataFrame.
 
@@ -358,18 +355,18 @@ class CorporateActionDatabase:
         for sym in symbols:
             for event in self.events.get(sym, []):
                 events_list.append({
-                    'symbol': event.symbol,
-                    'action_type': event.action_type.value,
-                    'ex_date': event.ex_date,
-                    'record_date': event.record_date,
-                    'payment_date': event.payment_date,
-                    'announcement_date': event.announcement_date,
-                    'ratio': event.ratio,
-                    'value': event.value,
-                    'currency': event.currency,
-                    'new_symbol': event.new_symbol,
-                    'source': event.source,
-                    'validated': event.validated,
+                    "symbol": event.symbol,
+                    "action_type": event.action_type.value,
+                    "ex_date": event.ex_date,
+                    "record_date": event.record_date,
+                    "payment_date": event.payment_date,
+                    "announcement_date": event.announcement_date,
+                    "ratio": event.ratio,
+                    "value": event.value,
+                    "currency": event.currency,
+                    "new_symbol": event.new_symbol,
+                    "source": event.source,
+                    "validated": event.validated,
                 })
 
         return pd.DataFrame(events_list)
@@ -389,17 +386,17 @@ class CorporateActionDatabase:
         for _, row in df.iterrows():
             try:
                 event = CorporateActionEvent(
-                    symbol=row['symbol'],
-                    action_type=CorporateActionType(row['action_type']),
-                    ex_date=pd.to_datetime(row['ex_date']).to_pydatetime(),
-                    record_date=pd.to_datetime(row.get('record_date')).to_pydatetime() if pd.notna(row.get('record_date')) else None,
-                    payment_date=pd.to_datetime(row.get('payment_date')).to_pydatetime() if pd.notna(row.get('payment_date')) else None,
-                    announcement_date=pd.to_datetime(row.get('announcement_date')).to_pydatetime() if pd.notna(row.get('announcement_date')) else None,
-                    ratio=row.get('ratio') if pd.notna(row.get('ratio')) else None,
-                    value=row.get('value') if pd.notna(row.get('value')) else None,
-                    currency=row.get('currency', 'USD'),
-                    new_symbol=row.get('new_symbol') if pd.notna(row.get('new_symbol')) else None,
-                    source=row.get('source', 'import'),
+                    symbol=row["symbol"],
+                    action_type=CorporateActionType(row["action_type"]),
+                    ex_date=pd.to_datetime(row["ex_date"]).to_pydatetime(),
+                    record_date=pd.to_datetime(row.get("record_date")).to_pydatetime() if pd.notna(row.get("record_date")) else None,
+                    payment_date=pd.to_datetime(row.get("payment_date")).to_pydatetime() if pd.notna(row.get("payment_date")) else None,
+                    announcement_date=pd.to_datetime(row.get("announcement_date")).to_pydatetime() if pd.notna(row.get("announcement_date")) else None,
+                    ratio=row.get("ratio") if pd.notna(row.get("ratio")) else None,
+                    value=row.get("value") if pd.notna(row.get("value")) else None,
+                    currency=row.get("currency", "USD"),
+                    new_symbol=row.get("new_symbol") if pd.notna(row.get("new_symbol")) else None,
+                    source=row.get("source", "import"),
                 )
                 self.add_event(event)
                 count += 1

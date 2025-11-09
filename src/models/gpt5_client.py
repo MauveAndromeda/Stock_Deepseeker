@@ -3,13 +3,13 @@ ChatGPT-5 Nano API客户端
 用于市场分析和决策支持（2025最新）
 """
 
-import openai
-import json
 import asyncio
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-import time
 from enum import Enum
+import json
+from typing import Any
+
+import openai
 
 
 class AnalysisType(Enum):
@@ -46,9 +46,9 @@ class GPT5Client:
     async def analyze_async(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         异步分析
 
@@ -104,9 +104,9 @@ class GPT5Client:
     def analyze(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """同步分析"""
         return asyncio.run(self.analyze_async(prompt, system_prompt, **kwargs))
 
@@ -120,9 +120,9 @@ class MarketAnalyzer:
     async def analyze_market_sentiment(
         self,
         symbol: str,
-        news: List[str],
-        social_media: List[str]
-    ) -> Dict[str, Any]:
+        news: list[str],
+        social_media: list[str]
+    ) -> dict[str, Any]:
         """
         分析市场情绪
 
@@ -171,9 +171,9 @@ class MarketAnalyzer:
     async def analyze_technical_patterns(
         self,
         symbol: str,
-        price_data: Dict[str, Any],
-        indicators: Dict[str, float]
-    ) -> Dict[str, Any]:
+        price_data: dict[str, Any],
+        indicators: dict[str, float]
+    ) -> dict[str, Any]:
         """
         分析技术模式
 
@@ -227,10 +227,10 @@ class MarketAnalyzer:
     async def generate_trade_decision(
         self,
         symbol: str,
-        market_data: Dict[str, Any],
-        portfolio_state: Dict[str, Any],
-        risk_limits: Dict[str, float]
-    ) -> Dict[str, Any]:
+        market_data: dict[str, Any],
+        portfolio_state: dict[str, Any],
+        risk_limits: dict[str, float]
+    ) -> dict[str, Any]:
         """
         生成交易决策
 
@@ -288,9 +288,9 @@ class MarketAnalyzer:
 
     async def assess_risk(
         self,
-        portfolio: Dict[str, Any],
-        market_conditions: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        portfolio: dict[str, Any],
+        market_conditions: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         评估风险
 

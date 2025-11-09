@@ -7,10 +7,9 @@ Provides standard interfaces for all agent types
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Protocol
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field, validator
 
@@ -64,16 +63,16 @@ class MarketContext(BaseModel):
     volume: int = Field(description="Trading volume")
 
     # Technical indicators (optional)
-    technical_indicators: Dict[str, float] = Field(default_factory=dict)
+    technical_indicators: dict[str, float] = Field(default_factory=dict)
 
     # Fundamental data (optional)
-    fundamentals: Dict[str, Any] = Field(default_factory=dict)
+    fundamentals: dict[str, Any] = Field(default_factory=dict)
 
     # Market sentiment (optional)
-    sentiment: Optional[Dict[str, Any]] = None
+    sentiment: dict[str, Any] | None = None
 
     # Additional context
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     class Config:
         arbitrary_types_allowed = True
@@ -91,38 +90,37 @@ class AgentDecisionOutput(BaseModel):
 
     # Reasoning
     reasoning: str = Field(description="Decision reasoning")
-    key_factors: List[str] = Field(description="Key factors considered")
+    key_factors: list[str] = Field(description="Key factors considered")
 
     # Risk assessment
     risk_level: RiskLevel = Field(description="Assessed risk level")
-    concerns: List[str] = Field(default_factory=list, description="Risk concerns")
+    concerns: list[str] = Field(default_factory=list, description="Risk concerns")
 
     # Position sizing (optional)
-    suggested_position_size: Optional[float] = Field(None, ge=0, le=1, description="Suggested position size as % of portfolio")
+    suggested_position_size: float | None = Field(None, ge=0, le=1, description="Suggested position size as % of portfolio")
 
     # Metadata
     timestamp: datetime = Field(default_factory=datetime.now)
-    processing_time_ms: Optional[float] = None
-    cost: Optional[float] = None  # API cost if applicable
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    processing_time_ms: float | None = None
+    cost: float | None = None  # API cost if applicable
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @validator('confidence_level', always=True)
+    @validator("confidence_level", always=True)
     def set_confidence_level(cls, v, values):
         """自动设置置信度级别"""
         if v is not None:
             return v
 
-        confidence = values.get('confidence', 0.5)
+        confidence = values.get("confidence", 0.5)
         if confidence < 0.3:
             return DecisionConfidence.VERY_LOW
-        elif confidence < 0.5:
+        if confidence < 0.5:
             return DecisionConfidence.LOW
-        elif confidence < 0.7:
+        if confidence < 0.7:
             return DecisionConfidence.MEDIUM
-        elif confidence < 0.85:
+        if confidence < 0.85:
             return DecisionConfidence.HIGH
-        else:
-            return DecisionConfidence.VERY_HIGH
+        return DecisionConfidence.VERY_HIGH
 
 
 class AgentPerformanceMetrics(BaseModel):
@@ -159,12 +157,12 @@ class IAgent(Protocol):
 
     agent_id: str
     agent_type: str
-    capabilities: List[AgentCapability]
+    capabilities: list[AgentCapability]
 
     async def analyze(
         self,
         context: MarketContext,
-        additional_context: Optional[Dict[str, Any]] = None
+        additional_context: dict[str, Any] | None = None
     ) -> AgentDecisionOutput:
         """
         分析市场并做出决策
@@ -197,7 +195,7 @@ class BaseAgentV2(ABC):
         self,
         agent_id: str,
         agent_type: str,
-        capabilities: List[AgentCapability],
+        capabilities: list[AgentCapability],
         **kwargs
     ):
         self.agent_id = agent_id
@@ -208,22 +206,21 @@ class BaseAgentV2(ABC):
         self.metrics = AgentPerformanceMetrics(agent_id=agent_id)
 
         # Decision history
-        self.decision_history: List[AgentDecisionOutput] = []
-        self.max_history_size = kwargs.get('max_history_size', 100)
+        self.decision_history: list[AgentDecisionOutput] = []
+        self.max_history_size = kwargs.get("max_history_size", 100)
 
     @abstractmethod
     async def _analyze_internal(
         self,
         context: MarketContext,
-        additional_context: Optional[Dict[str, Any]]
+        additional_context: dict[str, Any] | None
     ) -> AgentDecisionOutput:
         """内部分析逻辑（子类实现）"""
-        pass
 
     async def analyze(
         self,
         context: MarketContext,
-        additional_context: Optional[Dict[str, Any]] = None
+        additional_context: dict[str, Any] | None = None
     ) -> AgentDecisionOutput:
         """
         标准化的分析接口
@@ -260,7 +257,7 @@ class BaseAgentV2(ABC):
                 action=ActionType.HOLD,
                 confidence=0.5,
                 confidence_level=DecisionConfidence.MEDIUM,
-                reasoning=f"Analysis failed: {str(e)}",
+                reasoning=f"Analysis failed: {e!s}",
                 key_factors=[],
                 risk_level=RiskLevel.HIGH,
                 concerns=[str(e)],
@@ -313,7 +310,7 @@ class ExpertPanelDecision(BaseModel):
     final_reasoning: str
 
     # Expert opinions
-    expert_opinions: List[Dict[str, Any]] = Field(default_factory=list)
+    expert_opinions: list[dict[str, Any]] = Field(default_factory=list)
 
     # Discussion metadata
     discussion_rounds: int
@@ -322,7 +319,7 @@ class ExpertPanelDecision(BaseModel):
 
     # Risk assessment
     aggregated_risk_level: RiskLevel
-    key_concerns: List[str] = Field(default_factory=list)
+    key_concerns: list[str] = Field(default_factory=list)
 
     # Performance
     total_processing_time_ms: float
@@ -340,7 +337,7 @@ class IExpertPanel(Protocol):
     async def discuss(
         self,
         context: MarketContext,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: dict[str, Any] | None = None
     ) -> ExpertPanelDecision:
         """
         进行专家讨论
@@ -354,7 +351,7 @@ class IExpertPanel(Protocol):
         """
         ...
 
-    def get_discussion_history(self) -> List[ExpertPanelDecision]:
+    def get_discussion_history(self) -> list[ExpertPanelDecision]:
         """获取讨论历史"""
         ...
 
@@ -366,8 +363,8 @@ class AgentRegistry:
     """
 
     def __init__(self):
-        self._agents: Dict[str, IAgent] = {}
-        self._agents_by_capability: Dict[AgentCapability, List[str]] = {
+        self._agents: dict[str, IAgent] = {}
+        self._agents_by_capability: dict[AgentCapability, list[str]] = {
             cap: [] for cap in AgentCapability
         }
 
@@ -390,7 +387,7 @@ class AgentRegistry:
                     self._agents_by_capability[capability].remove(agent_id)
             del self._agents[agent_id]
 
-    def get_agent(self, agent_id: str) -> Optional[IAgent]:
+    def get_agent(self, agent_id: str) -> IAgent | None:
         """获取智能体"""
         return self._agents.get(agent_id)
 
@@ -398,16 +395,16 @@ class AgentRegistry:
         """获取注册的智能体数量"""
         return len(self._agents)
 
-    def get_agents_by_capability(self, capability: AgentCapability) -> List[IAgent]:
+    def get_agents_by_capability(self, capability: AgentCapability) -> list[IAgent]:
         """根据能力获取智能体"""
         agent_ids = self._agents_by_capability.get(capability, [])
         return [self._agents[aid] for aid in agent_ids if aid in self._agents]
 
-    def get_all_agents(self) -> List[IAgent]:
+    def get_all_agents(self) -> list[IAgent]:
         """获取所有智能体"""
         return list(self._agents.values())
 
-    def get_performance_summary(self) -> Dict[str, AgentPerformanceMetrics]:
+    def get_performance_summary(self) -> dict[str, AgentPerformanceMetrics]:
         """获取所有智能体的性能摘要"""
         return {
             agent_id: agent.get_performance_metrics()
@@ -416,7 +413,7 @@ class AgentRegistry:
 
 
 # 全局注册表实例
-_global_registry: Optional[AgentRegistry] = None
+_global_registry: AgentRegistry | None = None
 
 
 def get_agent_registry() -> AgentRegistry:

@@ -4,12 +4,12 @@ Liquidity factors.
 Trading liquidity and market microstructure factors.
 """
 
-from typing import Optional, List
-import pandas as pd
-import numpy as np
-from loguru import logger
 
-from src.factors import Factor, FactorMetadata, FactorCategory
+from loguru import logger
+import numpy as np
+import pandas as pd
+
+from src.factors import Factor, FactorCategory, FactorMetadata
 
 
 class AverageDollarVolume(Factor):
@@ -32,7 +32,7 @@ class AverageDollarVolume(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day average dollar volume",
             formula=f"Average(Price * Volume) over {lookback} days",
-            data_requirements=['close', 'volume'],
+            data_requirements=["close", "volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -41,11 +41,11 @@ class AverageDollarVolume(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate average dollar volume."""
-        closes = data['close'].unstack(fill_value=np.nan)
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate dollar volume
         dollar_volume = closes * volumes
@@ -81,7 +81,7 @@ class ShareTurnover(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day average share turnover",
             formula=f"Average(Volume / Shares Outstanding) over {lookback} days",
-            data_requirements=['volume', 'shares_outstanding'],
+            data_requirements=["volume", "shares_outstanding"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -90,16 +90,16 @@ class ShareTurnover(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate share turnover."""
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
-        if 'shares_outstanding' not in data.columns:
+        if "shares_outstanding" not in data.columns:
             logger.warning("Missing shares outstanding data for turnover calculation")
             return pd.Series(dtype=float)
 
-        shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+        shares = data["shares_outstanding"].unstack(fill_value=np.nan)
 
         # Calculate daily turnover
         daily_turnover = volumes / shares
@@ -135,7 +135,7 @@ class AmihudIlliquidity(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day Amihud illiquidity (inverted)",
             formula=f"-1 * Average(|Return| / Dollar Volume) over {lookback} days",
-            data_requirements=['close', 'volume'],
+            data_requirements=["close", "volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -144,11 +144,11 @@ class AmihudIlliquidity(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted Amihud illiquidity."""
-        closes = data['close'].unstack(fill_value=np.nan)
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change().abs()
@@ -191,7 +191,7 @@ class BidAskSpread(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day average bid-ask spread (inverted)",
             formula="-1 * Average((Ask - Bid) / Mid)",
-            data_requirements=['bid', 'ask'],
+            data_requirements=["bid", "ask"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -200,24 +200,24 @@ class BidAskSpread(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted bid-ask spread."""
-        if 'bid' not in data.columns or 'ask' not in data.columns:
+        if "bid" not in data.columns or "ask" not in data.columns:
             logger.warning("Missing bid/ask data for spread calculation")
             # Estimate from high-low spread
-            if 'high' in data.columns and 'low' in data.columns:
-                highs = data['high'].unstack(fill_value=np.nan)
-                lows = data['low'].unstack(fill_value=np.nan)
-                closes = data['close'].unstack(fill_value=np.nan)
+            if "high" in data.columns and "low" in data.columns:
+                highs = data["high"].unstack(fill_value=np.nan)
+                lows = data["low"].unstack(fill_value=np.nan)
+                closes = data["close"].unstack(fill_value=np.nan)
                 spread = (highs - lows) / closes
                 avg_spread = spread.rolling(window=self.lookback).mean()
                 result = (-avg_spread).stack()
             else:
                 return pd.Series(dtype=float)
         else:
-            bids = data['bid'].unstack(fill_value=np.nan)
-            asks = data['ask'].unstack(fill_value=np.nan)
+            bids = data["bid"].unstack(fill_value=np.nan)
+            asks = data["ask"].unstack(fill_value=np.nan)
 
             # Calculate mid price
             mid = (bids + asks) / 2
@@ -257,7 +257,7 @@ class VolumeVolatility(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day volume volatility (inverted)",
             formula="-1 * StdDev(Volume) / Mean(Volume)",
-            data_requirements=['volume'],
+            data_requirements=["volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -266,10 +266,10 @@ class VolumeVolatility(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted volume volatility."""
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate coefficient of variation
         vol_mean = volumes.rolling(window=self.lookback).mean()
@@ -305,7 +305,7 @@ class RollMeasure(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day Roll spread estimate (inverted)",
             formula="2 * sqrt(-Cov(ΔP_t, ΔP_t-1))",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -314,10 +314,10 @@ class RollMeasure(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted Roll measure."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate price changes
         price_changes = closes.diff()
@@ -367,7 +367,7 @@ class ZeroReturnDays(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day proportion of zero return days (inverted)",
             formula="-1 * Count(|Return| < threshold) / N",
-            data_requirements=['close'],
+            data_requirements=["close"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -376,10 +376,10 @@ class ZeroReturnDays(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted zero return days proportion."""
-        closes = data['close'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change()
@@ -420,7 +420,7 @@ class PriceImpact(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day price impact (inverted)",
             formula="-1 * Average(|Return| / Volume^0.5)",
-            data_requirements=['close', 'volume'],
+            data_requirements=["close", "volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -429,11 +429,11 @@ class PriceImpact(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate inverted price impact."""
-        closes = data['close'].unstack(fill_value=np.nan)
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate returns
         returns = closes.pct_change().abs()
@@ -473,7 +473,7 @@ class LiquidityRatio(Factor):
             category=FactorCategory.LIQUIDITY,
             description=f"{lookback}-day liquidity ratio",
             formula="Volume / Volatility",
-            data_requirements=['close', 'volume'],
+            data_requirements=["close", "volume"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
@@ -482,11 +482,11 @@ class LiquidityRatio(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate liquidity ratio."""
-        closes = data['close'].unstack(fill_value=np.nan)
-        volumes = data['volume'].unstack(fill_value=np.nan)
+        closes = data["close"].unstack(fill_value=np.nan)
+        volumes = data["volume"].unstack(fill_value=np.nan)
 
         # Calculate average volume
         avg_volume = volumes.rolling(window=self.lookback).mean()
@@ -521,7 +521,7 @@ class MarketCapitalization(Factor):
             category=FactorCategory.LIQUIDITY,
             description="Market capitalization (size factor)",
             formula="Price * Shares Outstanding",
-            data_requirements=['close', 'shares_outstanding'],
+            data_requirements=["close", "shares_outstanding"],
             lookback_period=1,
         )
         super().__init__(metadata)
@@ -529,19 +529,19 @@ class MarketCapitalization(Factor):
     def calculate(
         self,
         data: pd.DataFrame,
-        universe: Optional[List[str]] = None
+        universe: list[str] | None = None
     ) -> pd.Series:
         """Calculate market cap."""
-        if 'market_cap' in data.columns:
-            market_cap = data['market_cap'].unstack(fill_value=np.nan)
+        if "market_cap" in data.columns:
+            market_cap = data["market_cap"].unstack(fill_value=np.nan)
         else:
-            closes = data['close'].unstack(fill_value=np.nan)
+            closes = data["close"].unstack(fill_value=np.nan)
 
-            if 'shares_outstanding' not in data.columns:
+            if "shares_outstanding" not in data.columns:
                 logger.warning("Missing shares outstanding data for market cap calculation")
                 return pd.Series(dtype=float)
 
-            shares = data['shares_outstanding'].unstack(fill_value=np.nan)
+            shares = data["shares_outstanding"].unstack(fill_value=np.nan)
             market_cap = closes * shares
 
         # Use log scale for better distribution
@@ -556,7 +556,7 @@ class MarketCapitalization(Factor):
 
 
 # Factory function to create all liquidity factors
-def create_liquidity_factors() -> List[Factor]:
+def create_liquidity_factors() -> list[Factor]:
     """
     Create standard set of liquidity factors.
 

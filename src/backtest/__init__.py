@@ -4,14 +4,20 @@ Backtest Engine Module
 Event-driven backtest engine with strict no-lookahead bias enforcement.
 """
 
-from src.backtest.engine_v2 import BacktestEngineV2, BacktestConfig
+from src.backtest.analyzer import PerformanceAnalyzer, TradeAnalyzer
+from src.backtest.engine_v2 import BacktestConfig, BacktestEngineV2
 from src.backtest.events import (
-    Event, MarketEvent, SignalEvent, OrderEvent, FillEvent,
-    EventType, OrderType, OrderSide
+    Event,
+    EventType,
+    FillEvent,
+    MarketEvent,
+    OrderEvent,
+    OrderSide,
+    OrderType,
+    SignalEvent,
 )
 from src.backtest.execution import ExecutionHandler
 from src.backtest.portfolio_v2 import PortfolioV2
-from src.backtest.analyzer import PerformanceAnalyzer, TradeAnalyzer
 
 # Main exports
 __all__ = [

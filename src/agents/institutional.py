@@ -3,35 +3,34 @@
 模拟专业投资机构行为
 """
 
-import numpy as np
-from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
+from typing import Any
 
-from src.agents.base import Agent, AgentType, AgentDecision, Action
+from src.agents.base import Action, Agent, AgentDecision, AgentType
 
 
 class QuantitativeAgent(Agent):
     """量化对冲基金"""
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         return {
-            'sharpe_threshold': kwargs.get('sharpe_threshold', 1.5),  # 夏普率阈值
-            'max_position_size': kwargs.get('max_position_size', 0.1),  # 最大持仓比例
-            'rebalance_frequency': kwargs.get('rebalance_frequency', 5),  # 调仓频率（天）
-            'volatility_target': kwargs.get('volatility_target', 0.15),  # 目标波动率
-            'alpha_threshold': kwargs.get('alpha_threshold', 0.01),  # Alpha阈值
+            "sharpe_threshold": kwargs.get("sharpe_threshold", 1.5),  # 夏普率阈值
+            "max_position_size": kwargs.get("max_position_size", 0.1),  # 最大持仓比例
+            "rebalance_frequency": kwargs.get("rebalance_frequency", 5),  # 调仓频率（天）
+            "volatility_target": kwargs.get("volatility_target", 0.15),  # 目标波动率
+            "alpha_threshold": kwargs.get("alpha_threshold", 0.01),  # Alpha阈值
         }
 
-    def analyze(self, market_data: Dict, context: Optional[Dict] = None) -> AgentDecision:
+    def analyze(self, market_data: dict, context: dict | None = None) -> AgentDecision:
         """量化分析决策"""
-        symbol = market_data.get('symbol')
-        current_price = market_data.get('close')
+        symbol = market_data.get("symbol")
+        current_price = market_data.get("close")
 
         # 量化指标
-        alpha = context.get('alpha', 0) if context else 0
-        beta = context.get('beta', 1) if context else 1
-        sharpe = context.get('sharpe_ratio', 0) if context else 0
-        volatility = context.get('volatility', 0.2) if context else 0.2
+        alpha = context.get("alpha", 0) if context else 0
+        beta = context.get("beta", 1) if context else 1
+        sharpe = context.get("sharpe_ratio", 0) if context else 0
+        volatility = context.get("volatility", 0.2) if context else 0.2
 
         position = self.state.positions.get(symbol, 0)
         current_position_value = position * current_price
@@ -40,10 +39,10 @@ class QuantitativeAgent(Agent):
         )
 
         # 目标仓位
-        if sharpe >= self.parameters['sharpe_threshold'] and alpha >= self.parameters['alpha_threshold']:
+        if sharpe >= self.parameters["sharpe_threshold"] and alpha >= self.parameters["alpha_threshold"]:
             # 根据波动率调整仓位
-            vol_adjustment = self.parameters['volatility_target'] / max(volatility, 0.01)
-            target_weight = min(self.parameters['max_position_size'], vol_adjustment * 0.05)
+            vol_adjustment = self.parameters["volatility_target"] / max(volatility, 0.01)
+            target_weight = min(self.parameters["max_position_size"], vol_adjustment * 0.05)
             target_value = total_value * target_weight
             target_position = int(target_value / current_price)
 
@@ -66,7 +65,7 @@ class QuantitativeAgent(Agent):
                 )
 
         # 风险控制：波动率过高时减仓
-        if position > 0 and volatility > self.parameters['volatility_target'] * 1.5:
+        if position > 0 and volatility > self.parameters["volatility_target"] * 1.5:
             reduce_ratio = 0.3
             quantity = int(position * reduce_ratio)
 
@@ -94,25 +93,25 @@ class QuantitativeAgent(Agent):
 class ValueInvestorAgent(Agent):
     """价值投资机构"""
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         return {
-            'dcf_discount': kwargs.get('dcf_discount', 0.3),  # DCF估值折扣
-            'roe_threshold': kwargs.get('roe_threshold', 0.15),  # ROE阈值
-            'debt_ratio_max': kwargs.get('debt_ratio_max', 0.5),  # 最大负债率
-            'fcf_yield_min': kwargs.get('fcf_yield_min', 0.05),  # 最小自由现金流收益率
-            'holding_period_min': kwargs.get('holding_period_min', 90),  # 最小持仓天数
+            "dcf_discount": kwargs.get("dcf_discount", 0.3),  # DCF估值折扣
+            "roe_threshold": kwargs.get("roe_threshold", 0.15),  # ROE阈值
+            "debt_ratio_max": kwargs.get("debt_ratio_max", 0.5),  # 最大负债率
+            "fcf_yield_min": kwargs.get("fcf_yield_min", 0.05),  # 最小自由现金流收益率
+            "holding_period_min": kwargs.get("holding_period_min", 90),  # 最小持仓天数
         }
 
-    def analyze(self, market_data: Dict, context: Optional[Dict] = None) -> AgentDecision:
+    def analyze(self, market_data: dict, context: dict | None = None) -> AgentDecision:
         """价值投资决策"""
-        symbol = market_data.get('symbol')
-        current_price = market_data.get('close')
+        symbol = market_data.get("symbol")
+        current_price = market_data.get("close")
 
         # 基本面指标
-        intrinsic_value = context.get('intrinsic_value', current_price) if context else current_price
-        roe = context.get('roe', 0.1) if context else 0.1
-        debt_ratio = context.get('debt_ratio', 0.3) if context else 0.3
-        fcf_yield = context.get('fcf_yield', 0.03) if context else 0.03
+        intrinsic_value = context.get("intrinsic_value", current_price) if context else current_price
+        roe = context.get("roe", 0.1) if context else 0.1
+        debt_ratio = context.get("debt_ratio", 0.3) if context else 0.3
+        fcf_yield = context.get("fcf_yield", 0.03) if context else 0.03
 
         position = self.state.positions.get(symbol, 0)
 
@@ -121,13 +120,13 @@ class ValueInvestorAgent(Agent):
 
         # 价值投资标准
         is_quality = (
-            roe >= self.parameters['roe_threshold'] and
-            debt_ratio <= self.parameters['debt_ratio_max'] and
-            fcf_yield >= self.parameters['fcf_yield_min']
+            roe >= self.parameters["roe_threshold"] and
+            debt_ratio <= self.parameters["debt_ratio_max"] and
+            fcf_yield >= self.parameters["fcf_yield_min"]
         )
 
         # 买入逻辑
-        if position == 0 and is_quality and margin_of_safety >= self.parameters['dcf_discount']:
+        if position == 0 and is_quality and margin_of_safety >= self.parameters["dcf_discount"]:
             # 大额建仓
             target_weight = 0.15  # 15%仓位
             total_value = self.state.capital
@@ -159,32 +158,32 @@ class ValueInvestorAgent(Agent):
 class TrendFollowerAgent(Agent):
     """趋势跟踪基金"""
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         return {
-            'trend_period': kwargs.get('trend_period', 50),  # 趋势周期
-            'breakout_threshold': kwargs.get('breakout_threshold', 0.02),  # 突破阈值
-            'atr_multiplier': kwargs.get('atr_multiplier', 2.0),  # ATR止损倍数
-            'pyramid_levels': kwargs.get('pyramid_levels', 3),  # 金字塔加仓层数
+            "trend_period": kwargs.get("trend_period", 50),  # 趋势周期
+            "breakout_threshold": kwargs.get("breakout_threshold", 0.02),  # 突破阈值
+            "atr_multiplier": kwargs.get("atr_multiplier", 2.0),  # ATR止损倍数
+            "pyramid_levels": kwargs.get("pyramid_levels", 3),  # 金字塔加仓层数
         }
 
-    def analyze(self, market_data: Dict, context: Optional[Dict] = None) -> AgentDecision:
+    def analyze(self, market_data: dict, context: dict | None = None) -> AgentDecision:
         """趋势跟踪决策"""
-        symbol = market_data.get('symbol')
-        current_price = market_data.get('close')
+        symbol = market_data.get("symbol")
+        current_price = market_data.get("close")
 
         # 趋势指标
-        ma_50 = market_data.get('ma_50', current_price)
-        ma_200 = market_data.get('ma_200', current_price)
-        atr = market_data.get('atr', current_price * 0.02)
+        ma_50 = market_data.get("ma_50", current_price)
+        ma_200 = market_data.get("ma_200", current_price)
+        atr = market_data.get("atr", current_price * 0.02)
 
         # 最高价（用于判断突破）
-        high_52w = context.get('high_52w', current_price) if context else current_price
+        high_52w = context.get("high_52w", current_price) if context else current_price
 
         position = self.state.positions.get(symbol, 0)
 
         # 趋势判断
         is_uptrend = ma_50 > ma_200 and current_price > ma_50
-        is_breakout = current_price >= high_52w * (1 - self.parameters['breakout_threshold'])
+        is_breakout = current_price >= high_52w * (1 - self.parameters["breakout_threshold"])
 
         # 买入逻辑
         if is_uptrend and is_breakout:
@@ -201,7 +200,7 @@ class TrendFollowerAgent(Agent):
                     price=current_price,
                     reasoning=f"趋势建仓：突破52周新高，MA50={ma_50:.2f} > MA200={ma_200:.2f}"
                 )
-            elif position > 0 and current_price > ma_50 * 1.05:
+            if position > 0 and current_price > ma_50 * 1.05:
                 # 金字塔加仓
                 add_quantity = int(position * 0.5)
                 return AgentDecision(
@@ -217,7 +216,7 @@ class TrendFollowerAgent(Agent):
 
         # 止损逻辑
         if position > 0:
-            stop_loss = ma_50 - atr * self.parameters['atr_multiplier']
+            stop_loss = ma_50 - atr * self.parameters["atr_multiplier"]
             if current_price < stop_loss:
                 return AgentDecision(
                     agent_id=self.agent_id,
@@ -243,24 +242,24 @@ class TrendFollowerAgent(Agent):
 class HighFrequencyAgent(Agent):
     """高频交易机构"""
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         return {
-            'tick_threshold': kwargs.get('tick_threshold', 0.0005),  # 0.05%价差
-            'holding_seconds': kwargs.get('holding_seconds', 60),  # 持仓秒数
-            'spread_requirement': kwargs.get('spread_requirement', 0.001),  # 价差要求
-            'liquidity_threshold': kwargs.get('liquidity_threshold', 100000),  # 流动性要求
+            "tick_threshold": kwargs.get("tick_threshold", 0.0005),  # 0.05%价差
+            "holding_seconds": kwargs.get("holding_seconds", 60),  # 持仓秒数
+            "spread_requirement": kwargs.get("spread_requirement", 0.001),  # 价差要求
+            "liquidity_threshold": kwargs.get("liquidity_threshold", 100000),  # 流动性要求
         }
 
-    def analyze(self, market_data: Dict, context: Optional[Dict] = None) -> AgentDecision:
+    def analyze(self, market_data: dict, context: dict | None = None) -> AgentDecision:
         """高频交易决策"""
-        symbol = market_data.get('symbol')
-        current_price = market_data.get('close')
+        symbol = market_data.get("symbol")
+        current_price = market_data.get("close")
 
         # 订单簿数据
-        bid_price = market_data.get('bid', current_price * 0.999)
-        ask_price = market_data.get('ask', current_price * 1.001)
-        bid_volume = market_data.get('bid_volume', 1000)
-        ask_volume = market_data.get('ask_volume', 1000)
+        bid_price = market_data.get("bid", current_price * 0.999)
+        ask_price = market_data.get("ask", current_price * 1.001)
+        bid_volume = market_data.get("bid_volume", 1000)
+        ask_volume = market_data.get("ask_volume", 1000)
 
         # 计算价差
         spread = (ask_price - bid_price) / current_price if current_price > 0 else 0
@@ -268,10 +267,10 @@ class HighFrequencyAgent(Agent):
         position = self.state.positions.get(symbol, 0)
 
         # 高频策略：做市
-        if spread >= self.parameters['spread_requirement']:
+        if spread >= self.parameters["spread_requirement"]:
             liquidity = min(bid_volume, ask_volume)
 
-            if liquidity >= self.parameters['liquidity_threshold']:
+            if liquidity >= self.parameters["liquidity_threshold"]:
                 if position <= 0:
                     # 在买一价买入
                     quantity = min(100, int(liquidity * 0.1))
@@ -285,7 +284,7 @@ class HighFrequencyAgent(Agent):
                         price=bid_price,
                         reasoning=f"HFT做市买入：价差={spread:.4%}"
                     )
-                elif position > 0:
+                if position > 0:
                     # 在卖一价卖出
                     return AgentDecision(
                         agent_id=self.agent_id,
@@ -311,20 +310,20 @@ class HighFrequencyAgent(Agent):
 class IndexFundAgent(Agent):
     """指数基金"""
 
-    def _init_parameters(self, **kwargs) -> Dict[str, Any]:
+    def _init_parameters(self, **kwargs) -> dict[str, Any]:
         return {
-            'index_weights': kwargs.get('index_weights', {}),  # 指数成分权重
-            'rebalance_threshold': kwargs.get('rebalance_threshold', 0.05),  # 5%偏差调仓
-            'tracking_error_max': kwargs.get('tracking_error_max', 0.02),  # 最大跟踪误差
+            "index_weights": kwargs.get("index_weights", {}),  # 指数成分权重
+            "rebalance_threshold": kwargs.get("rebalance_threshold", 0.05),  # 5%偏差调仓
+            "tracking_error_max": kwargs.get("tracking_error_max", 0.02),  # 最大跟踪误差
         }
 
-    def analyze(self, market_data: Dict, context: Optional[Dict] = None) -> AgentDecision:
+    def analyze(self, market_data: dict, context: dict | None = None) -> AgentDecision:
         """指数跟踪决策"""
-        symbol = market_data.get('symbol')
-        current_price = market_data.get('close')
+        symbol = market_data.get("symbol")
+        current_price = market_data.get("close")
 
         # 获取目标权重
-        target_weight = self.parameters['index_weights'].get(symbol, 0)
+        target_weight = self.parameters["index_weights"].get(symbol, 0)
 
         if target_weight == 0:
             return AgentDecision(
@@ -348,7 +347,7 @@ class IndexFundAgent(Agent):
         weight_deviation = abs(current_weight - target_weight)
 
         # 调仓逻辑
-        if weight_deviation >= self.parameters['rebalance_threshold']:
+        if weight_deviation >= self.parameters["rebalance_threshold"]:
             target_value = total_value * target_weight
             target_position = int(target_value / current_price)
             delta = target_position - position
@@ -393,7 +392,7 @@ class InstitutionalAgentFactory:
     def create_agent(
         cls,
         agent_type: AgentType,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
         **kwargs
     ) -> Agent:
         """创建机构智能体"""
@@ -409,9 +408,9 @@ class InstitutionalAgentFactory:
     @classmethod
     def create_population(
         cls,
-        population_config: Dict[AgentType, int],
+        population_config: dict[AgentType, int],
         **shared_kwargs
-    ) -> List[Agent]:
+    ) -> list[Agent]:
         """创建机构智能体群体"""
         agents = []
 

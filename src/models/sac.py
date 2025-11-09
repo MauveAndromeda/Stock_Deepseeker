@@ -3,17 +3,16 @@ SAC (Soft Actor-Critic) 强化学习算法
 用于交易策略学习（2025最新版本）
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
 from collections import deque
+from dataclasses import dataclass, field
 import random
+
 import gymnasium as gym
 from gymnasium import spaces
+import numpy as np
+import torch
+from torch import nn, optim
+import torch.nn.functional as F
 
 
 @dataclass
@@ -22,7 +21,7 @@ class SACConfig:
     # 网络架构
     state_dim: int = 128
     action_dim: int = 3  # buy, sell, hold
-    hidden_dims: List[int] = field(default_factory=lambda: [256, 256, 128])
+    hidden_dims: list[int] = field(default_factory=lambda: [256, 256, 128])
 
     # 学习参数
     learning_rate: float = 3e-4
@@ -64,7 +63,7 @@ class ReplayBuffer:
         """添加经验"""
         self.buffer.append((state, action, reward, next_state, done))
 
-    def sample(self, batch_size: int) -> Tuple:
+    def sample(self, batch_size: int) -> tuple:
         """采样一批经验"""
         batch = random.sample(self.buffer, batch_size)
 
@@ -89,7 +88,7 @@ class Actor(nn.Module):
         self,
         state_dim: int,
         action_dim: int,
-        hidden_dims: List[int],
+        hidden_dims: list[int],
         log_std_min: float = -20,
         log_std_max: float = 2
     ):
@@ -117,7 +116,7 @@ class Actor(nn.Module):
         self.mean_linear = nn.Linear(input_dim, action_dim)
         self.log_std_linear = nn.Linear(input_dim, action_dim)
 
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         前向传播
 
@@ -136,7 +135,7 @@ class Actor(nn.Module):
 
         return mean, log_std
 
-    def sample(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def sample(self, state: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         采样动作
 
@@ -171,7 +170,7 @@ class Critic(nn.Module):
         self,
         state_dim: int,
         action_dim: int,
-        hidden_dims: List[int]
+        hidden_dims: list[int]
     ):
         super().__init__()
 
@@ -303,7 +302,7 @@ class SACAgent:
 
         return action.cpu().numpy()[0]
 
-    def update(self) -> Dict[str, float]:
+    def update(self) -> dict[str, float]:
         """
         更新网络
 
@@ -482,7 +481,7 @@ class TradingEnvironment(gym.Env):
 
         self.reset()
 
-    def reset(self, seed: Optional[int] = None, options: Optional[Dict] = None) -> Tuple[np.ndarray, Dict]:
+    def reset(self, seed: int | None = None, options: dict | None = None) -> tuple[np.ndarray, dict]:
         """重置环境"""
         super().reset(seed=seed)
 
@@ -495,7 +494,7 @@ class TradingEnvironment(gym.Env):
 
         return self._get_observation(), {}
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         """执行一步"""
         # 解析动作
         target_position = np.clip(action[0], -self.max_position, self.max_position)
@@ -579,7 +578,7 @@ class TradingEnvironment(gym.Env):
 
         return reward
 
-    def _get_info(self) -> Dict:
+    def _get_info(self) -> dict:
         """获取额外信息"""
         return {
             "balance": self.balance,
@@ -591,4 +590,3 @@ class TradingEnvironment(gym.Env):
 
     def render(self):
         """渲染环境"""
-        pass
