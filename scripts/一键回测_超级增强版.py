@@ -209,7 +209,7 @@ def setup_environment():
 
 # === 步骤3: 数据下载 ===
 def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) -> Dict:
-    """下载市场数据（带缓存）"""
+    """下载市场数据（带缓存和重试机制）"""
     print_header("步骤 3/7: 下载市场数据")
 
     import yfinance as yf
@@ -253,43 +253,132 @@ def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) ->
             except:
                 print_warning("缓存读取失败，重新下载")
 
-    # 下载数据
-    try:
-        from tqdm import tqdm
-        data = {}
+    # 下载数据（带重试机制）
+    print_info("开始下载（使用批量下载，更稳定）...")
 
-        print_info("开始下载...")
-        for symbol in tqdm(symbols, desc="下载进度"):
-            try:
-                ticker = yf.Ticker(symbol)
-                df = ticker.history(start=start_date, end=end_date)
+    max_retries = 3
+    data = {}
 
-                if len(df) > 100:  # 至少100个交易日
-                    data[symbol] = df
-                    tqdm.write(f"✓ {symbol}: {len(df)} 天")
-                else:
-                    tqdm.write(f"⚠ {symbol}: 数据不足，跳过")
-
-            except Exception as e:
-                tqdm.write(f"✗ {symbol}: {str(e)}")
-
-        if len(data) == 0:
-            print_error("未能下载任何有效数据")
-            return {}
-
-        # 保存缓存
+    for retry in range(max_retries):
         try:
-            pd.to_pickle(data, cache_file)
-            print_success(f"数据已缓存到: {cache_file}")
-        except:
-            pass
+            if retry > 0:
+                wait_time = 2 ** retry  # 指数退避: 2s, 4s, 8s
+                print_warning(f"第 {retry + 1}/{max_retries} 次重试，等待 {wait_time} 秒...")
+                time.sleep(wait_time)
 
-        print_success(f"下载完成：{len(data)}/{len(symbols)} 只股票")
-        return data
+            # 使用批量下载（更可靠）
+            print_info(f"正在批量下载 {len(symbols)} 只股票...")
 
-    except Exception as e:
-        print_error(f"下载失败: {e}")
+            # yfinance batch download - 更稳定的方法
+            raw_data = yf.download(
+                tickers=' '.join(symbols),
+                start=start_date,
+                end=end_date,
+                group_by='ticker',
+                auto_adjust=True,
+                threads=True,  # 使用多线程
+                progress=True   # 显示进度
+            )
+
+            # 处理下载的数据
+            if len(symbols) == 1:
+                # 单个股票的特殊处理
+                symbol = symbols[0]
+                if not raw_data.empty and len(raw_data) > 100:
+                    data[symbol] = raw_data
+                    print_success(f"✓ {symbol}: {len(raw_data)} 天")
+            else:
+                # 多个股票
+                for symbol in symbols:
+                    try:
+                        if symbol in raw_data.columns.get_level_values(0):
+                            df = raw_data[symbol]
+                            if not df.empty and len(df) > 100:
+                                # 确保数据格式正确
+                                df = df.copy()
+                                if 'Close' in df.columns:
+                                    data[symbol] = df
+                                    print_success(f"✓ {symbol}: {len(df)} 天")
+                                else:
+                                    print_warning(f"⚠ {symbol}: 数据格式异常，跳过")
+                            else:
+                                print_warning(f"⚠ {symbol}: 数据不足（{len(df) if not df.empty else 0}天），跳过")
+                        else:
+                            print_warning(f"⚠ {symbol}: 未返回数据")
+                    except Exception as e:
+                        print_warning(f"⚠ {symbol}: 处理失败 - {str(e)}")
+
+            # 如果成功下载了数据，跳出重试循环
+            if len(data) > 0:
+                break
+            elif retry < max_retries - 1:
+                print_warning("未获取到有效数据，准备重试...")
+
+        except Exception as e:
+            print_error(f"下载出错: {str(e)}")
+            if retry < max_retries - 1:
+                print_warning("准备重试...")
+            else:
+                print_error("重试次数已用尽")
+
+    # 如果批量下载失败，尝试逐个下载（备用方案）
+    if len(data) == 0:
+        print_warning("批量下载失败，尝试逐个下载（较慢但更稳定）...")
+        from tqdm import tqdm
+
+        for symbol in tqdm(symbols, desc="下载进度"):
+            success = False
+            for retry in range(2):  # 每个股票最多重试2次
+                try:
+                    if retry > 0:
+                        time.sleep(2)  # 重试前等待
+
+                    ticker = yf.Ticker(symbol)
+                    df = ticker.history(start=start_date, end=end_date, auto_adjust=True)
+
+                    if len(df) > 100:
+                        data[symbol] = df
+                        tqdm.write(f"✓ {symbol}: {len(df)} 天")
+                        success = True
+                        break
+                    else:
+                        if retry == 0:
+                            tqdm.write(f"⚠ {symbol}: 数据不足，重试中...")
+                        else:
+                            tqdm.write(f"⚠ {symbol}: 数据不足（{len(df)}天），跳过")
+
+                except Exception as e:
+                    if retry == 0:
+                        tqdm.write(f"⚠ {symbol}: {str(e)[:50]}... 重试中")
+                    else:
+                        tqdm.write(f"✗ {symbol}: 下载失败")
+
+            # 添加延迟避免频率限制
+            if not success:
+                time.sleep(1)
+
+    # 检查结果
+    if len(data) == 0:
+        print_error("未能下载任何有效数据")
+        print_info("可能原因：")
+        print_info("  1. 网络连接问题")
+        print_info("  2. Yahoo Finance API限制")
+        print_info("  3. 股票代码错误")
+        print_info("解决方案：")
+        print_info("  1. 检查网络连接")
+        print_info("  2. 稍后再试（避免频率限制）")
+        print_info("  3. 使用VPN或代理")
         return {}
+
+    # 保存缓存
+    try:
+        pd.to_pickle(data, cache_file)
+        print_success(f"数据已缓存到: {cache_file}")
+    except Exception as e:
+        print_warning(f"缓存保存失败: {e}")
+
+    print_success(f"下载完成：{len(data)}/{len(symbols)} 只股票")
+    return data
 
 # === 步骤4: 系统初始化 ===
 def initialize_system(config: dict):
