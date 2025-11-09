@@ -179,7 +179,7 @@ def install_dependencies(force=False):
             "urllib3>=2.0.0",
         ],
         "金融数据": [
-            "yfinance>=0.2.28,<0.2.50",
+            "yfinance>=0.2.40",  # >=0.2.40修复Python 3.11+ f-string语法错误
             "pandas-market-calendars>=4.0.0",
             "lxml>=4.9.0",  # yfinance需要用于HTML解析
         ],
