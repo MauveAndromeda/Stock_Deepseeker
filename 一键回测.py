@@ -173,9 +173,15 @@ def install_dependencies(force=False):
             "numpy>=1.26.0,<2.0",
             "pandas>=2.0.0,<2.3",
         ],
+        "网络请求核心": [
+            "charset-normalizer>=3.0.0",  # CRITICAL: requests需要此包解析响应
+            "requests>=2.31.0",
+            "urllib3>=2.0.0",
+        ],
         "金融数据": [
             "yfinance>=0.2.28,<0.2.50",
             "pandas-market-calendars>=4.0.0",
+            "lxml>=4.9.0",  # yfinance需要用于HTML解析
         ],
         "AI/LLM核心": [
             "openai>=1.0.0",
