@@ -241,7 +241,7 @@ class EnsembleInference:
                 predictions_list.append(predictions)
 
         # 聚合预测
-        if self.aggregation == "average" or self.aggregation == "weighted":
+        if self.aggregation in {"average", "weighted"}:
             # 加权平均
             weighted_preds = [p * w for p, w in zip(predictions_list, self.weights)]
             final_predictions = np.sum(weighted_preds, axis=0)
@@ -334,7 +334,7 @@ class ModelLoader:
         model: nn.Module,
         save_path: str,
         metadata: dict | None = None
-    ):
+    ) -> None:
         """
         保存模型
 

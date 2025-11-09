@@ -276,7 +276,7 @@ class AlphaFactorLibrary:
             for lag in range(1, max_lags + 1):
                 X_lagged.append(market_returns.iloc[i-60-lag:i-lag].values)
 
-            X_all = np.column_stack([X_current] + X_lagged)
+            X_all = np.column_stack([X_current, *X_lagged])
 
             # 简化：使用相关系数
             r2_lagged = np.corrcoef(y, X_all.mean(axis=1))[0, 1] ** 2

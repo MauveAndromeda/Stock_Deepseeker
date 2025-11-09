@@ -64,10 +64,7 @@ class UniverseConstituent:
         if date < self.list_date:
             return False
 
-        if self.delist_date is not None and date >= self.delist_date:
-            return False
-
-        return True
+        return not (self.delist_date is not None and date >= self.delist_date)
 
     def get_final_return(self) -> float | None:
         """

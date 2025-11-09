@@ -50,5 +50,5 @@ except ImportError as e:
     import warnings
     warnings.warn(
         f"AI/RL models not available. Install with: pip install stock-deepseeker[ai,rl]. Error: {e}",
-        ImportWarning
+        ImportWarning, stacklevel=2
     )

@@ -290,7 +290,7 @@ class MarketTransformer(nn.Module):
                 - predictions: [batch_size, seq_len, output_dim] 预测值
                 - embeddings: [batch_size, seq_len, d_model] 特征嵌入
         """
-        batch_size, seq_len, _ = x.shape
+        _batch_size, _seq_len, _ = x.shape
 
         # 转换维度 [batch_size, seq_len, input_dim] -> [seq_len, batch_size, input_dim]
         x = x.transpose(0, 1)

@@ -2,11 +2,13 @@
 测试Alpha因子库
 """
 
-import pytest
+from pathlib import Path
+import sys
+
 import numpy as np
 import pandas as pd
-import sys
-from pathlib import Path
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models.alpha_factors import AlphaFactorLibrary, FactorCategory
@@ -21,7 +23,7 @@ class TestAlphaFactorLibrary:
 
         # 创建测试数据
         np.random.seed(42)
-        dates = pd.date_range('2023-01-01', periods=300, freq='D')
+        dates = pd.date_range("2023-01-01", periods=300, freq="D")
 
         # 生成价格数据（带趋势）
         trend = np.linspace(100, 150, 300)
@@ -36,11 +38,11 @@ class TestAlphaFactorLibrary:
 
         # 生成完整的OHLCV数据
         self.ohlcv = pd.DataFrame({
-            'Open': self.prices * 0.98,
-            'High': self.prices * 1.02,
-            'Low': self.prices * 0.97,
-            'Close': self.prices,
-            'Volume': self.volume
+            "Open": self.prices * 0.98,
+            "High": self.prices * 1.02,
+            "Low": self.prices * 0.97,
+            "Close": self.prices,
+            "Volume": self.volume
         }, index=dates)
 
     def test_momentum_factors(self):
@@ -77,17 +79,17 @@ class TestAlphaFactorLibrary:
         """测试价值因子"""
         # 创建基本面数据
         fundamentals = {
-            'market_cap': 1000000000,  # 10亿市值
-            'book_value': 500000000,   # 5亿账面价值
-            'earnings': 100000000,     # 1亿盈利
-            'revenue': 1000000000,     # 10亿收入
-            'cash_flow': 150000000     # 1.5亿现金流
+            "market_cap": 1000000000,  # 10亿市值
+            "book_value": 500000000,   # 5亿账面价值
+            "earnings": 100000000,     # 1亿盈利
+            "revenue": 1000000000,     # 10亿收入
+            "cash_flow": 150000000     # 1.5亿现金流
         }
 
         # 测试BP因子
         bp = self.library.book_to_price(fundamentals)
         assert bp > 0, "BP因子应该大于0"
-        expected_bp = fundamentals['book_value'] / fundamentals['market_cap']
+        expected_bp = fundamentals["book_value"] / fundamentals["market_cap"]
         assert abs(bp - expected_bp) < 1e-6
 
         # 测试EP因子
@@ -97,15 +99,15 @@ class TestAlphaFactorLibrary:
     def test_quality_factors(self):
         """测试质量因子"""
         fundamentals = {
-            'roa': 0.15,           # 15% ROA
-            'delta_roa': 0.02,     # ROA增长
-            'cash_flow': 100,      # 正现金流
-            'delta_leverage': -0.01,  # 降低杠杆
-            'delta_liquidity': 0.05,  # 提高流动性
-            'delta_margin': 0.01,  # 提高毛利率
-            'delta_turnover': 0.02,  # 提高周转率
-            'accruals': 10,
-            'revenue': 1000
+            "roa": 0.15,           # 15% ROA
+            "delta_roa": 0.02,     # ROA增长
+            "cash_flow": 100,      # 正现金流
+            "delta_leverage": -0.01,  # 降低杠杆
+            "delta_liquidity": 0.05,  # 提高流动性
+            "delta_margin": 0.01,  # 提高毛利率
+            "delta_turnover": 0.02,  # 提高周转率
+            "accruals": 10,
+            "revenue": 1000
         }
 
         # 测试Piotroski F-Score
@@ -115,7 +117,7 @@ class TestAlphaFactorLibrary:
 
         # 测试ROA
         roa = self.library.roa(fundamentals)
-        assert roa == fundamentals['roa']
+        assert roa == fundamentals["roa"]
 
     def test_volatility_factors(self):
         """测试波动率因子"""
@@ -159,23 +161,23 @@ class TestAlphaFactorLibrary:
         """测试计算所有因子"""
         # 准备完整数据
         data = {
-            'AAPL': {
-                'prices': self.prices,
-                'ohlcv': self.ohlcv,
-                'volume': self.volume,
-                'fundamentals': {
-                    'market_cap': 1000000000,
-                    'book_value': 500000000,
-                    'earnings': 100000000,
-                    'revenue': 1000000000,
-                    'cash_flow': 150000000,
-                    'roa': 0.15,
-                    'delta_roa': 0.02,
-                    'delta_leverage': -0.01,
-                    'delta_liquidity': 0.05,
-                    'delta_margin': 0.01,
-                    'delta_turnover': 0.02,
-                    'accruals': 10
+            "AAPL": {
+                "prices": self.prices,
+                "ohlcv": self.ohlcv,
+                "volume": self.volume,
+                "fundamentals": {
+                    "market_cap": 1000000000,
+                    "book_value": 500000000,
+                    "earnings": 100000000,
+                    "revenue": 1000000000,
+                    "cash_flow": 150000000,
+                    "roa": 0.15,
+                    "delta_roa": 0.02,
+                    "delta_leverage": -0.01,
+                    "delta_liquidity": 0.05,
+                    "delta_margin": 0.01,
+                    "delta_turnover": 0.02,
+                    "accruals": 10
                 }
             }
         }
@@ -184,11 +186,11 @@ class TestAlphaFactorLibrary:
         all_factors = self.library.compute_all_factors(data)
 
         # 验证返回结果
-        assert 'AAPL' in all_factors, "应该包含AAPL的因子"
-        assert isinstance(all_factors['AAPL'], pd.DataFrame), "因子应该是DataFrame"
+        assert "AAPL" in all_factors, "应该包含AAPL的因子"
+        assert isinstance(all_factors["AAPL"], pd.DataFrame), "因子应该是DataFrame"
 
         # 验证因子数量
-        factor_df = all_factors['AAPL']
+        factor_df = all_factors["AAPL"]
         assert len(factor_df.columns) > 10, "应该计算多个因子"
 
         # 验证没有全为NaN的列
@@ -225,33 +227,33 @@ class TestAlphaFactorLibrary:
         """测试因子排名"""
         # 创建多只股票的因子数据
         factor_data = pd.Series({
-            'AAPL': 0.15,
-            'MSFT': 0.08,
-            'GOOGL': 0.20,
-            'AMZN': -0.05,
-            'TSLA': 0.12
+            "AAPL": 0.15,
+            "MSFT": 0.08,
+            "GOOGL": 0.20,
+            "AMZN": -0.05,
+            "TSLA": 0.12
         })
 
         # 排名（降序）
         ranks = self.library.rank_by_factor(factor_data, ascending=False)
 
         # 验证排名
-        assert ranks['GOOGL'] == 1, "GOOGL应该排第一"
-        assert ranks['AMZN'] == 5, "AMZN应该排最后"
+        assert ranks["GOOGL"] == 1, "GOOGL应该排第一"
+        assert ranks["AMZN"] == 5, "AMZN应该排最后"
 
     def test_composite_factor(self):
         """测试复合因子"""
         # 创建多个因子
         factors = {
-            'momentum': pd.Series([0.1, 0.2, -0.1]),
-            'value': pd.Series([0.05, -0.05, 0.15]),
-            'quality': pd.Series([0.2, 0.1, 0.0])
+            "momentum": pd.Series([0.1, 0.2, -0.1]),
+            "value": pd.Series([0.05, -0.05, 0.15]),
+            "quality": pd.Series([0.2, 0.1, 0.0])
         }
 
         # 等权重复合
         composite = self.library.create_composite_factor(
             factors,
-            weights={'momentum': 1/3, 'value': 1/3, 'quality': 1/3}
+            weights={"momentum": 1/3, "value": 1/3, "quality": 1/3}
         )
 
         # 验证复合因子
@@ -296,8 +298,8 @@ class TestEdgeCases:
 
         # 创建市值为0的情况
         fundamentals = {
-            'market_cap': 0,
-            'book_value': 500000000
+            "market_cap": 0,
+            "book_value": 500000000
         }
 
         # BP因子应该返回0或inf

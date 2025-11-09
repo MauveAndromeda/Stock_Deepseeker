@@ -100,6 +100,7 @@ class GPT5Client:
                         "error": str(e)
                     }
                 await asyncio.sleep(2 ** attempt)  # 指数退避
+        return None
 
     def analyze(
         self,

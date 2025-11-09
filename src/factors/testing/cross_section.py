@@ -258,7 +258,7 @@ class CrossSectionalRegression:
         """
         logger.info(f"Running rolling regressions with {window}D window")
 
-        dates = sorted(factor_values[list(factor_values.keys())[0]].index.get_level_values(0).unique())
+        dates = sorted(factor_values[next(iter(factor_values.keys()))].index.get_level_values(0).unique())
 
         rolling_results = []
 
@@ -342,7 +342,7 @@ class CrossSectionalRegression:
         # Find intersection
         common_dates = set.intersection(*all_date_sets)
 
-        return sorted(list(common_dates))
+        return sorted(common_dates)
 
     def _calculate_forward_returns(
         self,

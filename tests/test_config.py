@@ -2,12 +2,14 @@
 测试配置模块
 """
 
-import pytest
-import sys
 from pathlib import Path
+import sys
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.core.config import Config, TradingMode, DataSource
+from src.core.config import Config, DataSource, TradingMode
 
 
 class TestConfig:
@@ -45,7 +47,7 @@ class TestConfig:
         """测试风险限制配置"""
         config = Config()
         assert 0 < config.stop_loss_pct < 1, "止损百分比应该在0-100%之间"
-        assert 0 < config.take_profit_pct, "止盈百分比应该大于0"
+        assert config.take_profit_pct > 0, "止盈百分比应该大于0"
 
     def test_commission_settings(self):
         """测试手续费配置"""

@@ -174,7 +174,7 @@ class EnsembleModel:
         for name, pred in predictions.items():
             weight = normalized_weights.get(name, 0)
 
-            if isinstance(pred, (int, float)) or isinstance(pred, np.ndarray) or isinstance(pred, torch.Tensor):
+            if isinstance(pred, (int, float, np.ndarray, torch.Tensor)):
                 if result is None:
                     result = pred * weight
                 else:

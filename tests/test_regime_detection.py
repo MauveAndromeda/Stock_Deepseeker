@@ -2,18 +2,16 @@
 测试市场状态检测模块
 """
 
-import pytest
+from pathlib import Path
+import sys
+
 import numpy as np
 import pandas as pd
-import sys
-from pathlib import Path
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.risk.regime_detection import (
-    MarketRegimeDetector,
-    MarketRegime,
-    RegimeParameters
-)
+from src.risk.regime_detection import MarketRegime, MarketRegimeDetector, RegimeParameters
 
 
 class TestMarketRegimeDetector:
@@ -25,7 +23,7 @@ class TestMarketRegimeDetector:
 
         # 创建测试数据
         np.random.seed(42)
-        dates = pd.date_range('2023-01-01', periods=252, freq='D')
+        dates = pd.date_range("2023-01-01", periods=252, freq="D")
 
         # 创建不同市场状态的数据
         self.bull_market = self._create_bull_market_data(dates)
@@ -41,8 +39,8 @@ class TestMarketRegimeDetector:
         prices = trend + noise
 
         return pd.DataFrame({
-            'Close': prices,
-            'Volume': np.random.randint(1000000, 2000000, len(dates))
+            "Close": prices,
+            "Volume": np.random.randint(1000000, 2000000, len(dates))
         }, index=dates)
 
     def _create_bear_market_data(self, dates):
@@ -53,8 +51,8 @@ class TestMarketRegimeDetector:
         prices = trend + noise
 
         return pd.DataFrame({
-            'Close': prices,
-            'Volume': np.random.randint(1000000, 3000000, len(dates))
+            "Close": prices,
+            "Volume": np.random.randint(1000000, 3000000, len(dates))
         }, index=dates)
 
     def _create_ranging_market_data(self, dates):
@@ -65,8 +63,8 @@ class TestMarketRegimeDetector:
         prices = base + noise
 
         return pd.DataFrame({
-            'Close': prices,
-            'Volume': np.random.randint(1000000, 2000000, len(dates))
+            "Close": prices,
+            "Volume": np.random.randint(1000000, 2000000, len(dates))
         }, index=dates)
 
     def _create_volatile_market_data(self, dates):
@@ -77,13 +75,13 @@ class TestMarketRegimeDetector:
         prices = base + noise
 
         return pd.DataFrame({
-            'Close': prices,
-            'Volume': np.random.randint(2000000, 5000000, len(dates))
+            "Close": prices,
+            "Volume": np.random.randint(2000000, 5000000, len(dates))
         }, index=dates)
 
     def test_detect_bull_market(self):
         """测试检测牛市"""
-        regime = self.detector.detect_regime(self.bull_market, method='rule_based')
+        regime = self.detector.detect_regime(self.bull_market, method="rule_based")
 
         # 牛市应该被检测为trending_bull
         assert regime in [MarketRegime.TRENDING_BULL, MarketRegime.RANGING_LOW_VOL], \
@@ -91,7 +89,7 @@ class TestMarketRegimeDetector:
 
     def test_detect_bear_market(self):
         """测试检测熊市"""
-        regime = self.detector.detect_regime(self.bear_market, method='rule_based')
+        regime = self.detector.detect_regime(self.bear_market, method="rule_based")
 
         # 熊市应该被检测为trending_bear或ranging
         assert regime in [MarketRegime.TRENDING_BEAR, MarketRegime.RANGING_LOW_VOL,
@@ -100,7 +98,7 @@ class TestMarketRegimeDetector:
 
     def test_detect_ranging_market(self):
         """测试检测震荡市"""
-        regime = self.detector.detect_regime(self.ranging_market, method='rule_based')
+        regime = self.detector.detect_regime(self.ranging_market, method="rule_based")
 
         # 震荡市应该被检测为ranging
         assert regime in [MarketRegime.RANGING_LOW_VOL, MarketRegime.RANGING_HIGH_VOL], \
@@ -108,10 +106,10 @@ class TestMarketRegimeDetector:
 
     def test_detect_volatile_market(self):
         """测试检测高波动市"""
-        regime = self.detector.detect_regime(self.volatile_market, method='rule_based')
+        regime = self.detector.detect_regime(self.volatile_market, method="rule_based")
 
         # 高波动市应该包含volatile或ranging_high_vol
-        assert 'volatile' in regime.value or 'high_vol' in regime.value, \
+        assert "volatile" in regime.value or "high_vol" in regime.value, \
             f"高波动数据应检测为volatile或high_vol，实际: {regime}"
 
     def test_rule_based_detection(self):
@@ -136,7 +134,7 @@ class TestMarketRegimeDetector:
 
     def test_ensemble_detection(self):
         """测试集成检测"""
-        regime = self.detector.detect_regime(self.bull_market, method='ensemble')
+        regime = self.detector.detect_regime(self.bull_market, method="ensemble")
         assert isinstance(regime, MarketRegime), "应该返回MarketRegime实例"
 
     def test_get_regime_parameters(self):
@@ -148,45 +146,45 @@ class TestMarketRegimeDetector:
             assert isinstance(params, dict), f"{regime}的参数应该是字典"
 
             # 验证必需的参数存在
-            required_keys = ['max_position', 'stop_loss', 'take_profit', 'leverage']
+            required_keys = ["max_position", "stop_loss", "take_profit", "leverage"]
             for key in required_keys:
                 assert key in params, f"{regime}缺少参数: {key}"
 
             # 验证参数范围
-            assert 0 < params['max_position'] <= 1.0, "最大仓位应在(0,1]"
-            assert 0 < params['stop_loss'] <= 1.0, "止损应在(0,1]"
-            assert 0 < params['take_profit'], "止盈应大于0"
-            assert 0 < params['leverage'] <= 3.0, "杠杆应在(0,3]"
+            assert 0 < params["max_position"] <= 1.0, "最大仓位应在(0,1]"
+            assert 0 < params["stop_loss"] <= 1.0, "止损应在(0,1]"
+            assert params["take_profit"] > 0, "止盈应大于0"
+            assert 0 < params["leverage"] <= 3.0, "杠杆应在(0,3]"
 
     def test_bull_market_parameters(self):
         """测试牛市参数"""
         params = self.detector.get_regime_parameters(MarketRegime.TRENDING_BULL)
 
         # 牛市应该有较高的仓位和杠杆
-        assert params['max_position'] >= 0.20, "牛市最大仓位应该较高"
-        assert params['leverage'] >= 1.2, "牛市可以使用适度杠杆"
+        assert params["max_position"] >= 0.20, "牛市最大仓位应该较高"
+        assert params["leverage"] >= 1.2, "牛市可以使用适度杠杆"
 
     def test_bear_market_parameters(self):
         """测试熊市参数"""
         params = self.detector.get_regime_parameters(MarketRegime.TRENDING_BEAR)
 
         # 熊市应该有较低的仓位和紧止损
-        assert params['max_position'] <= 0.10, "熊市最大仓位应该较低"
-        assert params['stop_loss'] <= 0.05, "熊市应该有紧止损"
+        assert params["max_position"] <= 0.10, "熊市最大仓位应该较低"
+        assert params["stop_loss"] <= 0.05, "熊市应该有紧止损"
 
     def test_volatile_crash_parameters(self):
         """测试暴跌市场参数"""
         params = self.detector.get_regime_parameters(MarketRegime.VOLATILE_CRASH)
 
         # 暴跌时应该极度保守
-        assert params['max_position'] <= 0.05, "暴跌时仓位应极低"
-        assert params['stop_loss'] <= 0.03, "暴跌时止损应极紧"
-        assert params['leverage'] <= 0.5, "暴跌时不应使用杠杆"
+        assert params["max_position"] <= 0.05, "暴跌时仓位应极低"
+        assert params["stop_loss"] <= 0.03, "暴跌时止损应极紧"
+        assert params["leverage"] <= 0.5, "暴跌时不应使用杠杆"
 
     def test_regime_transition(self):
         """测试状态转换"""
         # 创建从牛市到熊市的转换数据
-        dates = pd.date_range('2023-01-01', periods=500, freq='D')
+        dates = pd.date_range("2023-01-01", periods=500, freq="D")
 
         # 前250天牛市
         bull_trend = np.linspace(100, 150, 250)
@@ -201,13 +199,13 @@ class TestMarketRegimeDetector:
         # 合并数据
         all_prices = np.concatenate([bull_prices, bear_prices])
         data = pd.DataFrame({
-            'Close': all_prices,
-            'Volume': np.random.randint(1000000, 2000000, 500)
+            "Close": all_prices,
+            "Volume": np.random.randint(1000000, 2000000, 500)
         }, index=dates)
 
         # 检测前半部分和后半部分
-        regime1 = self.detector.detect_regime(data.iloc[:250], method='rule_based')
-        regime2 = self.detector.detect_regime(data.iloc[250:], method='rule_based')
+        regime1 = self.detector.detect_regime(data.iloc[:250], method="rule_based")
+        regime2 = self.detector.detect_regime(data.iloc[250:], method="rule_based")
 
         # 状态应该有所不同（大概率）
         # 注意：由于随机性，这个测试可能偶尔失败
@@ -216,22 +214,22 @@ class TestMarketRegimeDetector:
     def test_calculate_trend_strength(self):
         """测试趋势强度计算"""
         # 牛市应该有正趋势
-        trend = self.detector._calculate_trend(self.bull_market['Close'])
+        trend = self.detector._calculate_trend(self.bull_market["Close"])
         assert trend > 0, "牛市应该有正趋势"
 
         # 熊市应该有负趋势
-        trend = self.detector._calculate_trend(self.bear_market['Close'])
+        trend = self.detector._calculate_trend(self.bear_market["Close"])
         assert trend < 0, "熊市应该有负趋势"
 
         # 震荡市趋势应该接近0
-        trend = self.detector._calculate_trend(self.ranging_market['Close'])
+        trend = self.detector._calculate_trend(self.ranging_market["Close"])
         assert abs(trend) < 0.02, "震荡市趋势应该接近0"
 
     def test_calculate_volatility(self):
         """测试波动率计算"""
         # 牛市波动应该较低
-        vol_bull = self.detector._calculate_volatility(self.bull_market['Close'])
-        vol_volatile = self.detector._calculate_volatility(self.volatile_market['Close'])
+        vol_bull = self.detector._calculate_volatility(self.bull_market["Close"])
+        vol_volatile = self.detector._calculate_volatility(self.volatile_market["Close"])
 
         assert vol_volatile > vol_bull, "高波动市场的波动率应该更高"
 
@@ -242,7 +240,7 @@ class TestMarketRegimeDetector:
 
         # 应该返回默认状态或抛出异常
         try:
-            regime = self.detector.detect_regime(short_data, method='rule_based')
+            regime = self.detector.detect_regime(short_data, method="rule_based")
             assert isinstance(regime, MarketRegime)
         except ValueError:
             # 数据不足可能抛出ValueError
@@ -255,7 +253,7 @@ class TestMarketRegimeDetector:
         for i in range(50, len(self.bull_market), 50):
             regime = self.detector.detect_regime(
                 self.bull_market.iloc[:i],
-                method='rule_based'
+                method="rule_based"
             )
             regimes.append(regime)
 
@@ -320,8 +318,8 @@ class TestRegimeParameters:
         params_dict = params.to_dict()
 
         assert isinstance(params_dict, dict)
-        assert params_dict['max_position'] == 0.20
-        assert params_dict['stop_loss'] == 0.05
+        assert params_dict["max_position"] == 0.20
+        assert params_dict["stop_loss"] == 0.05
 
 
 if __name__ == "__main__":

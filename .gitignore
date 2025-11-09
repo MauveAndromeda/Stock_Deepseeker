@@ -19,6 +19,16 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.ipynb_checkpoints/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.prof
+*.lprof
 
 # 虚拟环境
 venv/

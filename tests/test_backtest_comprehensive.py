@@ -10,16 +10,22 @@ Tests for:
 - Portfolio simulation
 """
 
-import pytest
-import numpy as np
-import pandas as pd
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+import numpy as np
+import pandas as pd
+import pytest
+
 from src.backtest.engine import BacktestEngine
 from src.backtest.events import (
-    MarketEvent, SignalEvent, OrderEvent, FillEvent,
-    EventType, OrderType, OrderSide
+    EventType,
+    FillEvent,
+    MarketEvent,
+    OrderEvent,
+    OrderSide,
+    OrderType,
+    SignalEvent,
 )
 from src.backtest.execution import ExecutionHandler
 from src.backtest.portfolio import Portfolio
@@ -34,12 +40,12 @@ class TestMarketEvents:
         event = MarketEvent(
             timestamp=datetime.now(),
             symbol="AAPL",
-            data={'close': 150.0, 'volume': 1000000}
+            data={"close": 150.0, "volume": 1000000}
         )
         
         assert event.type == EventType.MARKET
         assert event.symbol == "AAPL"
-        assert event.data['close'] == 150.0
+        assert event.data["close"] == 150.0
     
     def test_signal_event_creation(self):
         """Test creating signal events."""
@@ -48,7 +54,7 @@ class TestMarketEvents:
             symbol="AAPL",
             signal_type="BUY",
             strength=0.8,
-            metadata={'factor_score': 1.5}
+            metadata={"factor_score": 1.5}
         )
         
         assert event.type == EventType.SIGNAL
@@ -326,8 +332,8 @@ class TestBacktestEngine:
         # Orders should execute at next available price
         
         # Mock data with future information
-        data_t0 = {'timestamp': datetime(2023, 1, 1), 'price': 100.0}
-        data_t1 = {'timestamp': datetime(2023, 1, 2), 'price': 110.0}
+        data_t0 = {"timestamp": datetime(2023, 1, 1), "price": 100.0}
+        data_t1 = {"timestamp": datetime(2023, 1, 2), "price": 110.0}
         
         # At t0, strategy should NOT see t1 price
         # Order placed at t0 should execute at t1 price
@@ -337,7 +343,6 @@ class TestBacktestEngine:
         # Market events should be processed before signal events
         # Signal events before order events
         # Order events before fill events
-        pass
     
     def test_backtest_run_complete(self, engine):
         """Test complete backtest run."""
@@ -345,11 +350,11 @@ class TestBacktestEngine:
         
         # Mock market data
         data = pd.DataFrame({
-            'date': pd.date_range('2023-01-01', periods=100, freq='D'),
-            'symbol': 'AAPL',
-            'close': np.linspace(150, 180, 100),
-            'volume': 1000000
-        }).set_index(['date', 'symbol'])
+            "date": pd.date_range("2023-01-01", periods=100, freq="D"),
+            "symbol": "AAPL",
+            "close": np.linspace(150, 180, 100),
+            "volume": 1000000
+        }).set_index(["date", "symbol"])
         
         # Run backtest (simplified - actual implementation may differ)
         # results = engine.run(strategy, data)
@@ -366,7 +371,7 @@ class TestPerformanceMetrics:
     def returns_series(self):
         """Generate test returns series."""
         np.random.seed(42)
-        dates = pd.date_range('2023-01-01', periods=252, freq='D')
+        dates = pd.date_range("2023-01-01", periods=252, freq="D")
         returns = np.random.normal(0.001, 0.02, 252)
         return pd.Series(returns, index=dates)
     
@@ -417,24 +422,20 @@ class TestBacktestValidation:
         """Test that capital is conserved (no money creation)."""
         # Total portfolio value should equal:
         # initial_capital + realized_pnl + unrealized_pnl - commissions
-        pass
     
     def test_position_reconciliation(self):
         """Test that positions reconcile with trades."""
         # Sum of all buys - sells should equal current position
-        pass
     
     def test_timestamp_consistency(self):
         """Test that all timestamps are consistent."""
         # Order timestamp <= Fill timestamp
         # Signal timestamp <= Order timestamp
-        pass
     
     def test_transaction_costs(self):
         """Test that transaction costs are properly accounted."""
         # Every trade should have commission
         # Slippage should be applied correctly
-        pass
 
 
 @pytest.mark.benchmark
@@ -444,13 +445,11 @@ class TestBacktestPerformance:
     def test_backtest_speed(self, benchmark):
         """Benchmark backtest execution speed."""
         # Should handle 1000+ days, 100+ stocks efficiently
-        pass
     
     def test_memory_usage(self):
         """Test memory usage during backtest."""
         # Should not have memory leaks
         # Should handle large datasets
-        pass
 
 
 class TestEdgeCases:
@@ -459,20 +458,16 @@ class TestEdgeCases:
     def test_no_trades(self):
         """Test backtest with no trades executed."""
         # Should return cash only
-        pass
     
     def test_insufficient_capital(self):
         """Test attempting trade with insufficient capital."""
         # Should reject order or handle gracefully
-        pass
     
     def test_corporate_actions(self):
         """Test handling of splits and dividends."""
         # Positions should adjust for splits
         # Cash should increase for dividends
-        pass
     
     def test_delisted_stocks(self):
         """Test handling of delisted stocks."""
         # Position should be closed or marked
-        pass

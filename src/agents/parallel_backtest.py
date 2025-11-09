@@ -10,11 +10,12 @@ Parallel Backtest Optimization
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-import pandas as pd
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
 from loguru import logger
+import pandas as pd
 
 from src.agents.backtest_integration import MultiAgentStrategy
 from src.backtest.events import SignalEvent
@@ -47,10 +48,10 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
     def __init__(
         self,
         name: str = "ParallelMultiAgent",
-        agents: Optional[list] = None,
+        agents: list | None = None,
         expert_panel=None,
         risk_manager=None,
-        optimization_config: Optional[OptimizationConfig] = None,
+        optimization_config: OptimizationConfig | None = None,
         **kwargs
     ):
         super().__init__(
@@ -62,15 +63,15 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
         )
 
         self.opt_config = optimization_config or OptimizationConfig()
-        self.last_decision_date: Optional[datetime] = None
-        self.decision_cache: Dict[str, Any] = {}
+        self.last_decision_date: datetime | None = None
+        self.decision_cache: dict[str, Any] = {}
         self.days_processed = 0
 
         # 应用优化配置
         if not self.opt_config.use_expert_panel:
             self.use_expert_panel = False
 
-        if self.expert_panel and hasattr(self.expert_panel, 'max_rounds'):
+        if self.expert_panel and hasattr(self.expert_panel, "max_rounds"):
             self.expert_panel.max_rounds = self.opt_config.expert_max_rounds
 
         logger.info(
@@ -136,10 +137,9 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
             return loop.run_until_complete(
                 self._generate_signals_parallel(date, data, portfolio)
             )
-        else:
-            return loop.run_until_complete(
-                self._generate_signals_async(date, data, portfolio)
-            )
+        return loop.run_until_complete(
+            self._generate_signals_async(date, data, portfolio)
+        )
 
     async def _generate_signals_parallel(
         self,
@@ -199,7 +199,7 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
         date: datetime,
         all_data: dict[str, pd.DataFrame],
         portfolio: PortfolioV2
-    ) -> Optional[SignalEvent]:
+    ) -> SignalEvent | None:
         """
         分析单个股票
 
@@ -269,7 +269,7 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
                             return None
 
                         if adjustment:
-                            position_value = adjustment['adjusted_size']
+                            position_value = adjustment["adjusted_size"]
 
                     # 创建信号
                     quantity = int(position_value / current_price)
@@ -325,7 +325,7 @@ class ParallelMultiAgentStrategy(MultiAgentStrategy):
 
 
 async def create_optimized_strategy(
-    mode: str = 'fast',
+    mode: str = "fast",
     register_agents: bool = True
 ) -> ParallelMultiAgentStrategy:
     """
@@ -340,28 +340,28 @@ async def create_optimized_strategy(
     from src.agents import create_default_multi_agent_strategy
 
     mode_configs = {
-        'turbo': OptimizationConfig(
+        "turbo": OptimizationConfig(
             decision_frequency=5,
             parallel_stocks=True,
             max_workers=10,
             use_expert_panel=False,
             expert_max_rounds=1,
         ),
-        'fast': OptimizationConfig(
+        "fast": OptimizationConfig(
             decision_frequency=3,
             parallel_stocks=True,
             max_workers=5,
             use_expert_panel=True,
             expert_max_rounds=1,
         ),
-        'balanced': OptimizationConfig(
+        "balanced": OptimizationConfig(
             decision_frequency=2,
             parallel_stocks=True,
             max_workers=3,
             use_expert_panel=True,
             expert_max_rounds=2,
         ),
-        'full': OptimizationConfig(
+        "full": OptimizationConfig(
             decision_frequency=1,
             parallel_stocks=False,
             max_workers=1,
@@ -370,7 +370,7 @@ async def create_optimized_strategy(
         ),
     }
 
-    config = mode_configs.get(mode, mode_configs['fast'])
+    config = mode_configs.get(mode, mode_configs["fast"])
 
     # 创建基础策略
     base_strategy = await create_default_multi_agent_strategy(
