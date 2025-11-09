@@ -215,6 +215,26 @@ def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) ->
     import yfinance as yf
     import pandas as pd
     from pathlib import Path
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    # 配置requests session（解决连接问题）
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=1,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["HEAD", "GET", "OPTIONS"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
+    # 设置User-Agent避免被识别为爬虫
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
 
     # 默认股票池（美股优质标的）
     if symbols is None:
@@ -269,7 +289,7 @@ def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) ->
             # 使用批量下载（更可靠）
             print_info(f"正在批量下载 {len(symbols)} 只股票...")
 
-            # yfinance batch download - 更稳定的方法
+            # yfinance batch download - 使用自定义session
             raw_data = yf.download(
                 tickers=' '.join(symbols),
                 start=start_date,
@@ -277,7 +297,8 @@ def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) ->
                 group_by='ticker',
                 auto_adjust=True,
                 threads=True,  # 使用多线程
-                progress=True   # 显示进度
+                progress=True,  # 显示进度
+                session=session  # 使用配置好的session
             )
 
             # 处理下载的数据
@@ -333,7 +354,7 @@ def download_market_data(symbols: Optional[List[str]] = None, years: int = 3) ->
                     if retry > 0:
                         time.sleep(2)  # 重试前等待
 
-                    ticker = yf.Ticker(symbol)
+                    ticker = yf.Ticker(symbol, session=session)
                     df = ticker.history(start=start_date, end=end_date, auto_adjust=True)
 
                     if len(df) > 100:

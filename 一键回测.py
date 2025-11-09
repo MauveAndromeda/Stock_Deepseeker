@@ -148,7 +148,7 @@ def create_venv():
 # ═══════════════════════════════════════════════════════════════
 
 def install_dependencies(force=False):
-    """安装所有依赖"""
+    """安装所有依赖（分批安装，兼容Python 3.13）"""
     print_header("步骤 2/5: 安装依赖包")
 
     venv_python = get_venv_python()
@@ -160,74 +160,181 @@ def install_dependencies(force=False):
         print_info("依赖已安装，跳过（使用 --force-install 强制重装）")
         return True
 
-    # 核心依赖列表
-    core_deps = [
-        # 数据科学基础
-        "numpy>=1.26.0",
-        "pandas>=2.2.0",
-        "scipy>=1.14.0",
-        "scikit-learn>=1.5.0",
+    # 检查Python版本，调整依赖
+    py_version = sys.version_info
+    is_py313_plus = (py_version.major == 3 and py_version.minor >= 13)
 
-        # 金融数据
-        "yfinance>=0.2.28",
-        "pandas-market-calendars>=4.3.0",
+    if is_py313_plus:
+        print_warning(f"检测到Python 3.13+，使用兼容性版本...")
 
-        # AI/LLM
-        "openai>=1.0.0",
-        "anthropic>=0.18.0",
-        "langchain>=0.3.0",
-        "langchain-core>=0.3.0",
-        "langchain-openai>=0.2.0",
-        "langgraph>=0.2.0",
+    # 分批安装依赖，提高成功率
+    dep_groups = {
+        "基础数据科学": [
+            "numpy>=1.26.0,<2.0",
+            "pandas>=2.0.0,<2.3",
+        ],
+        "网络请求核心": [
+            "charset-normalizer>=3.0.0",  # CRITICAL: requests需要此包解析响应
+            "requests>=2.31.0",
+            "urllib3>=2.0.0",
+        ],
+        "金融数据": [
+            "yfinance>=0.2.28,<0.2.50",
+            "pandas-market-calendars>=4.0.0",
+            "lxml>=4.9.0",  # yfinance需要用于HTML解析
+        ],
+        "AI/LLM核心": [
+            "openai>=1.0.0",
+            "anthropic>=0.18.0",
+            "langchain>=0.3.0",
+            "langchain-core>=0.3.0",
+            "langchain-openai>=0.2.0",
+        ],
+        "AI/LLM扩展": [
+            "langgraph>=0.2.0",
+        ],
+        "异步网络": [
+            "aiohttp>=3.9.0",  # 降低版本，兼容性更好
+            "nest-asyncio>=1.6.0",
+            "httpx>=0.27.0",
+        ],
+        "工具库": [
+            "loguru>=0.7.2",
+            "pydantic>=2.0.0,<3.0",
+            "python-dotenv>=1.0.0",
+            "tqdm>=4.66.0",
+            "rich>=13.0.0",
+            "click>=8.0.0",
+        ],
+    }
 
-        # 机器学习
-        "hmmlearn>=0.3.0",
+    # 可选依赖（如果安装失败不影响核心功能）
+    optional_deps = {
+        "科学计算": [
+            "scipy>=1.11.0" if is_py313_plus else "scipy>=1.14.0",
+            "scikit-learn>=1.3.0" if is_py313_plus else "scikit-learn>=1.5.0",
+        ],
+        "机器学习": [
+            "hmmlearn>=0.3.0",
+        ],
+    }
 
-        # 异步和网络
-        "aiohttp>=3.10.0",
-        "nest-asyncio>=1.6.0",
-        "httpx>=0.27.0",
-
-        # 工具库
-        "loguru>=0.7.2",
-        "pydantic>=2.8.0",
-        "python-dotenv>=1.0.0",
-        "tqdm>=4.66.0",
-        "rich>=13.7.0",
-        "click>=8.1.7",
-    ]
-
-    print_info(f"准备安装 {len(core_deps)} 个核心包...")
+    print_info(f"准备分批安装依赖（共 {len(dep_groups)} 组必需包 + {len(optional_deps)} 组可选包）...")
     print_warning("首次安装可能需要5-10分钟，请耐心等待...")
 
-    try:
-        # 安装依赖
-        subprocess.check_call(
-            [str(venv_python), "-m", "pip", "install"] + core_deps + ["-q", "--no-warn-script-location"],
-            stderr=subprocess.PIPE
-        )
+    failed_packages = []
+    installed_count = 0
+    total_count = sum(len(deps) for deps in dep_groups.values())
 
-        # 安装本地项目
-        print_info("安装项目到虚拟环境...")
+    # 安装必需依赖
+    for group_name, packages in dep_groups.items():
+        print(f"\n{Colors.OKCYAN}▶ 安装{group_name}...{Colors.ENDC}")
+
+        for pkg in packages:
+            try:
+                pkg_name = pkg.split(">=")[0].split("<")[0]
+                print(f"  • {pkg_name}...", end=" ", flush=True)
+
+                subprocess.check_call(
+                    [str(venv_python), "-m", "pip", "install", pkg, "-q"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=180  # 3分钟超时
+                )
+
+                print(f"{Colors.OKGREEN}✓{Colors.ENDC}")
+                installed_count += 1
+
+            except subprocess.TimeoutExpired:
+                print(f"{Colors.FAIL}✗ (超时){Colors.ENDC}")
+                failed_packages.append((pkg, "超时"))
+            except subprocess.CalledProcessError as e:
+                print(f"{Colors.FAIL}✗{Colors.ENDC}")
+                failed_packages.append((pkg, f"错误码{e.returncode}"))
+            except Exception as e:
+                print(f"{Colors.FAIL}✗ ({str(e)[:20]}){Colors.ENDC}")
+                failed_packages.append((pkg, str(e)[:30]))
+
+    # 安装可选依赖（失败不影响）
+    print(f"\n{Colors.OKCYAN}▶ 安装可选依赖...{Colors.ENDC}")
+    for group_name, packages in optional_deps.items():
+        for pkg in packages:
+            try:
+                pkg_name = pkg.split(">=")[0].split("<")[0]
+                print(f"  • {pkg_name}...", end=" ", flush=True)
+
+                subprocess.check_call(
+                    [str(venv_python), "-m", "pip", "install", pkg, "-q"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=180
+                )
+
+                print(f"{Colors.OKGREEN}✓{Colors.ENDC}")
+                installed_count += 1
+
+            except Exception:
+                print(f"{Colors.WARNING}⊘ (跳过){Colors.ENDC}")
+
+    # 安装本地项目
+    print(f"\n{Colors.OKCYAN}▶ 安装本地项目...{Colors.ENDC}")
+    try:
         subprocess.check_call(
             [str(venv_python), "-m", "pip", "install", "-e", str(project_root), "-q"],
-            stderr=subprocess.PIPE
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=60
         )
-
-        # 创建标记文件
-        marker_file.write_text(f"Installed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        print_success("依赖安装完成")
-        return True
-
-    except subprocess.CalledProcessError as e:
-        print_error(f"依赖安装失败: {e}")
-        print_info("尝试手动安装: ")
-        print(f"    {venv_python} -m pip install -e .")
-        return False
+        print_success("✓ 项目安装完成")
     except Exception as e:
-        print_error(f"发生错误: {e}")
-        return False
+        print_warning(f"项目安装失败: {e}")
+        print_info("这不影响回测功能，可以继续")
+
+    # 显示安装总结
+    print(f"\n{Colors.BOLD}安装总结:{Colors.ENDC}")
+    print(f"  成功: {installed_count}/{total_count + len([p for g in optional_deps.values() for p in g])}")
+
+    if failed_packages:
+        print(f"  {Colors.WARNING}失败: {len(failed_packages)} 个包{Colors.ENDC}")
+        if len(failed_packages) <= 5:
+            for pkg, reason in failed_packages:
+                print(f"    - {pkg}: {reason}")
+
+        # 检查关键包是否安装
+        critical_packages = ["numpy", "pandas", "yfinance", "openai"]
+        missing_critical = []
+
+        for critical_pkg in critical_packages:
+            try:
+                subprocess.check_call(
+                    [str(venv_python), "-c", f"import {critical_pkg}"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            except:
+                missing_critical.append(critical_pkg)
+
+        if missing_critical:
+            print_error(f"\n关键包缺失: {', '.join(missing_critical)}")
+            print_info("\n解决方案:")
+            print_info("  1. 升级pip: .venv\\Scripts\\python.exe -m pip install --upgrade pip")
+            print_info("  2. 手动安装: .venv\\Scripts\\python.exe -m pip install numpy pandas yfinance openai")
+            if is_py313_plus:
+                print_info("  3. 或使用Python 3.11/3.12 (更好的兼容性)")
+            return False
+    else:
+        print_success("  全部安装成功！")
+
+    # 创建标记文件
+    marker_file.write_text(
+        f"Installed at {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Python {py_version.major}.{py_version.minor}.{py_version.micro}\n"
+        f"Success: {installed_count}\n"
+        f"Failed: {len(failed_packages)}\n"
+    )
+
+    print_success("\n依赖安装完成")
+    return True
 
 # ═══════════════════════════════════════════════════════════════
 # API配置

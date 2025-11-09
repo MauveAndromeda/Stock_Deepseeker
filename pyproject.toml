@@ -53,6 +53,9 @@ dependencies = [
     "exchange-calendars>=4.5.0",
     "alpaca-py>=0.8.0",  # Alpaca trading API
     "polygon-api-client>=1.12.0",  # Polygon.io data API
+    "lxml>=4.9.0",  # Required by yfinance for HTML parsing
+    "charset-normalizer>=3.0.0",  # Required by requests for encoding detection
+    "requests>=2.31.0",  # HTTP library
 
     # Database
     "sqlalchemy>=2.0.30",
@@ -63,7 +66,7 @@ dependencies = [
     # API and Web
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
-    "aiohttp>=3.10.0",
+    "aiohttp>=3.9.0",  # Lower version for Python 3.13+ compatibility
     "httpx>=0.27.0",
     "pydantic>=2.8.0",
     "pydantic-settings>=2.3.0",
