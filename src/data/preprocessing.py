@@ -43,9 +43,9 @@ class DataPreprocessor:
         df = df.copy()
 
         if method == "forward_fill":
-            df = df.fillna(method="ffill")
+            df = df.ffill()
         elif method == "backward_fill":
-            df = df.fillna(method="bfill")
+            df = df.bfill()
         elif method == "interpolate":
             df = df.interpolate(method="linear")
         elif method == "mean":

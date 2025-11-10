@@ -12,6 +12,9 @@ import threading
 import time
 from typing import Any
 
+import numpy as np
+import pandas as pd
+
 
 class MetricType(Enum):
     """指标类型"""
@@ -469,3 +472,180 @@ def count_calls(metric_name: str):
 
 # Alias for backward compatibility
 MetricsCalculator = MetricsCollector
+
+
+class MetricsCalculator:
+    """Utility class for common trading performance metrics."""
+
+    def _ensure_series(self, data: pd.Series | np.ndarray | list | None) -> pd.Series:
+        if data is None:
+            return pd.Series(dtype=float)
+        if isinstance(data, pd.Series):
+            return data.astype(float)
+        return pd.Series(data, dtype=float)
+
+    def calculate_total_return(self, equity_curve: pd.Series | np.ndarray | list) -> float:
+        equity = self._ensure_series(equity_curve)
+        if equity.empty or len(equity) < 2:
+            return 0.0
+        start = equity.iloc[0]
+        end = equity.iloc[-1]
+        if start == 0:
+            return 0.0
+        return (end - start) / start
+
+    def calculate_annualized_return(
+        self,
+        equity_curve: pd.Series | np.ndarray | list,
+        periods: int = 252,
+    ) -> float:
+        equity = self._ensure_series(equity_curve)
+        if equity.empty or len(equity) < 2:
+            return 0.0
+        start, end = equity.iloc[0], equity.iloc[-1]
+        if start <= 0:
+            return 0.0
+        total_return = end / start
+        years = len(equity) / periods
+        if years <= 0:
+            return 0.0
+        return total_return ** (1 / years) - 1
+
+    def calculate_volatility(
+        self,
+        returns: pd.Series | np.ndarray | list,
+        periods: int = 252,
+    ) -> float:
+        series = self._ensure_series(returns)
+        if series.empty:
+            return 0.0
+        std = series.std(ddof=1)
+        if np.isnan(std) or std == 0:
+            return 0.0
+        return float(std * np.sqrt(periods))
+
+    def calculate_sharpe_ratio(
+        self,
+        returns: pd.Series | np.ndarray | list,
+        risk_free_rate: float = 0.0,
+        periods: int = 252,
+    ) -> float:
+        series = self._ensure_series(returns)
+        if series.empty:
+            return 0.0
+        excess = series - risk_free_rate / periods
+        std = excess.std(ddof=1)
+        if np.isnan(std) or std == 0:
+            return 0.0
+        return float(excess.mean() / std * np.sqrt(periods))
+
+    def calculate_sortino_ratio(
+        self,
+        returns: pd.Series | np.ndarray | list,
+        risk_free_rate: float = 0.0,
+        periods: int = 252,
+    ) -> float:
+        series = self._ensure_series(returns)
+        if series.empty:
+            return 0.0
+        excess = series - risk_free_rate / periods
+        downside = excess[excess < 0]
+        if downside.empty:
+            return float(self.calculate_sharpe_ratio(series, risk_free_rate, periods))
+        downside_std = downside.std(ddof=1)
+        if np.isnan(downside_std) or downside_std == 0:
+            return 0.0
+        return float(excess.mean() / downside_std * np.sqrt(periods))
+
+    def calculate_max_drawdown(self, equity_curve: pd.Series | np.ndarray | list) -> float:
+        equity = self._ensure_series(equity_curve)
+        if equity.empty:
+            return 0.0
+        running_max = equity.cummax()
+        drawdown = (equity - running_max) / running_max.replace(0, np.nan)
+        drawdown = drawdown.fillna(0.0)
+        return float(drawdown.min())
+
+    def calculate_max_drawdown_duration(self, equity_curve: pd.Series | np.ndarray | list) -> int:
+        equity = self._ensure_series(equity_curve)
+        if equity.empty:
+            return 0
+        running_max = equity.cummax()
+        drawdown = running_max - equity
+        duration = 0
+        max_duration = 0
+        for value in drawdown:
+            if value > 0:
+                duration += 1
+                max_duration = max(max_duration, duration)
+            else:
+                duration = 0
+        return int(max_duration)
+
+    def calculate_calmar_ratio(
+        self,
+        equity_curve: pd.Series | np.ndarray | list,
+        returns: pd.Series | np.ndarray | list,
+    ) -> float:
+        annual_return = self.calculate_annualized_return(equity_curve)
+        max_dd = self.calculate_max_drawdown(equity_curve)
+        if max_dd == 0:
+            return float("inf")
+        return float(annual_return / abs(max_dd))
+
+    def calculate_win_rate(self, trades: pd.DataFrame) -> float:
+        if trades.empty or "pnl" not in trades:
+            return 0.0
+        pnl = trades["pnl"]
+        wins = (pnl > 0).sum()
+        total = len(pnl)
+        if total == 0:
+            return 0.0
+        return wins / total
+
+    def calculate_profit_factor(self, trades: pd.DataFrame) -> float:
+        if trades.empty or "pnl" not in trades:
+            return 0.0
+        pnl = trades["pnl"]
+        gross_profit = pnl[pnl > 0].sum()
+        gross_loss = -pnl[pnl < 0].sum()
+        if gross_loss == 0:
+            return float("inf") if gross_profit > 0 else 0.0
+        return gross_profit / gross_loss
+
+    def calculate_information_ratio(
+        self,
+        returns: pd.Series | np.ndarray | list,
+        benchmark_returns: pd.Series | np.ndarray | list,
+        periods: int = 252,
+    ) -> float:
+        series = self._ensure_series(returns)
+        benchmark = self._ensure_series(benchmark_returns)
+        if series.empty or benchmark.empty:
+            return 0.0
+        aligned = pd.DataFrame({"strategy": series, "benchmark": benchmark}).dropna()
+        if aligned.empty:
+            return 0.0
+        excess = aligned["strategy"] - aligned["benchmark"]
+        std = excess.std(ddof=1)
+        if np.isnan(std) or std == 0:
+            return 0.0
+        return float(excess.mean() / std * np.sqrt(periods))
+
+    def calculate_all_metrics(
+        self,
+        equity_curve: pd.Series,
+        returns: pd.Series,
+        trades: pd.DataFrame,
+    ) -> dict[str, float]:
+        return {
+            "total_return": self.calculate_total_return(equity_curve),
+            "annualized_return": self.calculate_annualized_return(equity_curve),
+            "volatility": self.calculate_volatility(returns),
+            "sharpe_ratio": self.calculate_sharpe_ratio(returns),
+            "sortino_ratio": self.calculate_sortino_ratio(returns),
+            "max_drawdown": self.calculate_max_drawdown(equity_curve),
+            "calmar_ratio": self.calculate_calmar_ratio(equity_curve, returns),
+            "win_rate": self.calculate_win_rate(trades),
+            "profit_factor": self.calculate_profit_factor(trades),
+        }
