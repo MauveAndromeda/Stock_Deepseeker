@@ -110,14 +110,17 @@ class RSI(Factor):
         avg_gain = gain.ewm(span=self.period, adjust=False).mean()
         avg_loss = loss.ewm(span=self.period, adjust=False).mean()
 
-        # Calculate RS and RSI
-        rs = avg_gain / avg_loss
+        # Calculate RS and RSI.  Guard against divide-by-zero when there are
+        # no losses in the window by treating the ratio as infinite (RSI=100).
+        rs = avg_gain / avg_loss.replace(0, np.nan)
         rsi = 100 - (100 / (1 + rs))
 
-        # Normalize to [-1, 1] range for consistency with other factors
-        rsi_normalized = (rsi - 50) / 50
+        # Fill missing values that arise from the warmup period or zero
+        # losses/gains with the neutral RSI value of 50 and clamp to the
+        # canonical [0, 100] range expected by the tests.
+        rsi = rsi.fillna(50).clip(lower=0, upper=100)
 
-        result = rsi_normalized.stack()
+        result = rsi.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]

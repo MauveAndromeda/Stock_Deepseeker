@@ -5,6 +5,7 @@ Alpha因子库 - 100+ 量化因子
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -40,28 +41,51 @@ class AlphaFactorLibrary:
         self.scaler = StandardScaler()
         self.factor_cache = {}
 
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _get_field(data: dict | pd.Series | None, key: str, default: float = 0.0):
+        if data is None:
+            return default
+        if isinstance(data, dict):
+            return data.get(key, default)
+        if isinstance(data, pd.Series):
+            return data.get(key, default)
+        raise TypeError("Unsupported fundamentals container")
+
+    @staticmethod
+    def _ensure_series(value):
+        if isinstance(value, pd.Series):
+            return value
+        if isinstance(value, np.ndarray):
+            return pd.Series(value)
+        if np.isscalar(value):
+            return pd.Series([value])
+        return pd.Series(value)
+
     # ==================== 动量因子 ====================
 
     def momentum_1m(self, prices: pd.Series) -> np.ndarray:
         """1个月动量"""
-        return prices.pct_change(periods=21)
+        return prices.pct_change(periods=21, fill_method=None)
 
     def momentum_3m(self, prices: pd.Series) -> np.ndarray:
         """3个月动量"""
-        return prices.pct_change(periods=63)
+        return prices.pct_change(periods=63, fill_method=None)
 
     def momentum_6m(self, prices: pd.Series) -> np.ndarray:
         """6个月动量"""
-        return prices.pct_change(periods=126)
+        return prices.pct_change(periods=126, fill_method=None)
 
     def momentum_12m(self, prices: pd.Series) -> np.ndarray:
         """12个月动量（跳过最近1个月）"""
-        return prices.pct_change(periods=252).shift(21)
+        return prices.pct_change(periods=252, fill_method=None).shift(21)
 
     def residual_momentum(self, prices: pd.Series, market_prices: pd.Series) -> np.ndarray:
         """残差动量 - 市场中性"""
-        returns = prices.pct_change()
-        market_returns = market_prices.pct_change()
+        returns = prices.pct_change(fill_method=None)
+        market_returns = market_prices.pct_change(fill_method=None)
 
         # 滚动回归
         residuals = []
@@ -86,7 +110,7 @@ class AlphaFactorLibrary:
 
     def momentum_acceleration(self, prices: pd.Series) -> np.ndarray:
         """动量加速度 - 二阶导数"""
-        returns = prices.pct_change()
+        returns = prices.pct_change(fill_method=None)
         return returns.diff()
 
     def momentum_52w_high(self, prices: pd.Series) -> np.ndarray:
@@ -98,15 +122,15 @@ class AlphaFactorLibrary:
 
     def reversal_1d(self, prices: pd.Series) -> np.ndarray:
         """1日反转"""
-        return -prices.pct_change(periods=1)
+        return -prices.pct_change(periods=1, fill_method=None)
 
     def reversal_5d(self, prices: pd.Series) -> np.ndarray:
         """5日反转"""
-        return -prices.pct_change(periods=5)
+        return -prices.pct_change(periods=5, fill_method=None)
 
     def reversal_20d(self, prices: pd.Series) -> np.ndarray:
         """20日反转（月度反转）"""
-        return -prices.pct_change(periods=20)
+        return -prices.pct_change(periods=20, fill_method=None)
 
     def overnight_reversal(self, open_prices: pd.Series, close_prices: pd.Series) -> np.ndarray:
         """隔夜反转"""
@@ -122,6 +146,32 @@ class AlphaFactorLibrary:
     def book_to_market(self, book_value: pd.Series, market_cap: pd.Series) -> np.ndarray:
         """账面市值比 B/M"""
         return book_value / market_cap
+
+    def book_to_price(self, fundamentals: dict | pd.Series) -> float | pd.Series:
+        """账面市值比，测试使用的友好封装."""
+        market_cap = self._get_field(fundamentals, "market_cap", default=0.0)
+        book_value = self._get_field(fundamentals, "book_value", default=0.0)
+        if isinstance(market_cap, pd.Series) or isinstance(book_value, pd.Series):
+            market_cap_series = self._ensure_series(market_cap)
+            book_series = self._ensure_series(book_value)
+            ratio = book_series / market_cap_series.replace(0, np.nan)
+            return ratio.fillna(np.inf)
+        if market_cap == 0:
+            return float("inf") if book_value else 0.0
+        return book_value / market_cap
+
+    def earnings_to_price(self, fundamentals: dict | pd.Series) -> float | pd.Series:
+        """盈利市值比."""
+        earnings = self._get_field(fundamentals, "earnings", default=0.0)
+        market_cap = self._get_field(fundamentals, "market_cap", default=0.0)
+        if isinstance(earnings, pd.Series) or isinstance(market_cap, pd.Series):
+            earnings_series = self._ensure_series(earnings)
+            market_series = self._ensure_series(market_cap)
+            ratio = earnings_series / market_series.replace(0, np.nan)
+            return ratio.fillna(0.0)
+        if market_cap == 0:
+            return 0.0
+        return earnings / market_cap
 
     def cash_flow_yield(self, cash_flow: pd.Series, prices: pd.Series) -> np.ndarray:
         """现金流收益率"""
@@ -145,8 +195,12 @@ class AlphaFactorLibrary:
         """净资产收益率"""
         return net_income / equity
 
-    def roa(self, net_income: pd.Series, assets: pd.Series) -> np.ndarray:
-        """总资产收益率"""
+    def roa(self, net_income: pd.Series | dict | float, assets: pd.Series | float | None = None) -> np.ndarray | float:
+        """总资产收益率."""
+        if assets is None and isinstance(net_income, (dict, pd.Series)):
+            return float(self._get_field(net_income, "roa", default=0.0))
+        if assets is None:
+            raise ValueError("assets must be provided when net_income is numeric")
         return net_income / assets
 
     def profit_margin(self, net_income: pd.Series, revenue: pd.Series) -> np.ndarray:
@@ -165,32 +219,53 @@ class AlphaFactorLibrary:
         """应计项目"""
         return (net_income - cash_flow) / assets
 
-    def piotroski_f_score(self, fundamentals: dict) -> np.ndarray:
-        """Piotroski F-Score (9分制质量评分)"""
-        score = 0
+    def piotroski_f_score(self, fundamentals: dict | pd.Series) -> int | pd.Series:
+        """Compute the Piotroski F-Score.
 
-        # 盈利能力（4分）
-        score += (fundamentals["roa"] > 0).astype(int)
-        score += (fundamentals["cash_flow"] > 0).astype(int)
-        score += (fundamentals["roa_change"] > 0).astype(int)
-        score += (fundamentals["accruals"] < 0).astype(int)
+        The helper accepts both scalar dictionaries (used in the tests) and
+        vectorised pandas objects.  The output mirrors the input type – an
+        integer for scalars or a :class:`~pandas.Series` for vector inputs.
+        """
 
-        # 杠杆、流动性（3分）
-        score += (fundamentals["leverage_change"] < 0).astype(int)
-        score += (fundamentals["liquidity_change"] > 0).astype(int)
-        score += (fundamentals["equity_offering"] == 0).astype(int)
+        keys = {
+            "roa": 0.0,
+            "cash_flow": 0.0,
+            "delta_roa": 0.0,
+            "accruals": 0.0,
+            "delta_leverage": 0.0,
+            "delta_liquidity": 0.0,
+            "equity_offering": 0.0,
+            "delta_margin": 0.0,
+            "delta_turnover": 0.0,
+        }
 
-        # 运营效率（2分）
-        score += (fundamentals["margin_change"] > 0).astype(int)
-        score += (fundamentals["turnover_change"] > 0).astype(int)
+        series_values = {k: self._ensure_series(self._get_field(fundamentals, k, v)) for k, v in keys.items()}
 
-        return score
+        score = (
+            (series_values["roa"] > 0).astype(int)
+            + (series_values["cash_flow"] > 0).astype(int)
+            + (series_values["delta_roa"] > 0).astype(int)
+            + (series_values["accruals"] < 0).astype(int)
+            + (series_values["delta_leverage"] < 0).astype(int)
+            + (series_values["delta_liquidity"] > 0).astype(int)
+            + (series_values["equity_offering"] == 0).astype(int)
+            + (series_values["delta_margin"] > 0).astype(int)
+            + (series_values["delta_turnover"] > 0).astype(int)
+        )
+
+        score = score.fillna(0).astype(int)
+        return int(score.iloc[0]) if len(score) == 1 else score
 
     # ==================== 波动率因子 ====================
 
     def realized_volatility(self, returns: pd.Series, window: int = 20) -> np.ndarray:
         """已实现波动率"""
         return returns.rolling(window=window).std() * np.sqrt(252)
+
+    def volatility_60d(self, prices: pd.Series) -> pd.Series:
+        """60日历史波动率."""
+        returns = prices.pct_change(fill_method=None)
+        return returns.rolling(window=60).std() * np.sqrt(252)
 
     def idiosyncratic_volatility(self, returns: pd.Series, market_returns: pd.Series,
                                  window: int = 60) -> np.ndarray:
@@ -248,6 +323,29 @@ class AlphaFactorLibrary:
         dollar_vol = volumes * prices
         return dollar_vol.rolling(window=window).mean()
 
+    def volume_20d(self, volume: pd.Series) -> pd.Series:
+        """20日平均成交量."""
+        return volume.rolling(window=20).mean()
+
+    def turnover_20d(self, volume: pd.Series, prices: pd.Series, market_cap: float | pd.Series) -> pd.Series:
+        """20日平均换手率."""
+        shares_outstanding = (market_cap / prices).replace([0, np.inf, -np.inf], np.nan)
+        daily_turnover = volume / shares_outstanding
+        return daily_turnover.replace([np.inf, -np.inf], np.nan).rolling(window=20).mean().fillna(0.0)
+
+    def atr_14d(self, ohlcv: pd.DataFrame) -> pd.Series:
+        """14日平均真实波幅."""
+        high = ohlcv["High"]
+        low = ohlcv["Low"]
+        close = ohlcv["Close"]
+        prev_close = close.shift(1)
+        true_range = pd.concat([
+            high - low,
+            (high - prev_close).abs(),
+            (low - prev_close).abs(),
+        ], axis=1).max(axis=1)
+        return true_range.rolling(window=14).mean()
+
     def bid_ask_spread(self, bid: pd.Series, ask: pd.Series,
                        mid: pd.Series) -> np.ndarray:
         """买卖价差"""
@@ -304,61 +402,114 @@ class AlphaFactorLibrary:
 
     # ==================== 组合因子 ====================
 
-    def compute_all_factors(self, data: dict[str, pd.Series]) -> pd.DataFrame:
-        """
-        计算所有因子
+    def rsi_14d(self, prices: pd.Series) -> pd.Series:
+        """14日相对强弱指标."""
+        delta = prices.diff()
+        up = delta.clip(lower=0)
+        down = -delta.clip(upper=0)
+        avg_gain = up.ewm(alpha=1 / 14, adjust=False).mean()
+        avg_loss = down.ewm(alpha=1 / 14, adjust=False).mean()
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        rsi = 100 - (100 / (1 + rs))
+        return rsi.clip(0, 100).bfill()
 
-        Args:
-            data: 包含价格、成交量、基本面等数据的字典
+    def macd(self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> tuple[pd.Series, pd.Series]:
+        """MACD指标 (fast EMA - slow EMA)."""
+        ema_fast = prices.ewm(span=fast, adjust=False).mean()
+        ema_slow = prices.ewm(span=slow, adjust=False).mean()
+        macd_line = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+        return macd_line, signal_line
 
-        Returns:
-            因子矩阵 DataFrame
-        """
-        factors = {}
+    def normalize_factor(self, factor: pd.Series | np.ndarray) -> pd.Series:
+        series = factor if isinstance(factor, pd.Series) else pd.Series(factor)
+        mean = series.mean(skipna=True)
+        std = series.std(skipna=True)
+        if std == 0 or np.isnan(std):
+            return series - mean
+        return (series - mean) / std
 
-        # 动量因子
-        if "close" in data:
-            factors["mom_1m"] = self.momentum_1m(data["close"])
-            factors["mom_3m"] = self.momentum_3m(data["close"])
-            factors["mom_6m"] = self.momentum_6m(data["close"])
-            factors["mom_12m"] = self.momentum_12m(data["close"])
-            factors["mom_52w_high"] = self.momentum_52w_high(data["close"])
+    def rank_by_factor(self, factor_data: pd.Series, ascending: bool = True) -> pd.Series:
+        ranked = factor_data.rank(ascending=ascending, method="dense")
+        return ranked.astype(int)
 
-        # 反转因子
-        if "close" in data:
-            factors["rev_1d"] = self.reversal_1d(data["close"])
-            factors["rev_5d"] = self.reversal_5d(data["close"])
-            factors["rev_20d"] = self.reversal_20d(data["close"])
+    def create_composite_factor(self, factors: dict[str, pd.Series], weights: dict[str, float] | None = None) -> pd.Series:
+        if not factors:
+            return pd.Series(dtype=float)
+        aligned = pd.DataFrame(factors)
+        if weights is None:
+            weights = {name: 1 / len(aligned.columns) for name in aligned.columns}
+        weight_series = pd.Series(weights)
+        weight_series = weight_series.reindex(aligned.columns).fillna(0)
+        composite = aligned.multiply(weight_series).sum(axis=1)
+        return composite
 
-        if "open" in data and "close" in data:
-            factors["rev_overnight"] = self.overnight_reversal(data["open"], data["close"])
+    def compute_all_factors(self, data: dict[str, dict[str, Any]]) -> dict[str, pd.DataFrame]:
+        """Compute a broad set of factors for each symbol in *data*."""
 
-        # 波动率因子
-        if "close" in data:
-            returns = data["close"].pct_change()
-            factors["vol_realized"] = self.realized_volatility(returns)
-            factors["vol_downside"] = self.downside_volatility(returns)
+        results: dict[str, pd.DataFrame] = {}
 
-        # 流动性因子
-        if "volume" in data and "close" in data:
-            returns = data["close"].pct_change()
-            factors["illiq_amihud"] = self.amihud_illiquidity(returns, data["volume"])
-            factors["liquidity_dollar_vol"] = self.dollar_volume(data["volume"], data["close"])
+        for symbol, symbol_data in data.items():
+            prices: pd.Series | None = symbol_data.get("prices")
+            volume: pd.Series | None = symbol_data.get("volume")
+            ohlcv: pd.DataFrame | None = symbol_data.get("ohlcv")
+            fundamentals = symbol_data.get("fundamentals")
 
-        # 价值因子
-        if "earnings" in data and "close" in data:
-            factors["value_ep"] = self.earnings_yield(data["earnings"], data["close"])
+            factor_columns: dict[str, pd.Series] = {}
 
-        if "book_value" in data and "market_cap" in data:
-            factors["value_bm"] = self.book_to_market(data["book_value"], data["market_cap"])
+            if prices is not None:
+                factor_columns["momentum_1m"] = self.momentum_1m(prices)
+                factor_columns["momentum_3m"] = self.momentum_3m(prices)
+                factor_columns["momentum_6m"] = self.momentum_6m(prices)
+                factor_columns["momentum_12m"] = self.momentum_12m(prices)
+                factor_columns["reversal_5d"] = self.reversal_5d(prices)
+                factor_columns["volatility_60d"] = self.volatility_60d(prices)
+                factor_columns["rsi_14d"] = self.rsi_14d(prices)
+                macd_line, signal_line = self.macd(prices)
+                factor_columns["macd"] = macd_line
+                factor_columns["macd_signal"] = signal_line
 
-        # 转换为DataFrame
-        factor_df = pd.DataFrame(factors)
+            if ohlcv is not None:
+                factor_columns["atr_14d"] = self.atr_14d(ohlcv)
 
-        # 标准化
-        factor_df = factor_df.apply(lambda x: (x - x.mean()) / x.std())
+            if prices is not None and volume is not None:
+                factor_columns["volume_20d"] = self.volume_20d(volume)
+                market_cap = self._get_field(fundamentals, "market_cap", default=0.0)
+                if market_cap:
+                    factor_columns["turnover_20d"] = self.turnover_20d(volume, prices, market_cap)
 
-        return factor_df
+            if fundamentals is not None:
+                if prices is not None:
+                    index = prices.index
+                    book_value = self.book_to_price(fundamentals)
+                    earnings_value = self.earnings_to_price(fundamentals)
+                    f_score = self.piotroski_f_score(fundamentals)
+
+                    factor_columns["book_to_price"] = (
+                        self._ensure_series(book_value)
+                        .reindex(index, method="ffill")
+                        .bfill()
+                    ) if isinstance(book_value, (pd.Series, np.ndarray)) else pd.Series(book_value, index=index)
+                    factor_columns["earnings_to_price"] = (
+                        self._ensure_series(earnings_value)
+                        .reindex(index, method="ffill")
+                        .bfill()
+                    ) if isinstance(earnings_value, (pd.Series, np.ndarray)) else pd.Series(earnings_value, index=index)
+                    factor_columns["piotroski_f_score"] = (
+                        self._ensure_series(f_score)
+                        .reindex(index, method="ffill")
+                        .bfill()
+                    ) if isinstance(f_score, (pd.Series, np.ndarray)) else pd.Series(f_score, index=index)
+                else:
+                    factor_columns["book_to_price"] = self._ensure_series(self.book_to_price(fundamentals))
+                    factor_columns["earnings_to_price"] = self._ensure_series(self.earnings_to_price(fundamentals))
+                    factor_columns["piotroski_f_score"] = self._ensure_series(self.piotroski_f_score(fundamentals))
+
+            df = pd.DataFrame(factor_columns)
+            df = df.dropna(axis=1, how="all")
+            results[symbol] = df
+
+        return results
 
     def calculate_factor_ic(self, factor_values: np.ndarray,
                            forward_returns: np.ndarray,
@@ -505,7 +656,7 @@ if __name__ == "__main__":
     print(factors.describe())
 
     # 计算因子IC
-    forward_returns = data["close"].pct_change().shift(-1)
+    forward_returns = data["close"].pct_change(fill_method=None).shift(-1)
     print("\n\n因子IC值:")
     for col in factors.columns[:5]:  # 只显示前5个
         ic = factor_lib.calculate_factor_ic(

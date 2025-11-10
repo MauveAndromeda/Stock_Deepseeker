@@ -13,12 +13,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+import os
+import shutil
 import threading
 import time
 from typing import Any
 
 from loguru import logger
-import psutil
+
+try:  # pragma: no cover - optional dependency
+    import psutil
+except ImportError:  # pragma: no cover - optional dependency
+    psutil = None
 
 
 class HealthStatus(Enum):
@@ -81,12 +87,21 @@ class HealthCheckFunction:
 
             response_time = (time.time() - start_time) * 1000  # ms
 
-            if result:
-                status = HealthStatus.HEALTHY
-                message = "Check passed"
+            if isinstance(result, HealthStatus):
+                status = result
+                message = {
+                    HealthStatus.HEALTHY: "Check passed",
+                    HealthStatus.DEGRADED: "Check degraded",
+                    HealthStatus.UNKNOWN: "Check status unknown",
+                    HealthStatus.UNHEALTHY: "Check failed",
+                }[status]
             else:
-                status = HealthStatus.UNHEALTHY
-                message = "Check failed"
+                if result:
+                    status = HealthStatus.HEALTHY
+                    message = "Check passed"
+                else:
+                    status = HealthStatus.UNHEALTHY
+                    message = "Check failed"
 
             # Get details if available
             details = {}
@@ -109,7 +124,7 @@ class HealthCheckFunction:
             return HealthCheck(
                 name=self.name,
                 status=HealthStatus.UNHEALTHY,
-                message=f"Check timed out after {self.timeout_seconds}s",
+                message=f"Check timeout after {self.timeout_seconds}s",
                 timestamp=datetime.now(),
                 response_time_ms=(time.time() - start_time) * 1000,
                 details={}
@@ -125,25 +140,29 @@ class HealthCheckFunction:
             )
 
     def _run_with_timeout(self) -> bool:
-        """Run check function with timeout."""
-        import signal
+        """Run check function with timeout using a worker thread."""
+        result_container: dict[str, Any] = {}
+        exception_container: dict[str, BaseException] = {}
 
-        def timeout_handler(signum: int, frame: Any) -> None:
-            raise TimeoutError
-
-        # Set timeout (Unix only)
-        try:
-            old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(int(self.timeout_seconds))
+        def target() -> None:
             try:
-                result = self.check_func()
-            finally:
-                signal.alarm(0)
-                signal.signal(signal.SIGALRM, old_handler)
-            return result
-        except AttributeError:
-            # Windows doesn't have SIGALRM, just run without timeout
-            return self.check_func()
+                result_container["result"] = self.check_func()
+            except BaseException as exc:  # pragma: no cover - defensive
+                exception_container["exception"] = exc
+
+        worker = threading.Thread(target=target, daemon=True)
+        worker.start()
+        worker.join(self.timeout_seconds)
+
+        if worker.is_alive():
+            raise TimeoutError(
+                f"{self.name} exceeded {self.timeout_seconds} seconds"
+            )
+
+        if exception_container:
+            raise exception_container["exception"]
+
+        return result_container.get("result", False)
 
 
 class HealthChecker:
@@ -175,6 +194,57 @@ class HealthChecker:
 
     def _register_system_checks(self) -> None:
         """Register default system health checks."""
+        if psutil is None:
+            logger.warning(
+                "psutil is not available; registering degraded system health checks"
+            )
+
+            def cpu_details() -> dict[str, Any]:
+                try:
+                    load1, load5, load15 = os.getloadavg()
+                except OSError:
+                    load1 = load5 = load15 = 0.0
+                return {
+                    "psutil_available": False,
+                    "load_average": {
+                        "1m": load1,
+                        "5m": load5,
+                        "15m": load15,
+                    },
+                }
+
+            def memory_details() -> dict[str, Any]:
+                return {"psutil_available": False}
+
+            def disk_details() -> dict[str, Any]:
+                usage = shutil.disk_usage("/")
+                percent = usage.used / usage.total * 100 if usage.total else 0.0
+                return {
+                    "psutil_available": False,
+                    "disk_percent": percent,
+                    "disk_total_gb": usage.total / (1024**3),
+                    "disk_free_gb": usage.free / (1024**3),
+                }
+
+            self.register_check(
+                "system_cpu",
+                lambda: HealthStatus.DEGRADED,
+                details_func=cpu_details,
+            )
+
+            self.register_check(
+                "system_memory",
+                lambda: HealthStatus.DEGRADED,
+                details_func=memory_details,
+            )
+
+            self.register_check(
+                "system_disk",
+                lambda: HealthStatus.DEGRADED,
+                details_func=disk_details,
+            )
+            return
+
         # CPU check
         self.register_check(
             "system_cpu",

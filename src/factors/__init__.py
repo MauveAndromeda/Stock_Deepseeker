@@ -194,6 +194,25 @@ class VectorizedFactorEngine:
             "cache_misses": 0,
         }
 
+        if not factors:
+            self._register_default_factors()
+
+    def _register_default_factors(self) -> None:
+        """Register a handful of commonly used factors for convenience."""
+        try:
+            from .momentum import PriceMomentum
+        except Exception:  # pragma: no cover - optional dependency chain
+            return
+
+        default_factors: dict[str, Factor] = {
+            "momentum_12m": PriceMomentum(lookback=252, skip=21),
+        }
+
+        for alias, factor in default_factors.items():
+            if factor.metadata.name not in self.factors:
+                self.register_factor(factor)
+            self.factors.setdefault(alias, factor)
+
     def register_factor(self, factor: Factor) -> None:
         """
         Register a factor.

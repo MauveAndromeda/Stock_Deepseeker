@@ -3,8 +3,9 @@
 用于识别不同的市场状态并动态调整策略
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 from hmmlearn import hmm
 import numpy as np
@@ -14,7 +15,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
 
-class MarketRegime(Enum):
+class MarketRegime(str, Enum):
     """市场regime类型"""
     TRENDING_BULL = "trending_bull"          # 牛市趋势
     TRENDING_BEAR = "trending_bear"          # 熊市趋势
@@ -34,6 +35,41 @@ class RegimeState:
     timestamp: pd.Timestamp
 
 
+@dataclass
+class RegimeParameters:
+    """Normalized parameter container used by the tests."""
+
+    max_position: float
+    stop_loss: float
+    take_profit: float
+    leverage: float
+    rebalance_frequency: int = 5
+    extra: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not (0 < self.max_position <= 1):
+            raise ValueError("max_position must be within (0, 1]")
+        if not (0 < self.stop_loss <= 1):
+            raise ValueError("stop_loss must be within (0, 1]")
+        if self.take_profit <= 0:
+            raise ValueError("take_profit must be positive")
+        if not (0 < self.leverage <= 3):
+            raise ValueError("leverage must be within (0, 3]")
+        if self.rebalance_frequency <= 0:
+            raise ValueError("rebalance_frequency must be positive")
+
+    def to_dict(self) -> dict[str, Any]:
+        data = {
+            "max_position": self.max_position,
+            "stop_loss": self.stop_loss,
+            "take_profit": self.take_profit,
+            "leverage": self.leverage,
+            "rebalance_frequency": self.rebalance_frequency,
+        }
+        data.update(self.extra)
+        return data
+
+
 class MarketRegimeDetector:
     """市场Regime检测器 - 多方法集成"""
 
@@ -49,6 +85,20 @@ class MarketRegimeDetector:
         self.current_regime = None
         self.regime_history = []
 
+    @staticmethod
+    def _get_series(market_data: pd.DataFrame, column: str) -> pd.Series:
+        """Fetch a column ignoring case differences."""
+
+        if column in market_data.columns:
+            return market_data[column]
+
+        lower_map = {col.lower(): col for col in market_data.columns}
+        key = column.lower()
+        if key in lower_map:
+            return market_data[lower_map[key]]
+
+        raise KeyError(f"Column '{column}' not found in market data")
+
     # ==================== 方法1: 规则基检测 ====================
 
     def rule_based_detection(self, market_data: pd.DataFrame) -> MarketRegime:
@@ -61,62 +111,46 @@ class MarketRegimeDetector:
         Returns:
             检测到的regime
         """
-        prices = market_data["close"]
-        returns = prices.pct_change()
+        prices = self._get_series(market_data, "close").dropna()
+        if len(prices) < 60:
+            return MarketRegime.RANGING_LOW_VOL
 
-        # 计算关键指标
-        # 1. 趋势强度
-        ma_20 = prices.rolling(20).mean()
-        ma_50 = prices.rolling(50).mean()
-        ma_200 = prices.rolling(200).mean()
+        returns = prices.pct_change().dropna()
+        if returns.empty:
+            return MarketRegime.RANGING_LOW_VOL
 
-        current_price = prices.iloc[-1]
-        trend_strength = (current_price - ma_200.iloc[-1]) / ma_200.iloc[-1]
+        trend_strength = self._calculate_trend(prices)
+        short_momentum = returns.tail(20).mean()
+        long_momentum = returns.tail(60).mean()
 
-        # 2. 波动率
-        realized_vol = returns.rolling(20).std() * np.sqrt(252)
-        current_vol = realized_vol.iloc[-1]
-        avg_vol = realized_vol.mean()
+        current_vol = self._calculate_volatility(prices)
+        historical_vol = returns.rolling(60).std().dropna()
+        avg_vol = (historical_vol.mean() * np.sqrt(252)) if not historical_vol.empty else current_vol
+        vol_ratio = current_vol / avg_vol if avg_vol else 1.0
 
-        # 3. 动量
-        momentum_20 = (current_price - prices.iloc[-20]) / prices.iloc[-20]
-        momentum_60 = (current_price - prices.iloc[-60]) / prices.iloc[-60]
+        drawdown = (prices / prices.cummax() - 1).min()
 
-        # 4. 最大回撤
-        cummax = prices.cummax()
-        drawdown = (prices - cummax) / cummax
-        max_drawdown = drawdown.min()
+        if current_vol > 0.6:
+            return MarketRegime.RANGING_HIGH_VOL
 
-        # 规则判断
-        if trend_strength > 0.1 and momentum_60 > 0.15 and current_vol < avg_vol * 1.2:
-            # 强势上涨 + 低波动
-            regime = MarketRegime.TRENDING_BULL
+        if trend_strength > 0.0005 and long_momentum > 0 and vol_ratio <= 1.3:
+            return MarketRegime.TRENDING_BULL
 
-        elif trend_strength < -0.1 and momentum_60 < -0.15:
-            # 强势下跌
-            if current_vol > avg_vol * 2.0:
-                regime = MarketRegime.VOLATILE_CRASH
-            else:
-                regime = MarketRegime.TRENDING_BEAR
+        if trend_strength < -0.0005 and long_momentum < 0:
+            if vol_ratio > 1.5:
+                return MarketRegime.VOLATILE_CRASH
+            return MarketRegime.TRENDING_BEAR
 
-        elif abs(trend_strength) < 0.05 and abs(momentum_20) < 0.05:
-            # 横盘震荡
-            if current_vol > avg_vol * 1.5:
-                regime = MarketRegime.RANGING_HIGH_VOL
-            else:
-                regime = MarketRegime.RANGING_LOW_VOL
+        if abs(trend_strength) < 0.0003 and abs(short_momentum) < 0.001:
+            return MarketRegime.RANGING_HIGH_VOL if vol_ratio > 1.2 else MarketRegime.RANGING_LOW_VOL
 
-        elif trend_strength > 0.05 and max_drawdown > -0.20:
-            # 从底部反弹
-            regime = MarketRegime.VOLATILE_RECOVERY
+        if trend_strength > 0 and drawdown > -0.25:
+            return MarketRegime.VOLATILE_RECOVERY
 
-        # 默认：震荡市
-        elif current_vol > avg_vol * 1.2:
-            regime = MarketRegime.RANGING_HIGH_VOL
-        else:
-            regime = MarketRegime.RANGING_LOW_VOL
+        if vol_ratio > 1.3:
+            return MarketRegime.RANGING_HIGH_VOL
 
-        return regime
+        return MarketRegime.RANGING_LOW_VOL
 
     # ==================== 方法2: 隐马尔可夫模型 ====================
 
@@ -163,9 +197,12 @@ class MarketRegimeDetector:
 
     def _prepare_features(self, market_data: pd.DataFrame) -> np.ndarray:
         """准备HMM特征"""
-        prices = market_data["close"]
+        prices = self._get_series(market_data, "close")
         returns = prices.pct_change()
-        volumes = market_data.get("volume", pd.Series([1] * len(prices)))
+        try:
+            volumes = self._get_series(market_data, "volume")
+        except KeyError:
+            volumes = pd.Series([1] * len(prices), index=prices.index)
 
         # 特征工程
         features = pd.DataFrame({
@@ -270,8 +307,11 @@ class MarketRegimeDetector:
 
     # ==================== 集成方法 ====================
 
-    def detect_regime(self, market_data: pd.DataFrame,
-                     method: str = "ensemble") -> RegimeState:
+    def detect_regime(
+        self,
+        market_data: pd.DataFrame,
+        method: str = "ensemble"
+    ) -> MarketRegime:
         """
         检测市场regime
 
@@ -280,21 +320,23 @@ class MarketRegimeDetector:
             method: 检测方法 ('rule', 'hmm', 'clustering', 'ensemble')
 
         Returns:
-            RegimeState对象
+            MarketRegime枚举值
         """
-        if method == "rule":
+        normalized_method = method.lower()
+
+        if normalized_method in {"rule", "rule_based"}:
             regime = self.rule_based_detection(market_data)
             confidence = 0.7
 
-        elif method == "hmm":
+        elif normalized_method == "hmm":
             regime = self.hmm_detection(market_data)
             confidence = 0.75
 
-        elif method == "clustering":
+        elif normalized_method == "clustering":
             regime = self.clustering_detection(market_data)
             confidence = 0.7
 
-        elif method == "ensemble":
+        elif normalized_method == "ensemble":
             # 集成三种方法
             regimes = [
                 self.rule_based_detection(market_data),
@@ -313,26 +355,28 @@ class MarketRegimeDetector:
         else:
             raise ValueError(f"Unknown method: {method}")
 
-        # 计算持续时间
-        duration = self._calculate_duration(regime)
+        state = self._create_state(regime, confidence, market_data)
+        self.current_regime = regime
+        self.regime_history.append(state)
 
-        # 提取特征
+        return regime
+
+    def _create_state(
+        self,
+        regime: MarketRegime,
+        confidence: float,
+        market_data: pd.DataFrame
+    ) -> RegimeState:
+        duration = self._calculate_duration(regime)
         characteristics = self._extract_characteristics(market_data)
 
-        # 创建状态对象
-        state = RegimeState(
+        return RegimeState(
             regime=regime,
             confidence=confidence,
             duration=duration,
             characteristics=characteristics,
-            timestamp=market_data.index[-1]
+            timestamp=market_data.index[-1],
         )
-
-        # 更新历史
-        self.current_regime = regime
-        self.regime_history.append(state)
-
-        return state
 
     def _calculate_duration(self, regime: MarketRegime) -> int:
         """计算regime持续时间"""
@@ -350,7 +394,7 @@ class MarketRegimeDetector:
 
     def _extract_characteristics(self, market_data: pd.DataFrame) -> dict[str, float]:
         """提取regime特征"""
-        prices = market_data["close"]
+        prices = self._get_series(market_data, "close")
         returns = prices.pct_change()
 
         return {
@@ -361,6 +405,33 @@ class MarketRegimeDetector:
             "skewness": stats.skew(returns.dropna()),
             "kurtosis": stats.kurtosis(returns.dropna())
         }
+
+    def _calculate_trend(self, prices: pd.Series) -> float:
+        """Calculate normalized price trend using linear regression."""
+
+        if len(prices) < 2:
+            return 0.0
+
+        x = np.arange(len(prices))
+        try:
+            slope, _ = np.polyfit(x, prices.values, 1)
+        except np.linalg.LinAlgError:
+            return 0.0
+        baseline = np.mean(prices.values)
+        if baseline == 0:
+            return 0.0
+        return slope / baseline
+
+    def _calculate_volatility(self, prices: pd.Series) -> float:
+        """Annualized volatility helper used in tests."""
+
+        if len(prices) < 2:
+            return 0.0
+
+        returns = prices.pct_change().dropna()
+        if returns.empty:
+            return 0.0
+        return returns.std() * np.sqrt(252)
 
     # ==================== Regime特定策略参数 ====================
 
@@ -430,7 +501,21 @@ class MarketRegimeDetector:
             },
         }
 
-        return params.get(regime, params[MarketRegime.RANGING_LOW_VOL])
+        selected = params.get(regime, params[MarketRegime.RANGING_LOW_VOL])
+
+        core_keys = {"max_position", "stop_loss", "take_profit", "leverage"}
+        extra = {k: v for k, v in selected.items() if k not in core_keys | {"rebalance_frequency"}}
+
+        normalized = RegimeParameters(
+            max_position=selected["max_position"],
+            stop_loss=selected["stop_loss"],
+            take_profit=selected["take_profit"],
+            leverage=selected["leverage"],
+            rebalance_frequency=selected.get("rebalance_frequency", 5),
+            extra=extra,
+        )
+
+        return normalized.to_dict()
 
     def get_regime_statistics(self) -> pd.DataFrame:
         """获取regime统计信息"""
@@ -490,9 +575,10 @@ if __name__ == "__main__":
 
     # 检测regime
     print("检测市场regime...")
-    state = detector.detect_regime(market_data, method="ensemble")
+    regime = detector.detect_regime(market_data, method="ensemble")
+    state = detector.regime_history[-1]
 
-    print(f"\n当前Regime: {state.regime.value}")
+    print(f"\n当前Regime: {regime.value}")
     print(f"置信度: {state.confidence:.2%}")
     print(f"持续时间: {state.duration} 天")
     print("\n特征:")
@@ -510,7 +596,4 @@ if __name__ == "__main__":
     print("\nRegime统计:")
     print(stats.tail())
 
-
-# Aliases for backward compatibility
-RegimeParameters = RegimeState
 

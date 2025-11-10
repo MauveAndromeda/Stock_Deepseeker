@@ -20,13 +20,15 @@ class AverageDollarVolume(Factor):
     Higher volume = better liquidity
     """
 
-    def __init__(self, lookback: int = 20) -> None:
+    def __init__(self, lookback: int = 20, *, window: int | None = None) -> None:
         """
         Initialize average dollar volume factor.
 
         Args:
             lookback: Lookback period
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"avg_dollar_volume_{lookback}d",
             category=FactorCategory.LIQUIDITY,
@@ -69,13 +71,15 @@ class ShareTurnover(Factor):
     Higher turnover = better liquidity
     """
 
-    def __init__(self, lookback: int = 20) -> None:
+    def __init__(self, lookback: int = 20, *, window: int | None = None) -> None:
         """
         Initialize share turnover factor.
 
         Args:
             lookback: Lookback period for averaging
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"share_turnover_{lookback}d",
             category=FactorCategory.LIQUIDITY,
