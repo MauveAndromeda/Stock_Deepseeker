@@ -2,6 +2,41 @@
 
 A **research-grade** quantitative trading framework for backtesting and strategy development.
 
+## 🚀 Quickstart (Windows - ZIP Workflow)
+
+**Download → Extract → Run in 3 commands:**
+
+```powershell
+# 1. Download ZIP from GitHub and extract
+# 2. Open terminal in extracted folder
+# 3. Run the portable backtest:
+
+python .\一键回测_portable.py --mode fast --years 3
+```
+
+**That's it!** The script will:
+- ✅ Automatically create virtual environment (`.venv/`)
+- ✅ Install minimal dependencies (2-3 minutes first time)
+- ✅ Download market data (Yahoo Finance with Stooq fallback)
+- ✅ Run backtest using simple SMA strategy
+- ✅ Generate JSON report in `backtest_reports/`
+
+**Advanced features (optional):**
+```powershell
+# Enable AI-powered strategies (requires OpenAI API key)
+python .\一键回测_portable.py --mode fast --ai
+
+# Quick test with 1 year, 2 stocks
+python .\一键回测_portable.py --mode turbo --years 1 --symbols AAPL MSFT
+
+# Custom symbols
+python .\一键回测_portable.py --symbols AAPL GOOGL NVDA TSLA
+```
+
+**⚠️ Path Length Note:** If you see warnings about long paths or parentheses, move the folder to a shorter location (e.g., `C:\Stock_Deepseeker\`)
+
+---
+
 ## ⚠️ Project Status: Under Development
 
 This is an **active research project** focused on building a solid quantitative trading infrastructure. It is **NOT production-ready** and should **NOT be used for live trading** without substantial additional work.
