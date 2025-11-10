@@ -48,7 +48,7 @@ dependencies = [
     "hmmlearn>=0.3.0",  # Hidden Markov Models for regime detection
 
     # Financial Data
-    "yfinance>=0.2.28,<0.2.40",  # Pin to avoid multitasking build issues
+    "yfinance>=0.2.40",  # >=0.2.40 fixes f-string syntax error in Python 3.11+
     "pandas-market-calendars>=4.3.0",
     "exchange-calendars>=4.5.0",
     "alpaca-py>=0.8.0",  # Alpaca trading API

@@ -1,0 +1,91 @@
+name: Portable Backtest CI
+
+on:
+  push:
+    branches: [ main, refactor/portable-runner ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke-test:
+    name: Smoke Test - Minimal Backtest
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Display Python version
+      run: python --version
+
+    - name: Install minimal dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-min.txt
+
+    - name: Run portable backtest (turbo mode)
+      run: |
+        python 一键回测_portable.py --mode turbo --years 1 --symbols AAPL MSFT
+      timeout-minutes: 10
+
+    - name: Check report generation
+      run: |
+        ls -la backtest_reports/
+        test -f backtest_reports/report_*.json
+        echo "✓ Report file exists"
+
+    - name: Display report summary
+      run: |
+        cat backtest_reports/report_*.json | head -30
+
+    - name: Upload backtest report
+      uses: actions/upload-artifact@v4
+      with:
+        name: backtest-report-py${{ matrix.python-version }}
+        path: backtest_reports/*.json
+        retention-days: 7
+
+  test-windows:
+    name: Windows Compatibility Test
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install minimal dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-min.txt
+
+    - name: Run portable backtest
+      run: |
+        python 一键回测_portable.py --mode turbo --years 1 --symbols AAPL
+      timeout-minutes: 10
+
+    - name: Verify report
+      run: |
+        dir backtest_reports\
+        if (!(Test-Path "backtest_reports\report_*.json")) { exit 1 }
+        Write-Host "✓ Report generated on Windows"
+
+    - name: Upload Windows report
+      uses: actions/upload-artifact@v4
+      with:
+        name: backtest-report-windows
+        path: backtest_reports/*.json
+        retention-days: 7
