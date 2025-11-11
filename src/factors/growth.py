@@ -20,23 +20,30 @@ class RevenueGrowth(Factor):
     Higher growth = better
     """
 
-    def __init__(self, lookback: int = 252) -> None:
+    def __init__(
+        self,
+        lookback: int = 4,
+        *,
+        periods: int | None = None
+    ) -> None:
         """
         Initialize revenue growth factor.
 
         Args:
             lookback: Lookback period (252 = YoY)
         """
+        if periods is not None:
+            lookback = periods
         metadata = FactorMetadata(
-            name=f"revenue_growth_{lookback}d",
+            name=f"revenue_growth_{lookback}p",
             category=FactorCategory.GROWTH,
-            description=f"{lookback}-day revenue growth rate",
+            description=f"{lookback}-period revenue growth rate",
             formula=f"(Revenue_t - Revenue_t-{lookback}) / Revenue_t-{lookback}",
             data_requirements=["revenue"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
-        self.lookback = lookback
+        self.periods = lookback
 
     def calculate(
         self,
@@ -50,12 +57,12 @@ class RevenueGrowth(Factor):
 
         revenue = data["revenue"].unstack(fill_value=np.nan)
 
-        # Calculate TTM revenue
-        revenue_ttm = revenue.rolling(window=4, min_periods=4).sum()
+        window = max(1, self.periods)
+        revenue_ttm = revenue.rolling(window=window, min_periods=window).sum()
 
-        # Calculate growth rate
-        revenue_old = revenue_ttm.shift(periods=4)  # YoY comparison
-        growth = (revenue_ttm - revenue_old) / revenue_old
+        # Calculate growth rate with the requested comparison horizon
+        revenue_old = revenue_ttm.shift(periods=window)
+        growth = (revenue_ttm - revenue_old) / revenue_old.replace(0, np.nan)
 
         result = growth.stack()
 
@@ -73,23 +80,30 @@ class EarningsGrowth(Factor):
     Higher growth = better
     """
 
-    def __init__(self, lookback: int = 252) -> None:
+    def __init__(
+        self,
+        lookback: int = 4,
+        *,
+        periods: int | None = None
+    ) -> None:
         """
         Initialize earnings growth factor.
 
         Args:
             lookback: Lookback period (252 = YoY)
         """
+        if periods is not None:
+            lookback = periods
         metadata = FactorMetadata(
-            name=f"earnings_growth_{lookback}d",
+            name=f"earnings_growth_{lookback}p",
             category=FactorCategory.GROWTH,
-            description=f"{lookback}-day earnings growth rate",
+            description=f"{lookback}-period earnings growth rate",
             formula=f"(Earnings_t - Earnings_t-{lookback}) / Earnings_t-{lookback}",
             data_requirements=["net_income"],
             lookback_period=lookback,
         )
         super().__init__(metadata)
-        self.lookback = lookback
+        self.periods = lookback
 
     def calculate(
         self,
@@ -103,12 +117,12 @@ class EarningsGrowth(Factor):
 
         earnings = data["net_income"].unstack(fill_value=np.nan)
 
-        # Calculate TTM earnings
-        earnings_ttm = earnings.rolling(window=4, min_periods=4).sum()
+        window = max(1, self.periods)
+        earnings_ttm = earnings.rolling(window=window, min_periods=window).sum()
 
-        # Calculate growth rate
-        earnings_old = earnings_ttm.shift(periods=4)  # YoY comparison
-        growth = (earnings_ttm - earnings_old) / earnings_old.abs()
+        # Calculate growth rate for the requested period comparison
+        earnings_old = earnings_ttm.shift(periods=window)
+        growth = (earnings_ttm - earnings_old) / earnings_old.replace(0, np.nan)
 
         result = growth.stack()
 

@@ -5,6 +5,7 @@ Event-driven backtest engine with strict no-lookahead bias enforcement.
 """
 
 from src.backtest.analyzer import PerformanceAnalyzer, TradeAnalyzer
+from src.backtest.engine import BacktestEngine, BacktestResult
 from src.backtest.engine_v2 import BacktestConfig, BacktestEngineV2
 from src.backtest.events import (
     Event,
@@ -21,9 +22,11 @@ from src.backtest.portfolio_v2 import PortfolioV2
 
 # Main exports
 __all__ = [
-    # Core engine
+    # Core engines
+    "BacktestEngine",
     "BacktestEngineV2",
     "BacktestConfig",
+    "BacktestResult",
 
     # Events
     "Event",
@@ -44,6 +47,5 @@ __all__ = [
     "TradeAnalyzer",
 ]
 
-# Backward compatibility aliases
-BacktestEngine = BacktestEngineV2
+# Backward compatibility alias
 Portfolio = PortfolioV2

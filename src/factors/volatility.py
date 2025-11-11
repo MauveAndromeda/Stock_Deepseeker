@@ -20,13 +20,15 @@ class HistoricalVolatility(Factor):
     Lower volatility = less risk (inverted for quality signal)
     """
 
-    def __init__(self, lookback: int = 20) -> None:
+    def __init__(self, lookback: int = 20, *, window: int | None = None) -> None:
         """
         Initialize historical volatility factor.
 
         Args:
             lookback: Lookback period for volatility calculation
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"historical_volatility_{lookback}d",
             category=FactorCategory.VOLATILITY,
@@ -55,8 +57,7 @@ class HistoricalVolatility(Factor):
         # Annualize
         volatility_annual = volatility * np.sqrt(252)
 
-        # Invert for quality signal (lower vol = higher score)
-        result = (-volatility_annual).stack()
+        result = volatility_annual.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]
@@ -72,13 +73,21 @@ class DownsideVolatility(Factor):
     Lower downside vol = better risk profile
     """
 
-    def __init__(self, lookback: int = 20) -> None:
+    def __init__(
+        self,
+        lookback: int = 20,
+        *,
+        window: int | None = None,
+        threshold: float = 0.0
+    ) -> None:
         """
         Initialize downside volatility factor.
 
         Args:
             lookback: Lookback period
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"downside_volatility_{lookback}d",
             category=FactorCategory.VOLATILITY,
@@ -89,6 +98,7 @@ class DownsideVolatility(Factor):
         )
         super().__init__(metadata)
         self.lookback = lookback
+        self.threshold = threshold
 
     def calculate(
         self,
@@ -102,7 +112,7 @@ class DownsideVolatility(Factor):
         returns = closes.pct_change()
 
         # Only keep negative returns
-        downside_returns = returns.copy()
+        downside_returns = (returns - self.threshold).copy()
         downside_returns[downside_returns > 0] = 0
 
         # Calculate rolling downside volatility
@@ -111,8 +121,7 @@ class DownsideVolatility(Factor):
         # Annualize
         downside_vol_annual = downside_vol * np.sqrt(252)
 
-        # Invert for quality signal
-        result = (-downside_vol_annual).stack()
+        result = downside_vol_annual.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]
@@ -128,7 +137,13 @@ class BetaFactor(Factor):
     Lower beta = less systematic risk (inverted for low-beta anomaly)
     """
 
-    def __init__(self, lookback: int = 252, market_symbol: str = "SPY") -> None:
+    def __init__(
+        self,
+        lookback: int = 252,
+        market_symbol: str = "SPY",
+        *,
+        window: int | None = None
+    ) -> None:
         """
         Initialize beta factor.
 
@@ -136,6 +151,8 @@ class BetaFactor(Factor):
             lookback: Lookback period for beta calculation
             market_symbol: Symbol to use as market proxy
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"beta_{lookback}d",
             category=FactorCategory.VOLATILITY,
@@ -174,8 +191,7 @@ class BetaFactor(Factor):
 
         beta = stock_returns.apply(rolling_beta)
 
-        # Invert for low-beta anomaly
-        result = (-beta).stack()
+        result = beta.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]
@@ -245,8 +261,7 @@ class IdiosyncraticVolatility(Factor):
 
         idio_volatility = stock_returns.apply(rolling_idio_vol)
 
-        # Invert for quality signal
-        result = (-idio_volatility).stack()
+        result = idio_volatility.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]
@@ -262,13 +277,15 @@ class MaxDrawdown(Factor):
     Lower drawdown = better risk profile
     """
 
-    def __init__(self, lookback: int = 252) -> None:
+    def __init__(self, lookback: int = 252, *, window: int | None = None) -> None:
         """
         Initialize max drawdown factor.
 
         Args:
             lookback: Lookback period
         """
+        if window is not None:
+            lookback = window
         metadata = FactorMetadata(
             name=f"max_drawdown_{lookback}d",
             category=FactorCategory.VOLATILITY,
@@ -296,8 +313,7 @@ class MaxDrawdown(Factor):
 
         max_dd = closes.apply(calc_max_dd)
 
-        # Invert for quality signal (less negative = better)
-        result = (-max_dd).stack()
+        result = max_dd.stack()
 
         if universe:
             result = result[result.index.get_level_values(1).isin(universe)]

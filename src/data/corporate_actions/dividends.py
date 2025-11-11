@@ -293,7 +293,7 @@ class DividendProcessor(CorporateActionProcessor):
             )
 
         # Fill forward shares held
-        result["shares_held"] = result["shares_held"].fillna(method="ffill")
+        result["shares_held"] = result["shares_held"].ffill()
 
         return result
 

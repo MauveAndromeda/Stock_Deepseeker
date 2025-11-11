@@ -11,7 +11,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Protocol
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AgentCapability(str, Enum):
@@ -74,8 +74,7 @@ class MarketContext(BaseModel):
     # Additional context
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class AgentDecisionOutput(BaseModel):
@@ -86,7 +85,7 @@ class AgentDecisionOutput(BaseModel):
     # Decision
     action: ActionType = Field(description="Recommended action")
     confidence: float = Field(description="Confidence level 0-1", ge=0, le=1)
-    confidence_level: DecisionConfidence = Field(description="Confidence category")
+    confidence_level: DecisionConfidence | None = Field(default=None, description="Confidence category")
 
     # Reasoning
     reasoning: str = Field(description="Decision reasoning")
@@ -105,22 +104,24 @@ class AgentDecisionOutput(BaseModel):
     cost: float | None = None  # API cost if applicable
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @validator("confidence_level", always=True)
-    def set_confidence_level(cls, v, values):
-        """自动设置置信度级别"""
-        if v is not None:
-            return v
+    @model_validator(mode="after")
+    def _set_confidence_level(self) -> "AgentDecisionOutput":
+        """自动根据置信度数值推导置信度级别"""
+        if self.confidence_level is not None:
+            return self
 
-        confidence = values.get("confidence", 0.5)
+        confidence = self.confidence
         if confidence < 0.3:
-            return DecisionConfidence.VERY_LOW
-        if confidence < 0.5:
-            return DecisionConfidence.LOW
-        if confidence < 0.7:
-            return DecisionConfidence.MEDIUM
-        if confidence < 0.85:
-            return DecisionConfidence.HIGH
-        return DecisionConfidence.VERY_HIGH
+            self.confidence_level = DecisionConfidence.VERY_LOW
+        elif confidence < 0.5:
+            self.confidence_level = DecisionConfidence.LOW
+        elif confidence < 0.7:
+            self.confidence_level = DecisionConfidence.MEDIUM
+        elif confidence < 0.85:
+            self.confidence_level = DecisionConfidence.HIGH
+        else:
+            self.confidence_level = DecisionConfidence.VERY_HIGH
+        return self
 
 
 class AgentPerformanceMetrics(BaseModel):

@@ -98,71 +98,82 @@ def create_venv() -> bool:
         return False
 
 def install_dependencies(enable_ai: bool = False, force: bool = False) -> bool:
-    """
-    Install dependencies
+    """Install runtime dependencies inside the managed virtual environment."""
 
-    Args:
-        enable_ai: Install AI dependencies
-        force: Force reinstall
-
-    Returns:
-        True if successful
-    """
     venv_python = get_venv_python()
 
-    # Check if already installed
-    marker = get_venv_path() / ".deps_installed"
-    marker_ai = get_venv_path() / ".deps_ai_installed"
+    base_marker = get_venv_path() / ".deps_installed"
+    data_marker = get_venv_path() / ".deps_data_installed"
+    ai_marker = get_venv_path() / ".deps_ai_installed"
 
+    # Short-circuit if everything is already installed and no force flag is set
     if not force:
-        if marker.exists() and (not enable_ai or marker_ai.exists()):
+        base_ok = base_marker.exists()
+        data_ok = data_marker.exists() or not (PROJECT_ROOT / "requirements-data.txt").exists()
+        ai_ok = (not enable_ai) or ai_marker.exists()
+        if base_ok and data_ok and ai_ok:
             print("✓ Dependencies already installed (use --force-install to reinstall)")
             return True
 
-    # Install minimal dependencies
-    print("\nInstalling minimal dependencies...")
-    print("(This may take 2-3 minutes on first run)")
+    def _install_requirements(req_file: str, marker: Path, optional: bool = False, timeout: int | None = None) -> bool:
+        if not (PROJECT_ROOT / req_file).exists():
+            return True
 
-    try:
-        subprocess.check_call(
-            [str(venv_python), "-m", "pip", "install", "-r", "requirements-min.txt", "-q"],
-            cwd=PROJECT_ROOT,
-            stdout=subprocess.DEVNULL
-        )
-        marker.write_text(f"Installed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print("✓ Minimal dependencies installed")
-
-    except Exception as e:
-        print(f"✗ Failed to install minimal dependencies: {e}")
-        print("\nTry manually:")
-        print(f"  {venv_python} -m pip install -r requirements-min.txt")
-        return False
-
-    # Install AI dependencies if requested
-    if enable_ai:
-        print("\nInstalling AI dependencies...")
-        print("(This may take 5-10 minutes)")
+        args = [
+            str(venv_python),
+            "-m",
+            "pip",
+            "install",
+            "-r",
+            req_file,
+            "-q",
+        ]
 
         try:
             subprocess.check_call(
-                [str(venv_python), "-m", "pip", "install", "-r", "requirements-ai.txt", "-q"],
+                args,
                 cwd=PROJECT_ROOT,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,  # Ignore warnings
-                timeout=600  # 10 minute timeout
+                stderr=subprocess.DEVNULL,
+                timeout=timeout
             )
-            marker_ai.write_text(f"Installed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            print("✓ AI dependencies installed")
-
+            marker.write_text(f"Installed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"✓ Installed requirements from {req_file}")
+            return True
         except subprocess.TimeoutExpired:
-            print("⚠ AI dependency installation timed out")
-            print("  Continuing with minimal mode only...")
-            return True  # Don't fail, just disable AI
+            if optional:
+                print(f"⚠ Installing {req_file} timed out – continuing without these optional packages")
+                return False
+            print(f"✗ Installing {req_file} timed out")
+            return False
+        except subprocess.CalledProcessError as exc:
+            if optional:
+                print(f"⚠ Optional requirements ({req_file}) failed with exit code {exc.returncode}")
+                print("  Synthetic data fallback will be used if live downloads are unavailable.")
+                return False
+            print(f"✗ Failed to install requirements from {req_file}: exit code {exc.returncode}")
+            print(f"  Try manually: {venv_python} -m pip install -r {req_file}")
+            return False
+        except Exception as err:  # pragma: no cover - defensive
+            if optional:
+                print(f"⚠ Optional requirements ({req_file}) could not be installed: {err}")
+                return False
+            print(f"✗ Failed to install requirements from {req_file}: {err}")
+            print(f"  Try manually: {venv_python} -m pip install -r {req_file}")
+            return False
 
-        except Exception as e:
-            print(f"⚠ AI dependencies install failed: {e}")
-            print("  Continuing with minimal mode only...")
-            return True  # Don't fail, just disable AI
+    print("\nInstalling minimal dependencies...")
+    if not _install_requirements("requirements-min.txt", base_marker):
+        return False
+
+    print("\nInstalling optional market data helpers...")
+    _install_requirements("requirements-data.txt", data_marker, optional=True)
+
+    if enable_ai:
+        print("\nInstalling AI dependencies...")
+        success = _install_requirements("requirements-ai.txt", ai_marker, optional=True, timeout=600)
+        if not success:
+            print("  Continuing without AI enhancements – core backtest is unaffected.")
 
     return True
 

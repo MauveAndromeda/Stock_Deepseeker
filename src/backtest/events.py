@@ -52,6 +52,11 @@ class Event:
         """String representation."""
         return f"{self.event_type.value}@{self.timestamp}"
 
+    @property
+    def type(self) -> EventType:
+        """Compatibility alias for legacy code/tests."""
+        return self.event_type
+
 
 @dataclass
 class MarketEvent(Event):
@@ -63,12 +68,19 @@ class MarketEvent(Event):
     Attributes:
         data: Market data for this timestamp
     """
+    symbol: str | None = None
     data: dict[str, Any] = field(default_factory=dict)
 
-    def __init__(self, timestamp: datetime, data: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        timestamp: datetime,
+        symbol: str | None = None,
+        data: dict[str, Any] | None = None
+    ) -> None:
         """Initialize market event."""
         super().__init__(event_type=EventType.MARKET, timestamp=timestamp)
-        self.data = data
+        self.symbol = symbol
+        self.data = data or {}
 
 
 @dataclass
@@ -121,9 +133,9 @@ class OrderEvent(Event):
         metadata: Additional order information
     """
     symbol: str
-    order_type: str  # 'MARKET', 'LIMIT', 'STOP'
+    order_type: OrderType
     quantity: float
-    direction: str  # 'BUY' or 'SELL'
+    side: OrderSide
     price: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -131,20 +143,43 @@ class OrderEvent(Event):
         self,
         timestamp: datetime,
         symbol: str,
-        order_type: str,
+        order_type: OrderType | str,
         quantity: float,
-        direction: str,
+        side: OrderSide | str,
         price: float | None = None,
+        limit_price: float | None = None,
         metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize order event."""
         super().__init__(event_type=EventType.ORDER, timestamp=timestamp)
         self.symbol = symbol
-        self.order_type = order_type
-        self.quantity = abs(quantity)  # Always positive
-        self.direction = direction
-        self.price = price
+        self.order_type = self._coerce_order_type(order_type)
+        self.quantity = abs(float(quantity))  # Always positive
+        self.side = self._coerce_side(side)
+        resolved_price = price if price is not None else limit_price
+        self.price = float(resolved_price) if resolved_price is not None else None
         self.metadata = metadata or {}
+
+    @staticmethod
+    def _coerce_order_type(order_type: OrderType | str) -> OrderType:
+        if isinstance(order_type, OrderType):
+            return order_type
+        if isinstance(order_type, str):
+            return OrderType(order_type.lower())
+        raise TypeError("order_type must be an OrderType or string value")
+
+    @staticmethod
+    def _coerce_side(side: OrderSide | str) -> OrderSide:
+        if isinstance(side, OrderSide):
+            return side
+        if isinstance(side, str):
+            return OrderSide(side.lower())
+        raise TypeError("side must be an OrderSide or string value")
+
+    @property
+    def direction(self) -> str:
+        """Backwards compatible direction string."""
+        return self.side.value.upper()
 
 
 @dataclass
@@ -165,10 +200,10 @@ class FillEvent(Event):
     """
     symbol: str
     quantity: float
-    fill_price: float
+    price: float
     commission: float
     slippage: float
-    direction: str
+    side: OrderSide
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __init__(
@@ -176,26 +211,28 @@ class FillEvent(Event):
         timestamp: datetime,
         symbol: str,
         quantity: float,
-        fill_price: float,
+        price: float,
         commission: float,
-        slippage: float,
-        direction: str,
+        slippage: float = 0.0,
+        side: OrderSide | str = OrderSide.BUY,
         metadata: dict[str, Any] | None = None
     ) -> None:
         """Initialize fill event."""
         super().__init__(event_type=EventType.FILL, timestamp=timestamp)
         self.symbol = symbol
-        self.quantity = abs(quantity)
-        self.fill_price = fill_price
-        self.commission = commission
-        self.slippage = slippage
-        self.direction = direction
+        self.quantity = abs(float(quantity))
+        self.price = float(price)
+        self.commission = float(commission)
+        self.slippage = float(slippage)
+        self.side = OrderEvent._coerce_side(side)
+        self.fill_price = self.price  # Backwards compatibility alias
+        self.direction = self.side.value.upper()
         self.metadata = metadata or {}
 
     @property
     def total_cost(self) -> float:
         """Calculate total cost including commission and slippage."""
-        base_cost = self.quantity * self.fill_price
+        base_cost = self.quantity * self.price
         return base_cost + self.commission + self.slippage
 
 

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 from loguru import logger
 import pandas as pd
 
-from src.backtest.events import FillEvent, OrderEvent
+from src.backtest.events import FillEvent, OrderEvent, OrderSide, OrderType
 from src.backtest.portfolio_v2 import PortfolioV2
 
 if TYPE_CHECKING:
@@ -36,9 +36,12 @@ class ExecutionHandler:
 
     def __init__(
         self,
-        portfolio: PortfolioV2,
-        price_data: dict[str, pd.DataFrame],
-        config: Any  # BacktestConfig - use Any to avoid circular import at runtime
+        portfolio: PortfolioV2 | None = None,
+        price_data: dict[str, pd.DataFrame] | None = None,
+        config: Any | None = None,  # BacktestConfig - use Any to avoid circular import at runtime
+        *,
+        commission: float = 0.001,
+        slippage: float = 0.0005
     ) -> None:
         """
         Initialize execution handler.
@@ -49,69 +52,164 @@ class ExecutionHandler:
             config: Backtest configuration
         """
         self.portfolio = portfolio
-        self.price_data = price_data
+        self.price_data = price_data or {}
         self.config = config
+
+        # Determine operating mode (advanced vs. lightweight)
+        self._advanced_mode = all(
+            item is not None for item in (portfolio, price_data, config)
+        )
+
+        self.commission_rate = commission
+        self.slippage_rate = slippage
+
+        if self._advanced_mode:
+            # Prefer configuration values when provided
+            self.commission_rate = getattr(config, "commission", commission)
+            self.slippage_rate = getattr(config, "slippage", slippage)
 
         # Statistics
         self.total_orders = 0
         self.filled_orders = 0
         self.rejected_orders = 0
 
-    def execute_order(self, order: OrderEvent) -> FillEvent | None:
+    def execute_order(
+        self,
+        order: OrderEvent,
+        market_price: float | None = None
+    ) -> FillEvent | None:
         """
         Execute an order.
 
         Args:
             order: Order event
+            market_price: Optional direct market price (lightweight mode)
 
         Returns:
             FillEvent if successful, None if rejected
         """
         self.total_orders += 1
 
-        # Validate order
-        if not self._validate_order(order):
+        if self._advanced_mode:
+            fill = self._execute_advanced(order)
+        else:
+            fill = self._execute_simple(order, market_price)
+
+        if fill is None:
             self.rejected_orders += 1
+        else:
+            self.filled_orders += 1
+
+        return fill
+
+    # ------------------------------------------------------------------
+    # Lightweight execution mode
+    # ------------------------------------------------------------------
+    def _execute_simple(
+        self,
+        order: OrderEvent,
+        market_price: float | None
+    ) -> FillEvent | None:
+        """Simplified execution path used by unit tests and demos."""
+        if market_price is None:
+            logger.warning(
+                "Market price must be provided for lightweight execution mode"
+            )
             return None
 
-        # Get execution price
+        price = float(market_price)
+
+        if order.order_type == OrderType.LIMIT:
+            if order.price is None:
+                return None
+            if order.side == OrderSide.BUY and price > order.price:
+                return None
+            if order.side == OrderSide.SELL and price < order.price:
+                return None
+            price = float(min(price, order.price)) if order.side == OrderSide.BUY else float(max(price, order.price))
+
+        elif order.order_type not in {OrderType.MARKET, OrderType.LIMIT}:
+            # Unsupported order types fall back to market execution
+            logger.debug(
+                "Unsupported order type %s in simple mode; using market price",
+                order.order_type,
+            )
+
+        quantity = order.quantity
+        commission = abs(quantity) * market_price * self.commission_rate
+
+        slippage_adjustment = self.slippage_rate * market_price
+        executed_price = (
+            price + slippage_adjustment
+            if order.side == OrderSide.BUY
+            else price - slippage_adjustment
+        )
+
+        slippage_cost = abs(quantity) * abs(executed_price - price)
+
+        fill = FillEvent(
+            timestamp=order.timestamp,
+            symbol=order.symbol,
+            quantity=quantity,
+            price=executed_price,
+            commission=commission,
+            slippage=slippage_cost,
+            side=order.side,
+            metadata={
+                "order_type": order.order_type.value,
+                "reference_price": market_price,
+            },
+        )
+
+        logger.debug(
+            "Filled (simple): %s %s %s @ %.2f",
+            order.direction,
+            quantity,
+            order.symbol,
+            executed_price,
+        )
+
+        return fill
+
+    # ------------------------------------------------------------------
+    # Advanced execution mode (existing rich simulation)
+    # ------------------------------------------------------------------
+    def _execute_advanced(self, order: OrderEvent) -> FillEvent | None:
+        """Advanced execution path used by BacktestEngineV2."""
+        if not self._validate_order(order):
+            return None
+
         execution_price = self._get_execution_price(order)
         if execution_price is None:
             logger.warning(f"No execution price for {order.symbol}")
-            self.rejected_orders += 1
             return None
 
-        # Calculate costs
         commission = self._calculate_commission(order, execution_price)
         slippage = self._calculate_slippage(order, execution_price)
 
-        # Check if we have enough cash (for buys)
-        if order.direction == "BUY":
+        if self.portfolio is not None and order.direction == "BUY":
             total_cost = order.quantity * execution_price + commission + slippage
             if total_cost > self.portfolio.cash:
                 logger.warning(
                     f"Insufficient cash for {order.symbol}: "
                     f"need ${total_cost:.2f}, have ${self.portfolio.cash:.2f}"
                 )
-                self.rejected_orders += 1
                 return None
 
-        # Create fill event
         fill = FillEvent(
             timestamp=order.timestamp,
             symbol=order.symbol,
             quantity=order.quantity,
-            fill_price=execution_price,
+            price=execution_price,
             commission=commission,
             slippage=slippage,
-            direction=order.direction,
+            side=order.side,
             metadata={
-                "order_type": order.order_type,
+                "order_type": order.order_type.value,
                 "original_price": order.price,
-            }
+            },
         )
 
-        self.filled_orders += 1
         logger.debug(
             f"Filled: {order.direction} {order.quantity} {order.symbol} "
             f"@ ${execution_price:.2f}"
@@ -226,7 +324,7 @@ class ExecutionHandler:
             Commission amount
         """
         notional_value = order.quantity * price
-        commission = notional_value * self.config.commission
+        commission = notional_value * self.commission_rate
         return commission
 
     def _calculate_slippage(self, order: OrderEvent, price: float) -> float:
@@ -242,7 +340,7 @@ class ExecutionHandler:
         """
         # Simple slippage model: percentage of notional value
         notional_value = order.quantity * price
-        slippage = notional_value * self.config.slippage
+        slippage = notional_value * self.slippage_rate
 
         # Could be enhanced with:
         # - Volume-based slippage
