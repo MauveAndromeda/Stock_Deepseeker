@@ -5,22 +5,14 @@
 numpy==1.26.4
 pandas==2.2.3
 
-# Market Data (Yahoo + Stooq fallback)
-yfinance==0.2.43
-pandas-datareader==0.10.0
-lxml==4.9.4
-
-# HTTP & Caching
+# Utilities
 requests==2.31.0
-requests-cache==1.2.0
 charset-normalizer==3.4.0
 urllib3==2.1.0
-
-# Utilities
 tqdm==4.66.5
 python-dotenv==1.0.1
 pyyaml==6.0.2
 
-# Date/Time
+# Date/Time helpers
 python-dateutil==2.9.0
 pytz==2024.1

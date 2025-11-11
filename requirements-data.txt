@@ -1,0 +1,6 @@
+# Optional data providers for live market downloads
+# Installation failures are ignored at runtime; synthetic data will be used instead.
+yfinance==0.2.43
+pandas-datareader==0.10.0
+lxml==4.9.4
+requests-cache==1.2.0
