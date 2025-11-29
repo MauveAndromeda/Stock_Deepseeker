@@ -31,8 +31,8 @@ def get_trading_days(
         bday = CustomBusinessDay(calendar=cal)
 
         return pd.date_range(start=start_date, end=end_date, freq=bday)
-    except:
-        # Fallback to simple business days
+    except (ImportError, TypeError, ValueError):
+        # Fallback to simple business days if calendar dependencies unavailable
         return pd.bdate_range(start=start_date, end=end_date)
 
 
