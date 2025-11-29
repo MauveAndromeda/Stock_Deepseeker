@@ -10,6 +10,7 @@ that focuses on reliability and testability while remaining thread-safe.
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -17,6 +18,8 @@ from datetime import datetime
 from enum import Enum
 import threading
 from typing import Any, DefaultDict, Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class EventType(str, Enum):
@@ -127,8 +130,13 @@ class EventBus:
                 handler(event)
                 self._stats["delivered"] += 1
             except Exception:  # pragma: no cover - exercised in tests
-                # In a production system we would log the exception.  For the
-                # unit tests we simply count the failure and continue.
+                # Log the exception and continue to ensure one handler's failure
+                # doesn't prevent other handlers from receiving the event.
+                logger.exception(
+                    "Handler %s failed processing event %s",
+                    getattr(handler, "__name__", handler),
+                    event.type,
+                )
                 self._stats["failed"] += 1
 
     # ------------------------------------------------------------------

@@ -1,6 +1,9 @@
 """
 数据存储层
 支持时序数据库、缓存
+
+Security Note: pickle is used for local caching only. Data comes from
+trusted sources (our own code). For untrusted data, use JSON or parquet.
 """
 
 from datetime import datetime
@@ -15,7 +18,7 @@ import pandas as pd
 class DataStorage:
     """数据存储基类"""
 
-    def save(self, key: str, data: Any):
+    def save(self, key: str, data: Any) -> None:
         """保存数据"""
         raise NotImplementedError
 
@@ -33,39 +36,71 @@ class DataStorage:
 
 
 class FileStorage(DataStorage):
-    """文件存储"""
+    """文件存储
+
+    Uses pickle for general objects and parquet for DataFrames when available.
+    Pickle is safe here as we only load files created by this application.
+    """
 
     def __init__(self, base_path: str = "data/storage"):
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def save(self, key: str, data: Any):
-        """保存到文件"""
+    def save(self, key: str, data: Any) -> None:
+        """保存到文件
+
+        For DataFrames, attempts parquet first (faster, smaller),
+        falls back to pickle for other types or if parquet unavailable.
+        """
+        # Try parquet for DataFrames (safer and more efficient)
+        if isinstance(data, pd.DataFrame):
+            parquet_path = self.base_path / f"{key}.parquet"
+            try:
+                data.to_parquet(parquet_path)
+                return
+            except (ImportError, ValueError):
+                pass  # Fall back to pickle
+
         file_path = self.base_path / f"{key}.pkl"
         with open(file_path, "wb") as f:
             pickle.dump(data, f)
 
     def load(self, key: str) -> Any:
-        """从文件加载"""
+        """从文件加载
+
+        Checks for parquet first, then pickle.
+        """
+        # Try parquet first
+        parquet_path = self.base_path / f"{key}.parquet"
+        if parquet_path.exists():
+            try:
+                return pd.read_parquet(parquet_path)
+            except (ImportError, ValueError):
+                pass
+
+        # Fall back to pickle
         file_path = self.base_path / f"{key}.pkl"
         if not file_path.exists():
             return None
 
         with open(file_path, "rb") as f:
-            return pickle.load(f)
+            return pickle.load(f)  # Safe: only loads our own cached files
 
     def delete(self, key: str) -> bool:
         """删除文件"""
-        file_path = self.base_path / f"{key}.pkl"
-        if file_path.exists():
-            file_path.unlink()
-            return True
-        return False
+        deleted = False
+        for ext in [".pkl", ".parquet"]:
+            file_path = self.base_path / f"{key}{ext}"
+            if file_path.exists():
+                file_path.unlink()
+                deleted = True
+        return deleted
 
     def exists(self, key: str) -> bool:
         """检查文件是否存在"""
-        file_path = self.base_path / f"{key}.pkl"
-        return file_path.exists()
+        pkl_path = self.base_path / f"{key}.pkl"
+        parquet_path = self.base_path / f"{key}.parquet"
+        return pkl_path.exists() or parquet_path.exists()
 
 
 class TimeSeriesDB:

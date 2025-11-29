@@ -365,7 +365,11 @@ class CachedDataProvider(DataProvider):
         return cache_age < self.cache_ttl_seconds
 
     def _read_cache(self, cache_path: str) -> Any:
-        """Read data from cache."""
+        """Read data from cache.
+
+        Security: pickle is safe here as we only load files created by
+        this application's _write_cache method, not external data.
+        """
         import pickle
         with open(cache_path, "rb") as f:
             return pickle.load(f)
