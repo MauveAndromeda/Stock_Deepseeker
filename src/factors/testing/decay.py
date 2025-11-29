@@ -256,7 +256,7 @@ class FactorDecayAnalyzer:
         # Calculate IC
         try:
             ic, _ = spearmanr(all_factors, all_returns)
-        except Exception:
+        except (ValueError, TypeError):
             ic = 0.0
 
         # Calculate average return (for top quintile)
@@ -342,14 +342,14 @@ class FactorDecayAnalyzer:
 
             return half_life
 
-        except Exception:
+        except (ValueError, RuntimeError, TypeError):
             # Fallback: simple linear regression on log values
             try:
                 slope, _ = np.polyfit(periods, log_ic, 1)
                 decay_rate = -slope
                 half_life = np.log(2) / decay_rate if decay_rate > 0 else np.inf
                 return half_life
-            except Exception:
+            except (ValueError, TypeError, np.linalg.LinAlgError):
                 return np.nan
 
     def _find_optimal_period(self, return_series: pd.Series) -> int:
@@ -443,7 +443,7 @@ class FactorDecayAnalyzer:
 
                     if not np.isnan(corr):
                         lagged_corrs.append(corr)
-                except Exception:
+                except (KeyError, ValueError, TypeError):
                     continue
 
             if len(lagged_corrs) > 0:

@@ -177,7 +177,7 @@ class ICAnalyzer:
                     ic_p, _ = pearsonr(factor_vals, returns)
                     if not np.isnan(ic_p):
                         pearson_ics.append((date, ic_p))
-                except Exception:
+                except (ValueError, TypeError):
                     pass
 
             if self.ic_type in ["spearman", "both"]:
@@ -185,7 +185,7 @@ class ICAnalyzer:
                     ic_s, _ = spearmanr(factor_vals, returns)
                     if not np.isnan(ic_s):
                         spearman_ics.append((date, ic_s))
-                except Exception:
+                except (ValueError, TypeError):
                     pass
 
         if len(pearson_ics) == 0 and len(spearman_ics) == 0:
@@ -427,7 +427,7 @@ class ICAnalyzer:
                 ic, _ = spearmanr(factor_vals, returns)
                 if not np.isnan(ic):
                     ic_values.append(ic)
-            except Exception:
+            except (ValueError, TypeError):
                 continue
 
         if len(ic_values) == 0:

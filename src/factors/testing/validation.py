@@ -533,7 +533,7 @@ class OutOfSampleValidator:
                     "ic_ir": result.ic_ir,
                     "win_rate": result.win_rate,
                 })
-            except Exception:
+            except (ValueError, KeyError, TypeError, ZeroDivisionError):
                 continue
 
         # Convert to distributions

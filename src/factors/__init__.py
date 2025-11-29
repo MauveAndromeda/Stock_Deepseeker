@@ -201,7 +201,7 @@ class VectorizedFactorEngine:
         """Register a handful of commonly used factors for convenience."""
         try:
             from .momentum import PriceMomentum
-        except Exception:  # pragma: no cover - optional dependency chain
+        except ImportError:  # pragma: no cover - optional dependency chain
             return
 
         default_factors: dict[str, Factor] = {

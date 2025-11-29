@@ -300,7 +300,7 @@ class YahooFinanceProvider(DataProvider):
                         "sector": info.get("sector", ""),
                         "industry": info.get("industry", ""),
                     })
-            except Exception:
+            except (KeyError, TypeError, AttributeError):
                 pass
 
             return results[:limit]
@@ -321,7 +321,7 @@ class YahooFinanceProvider(DataProvider):
             ticker = yf.Ticker("SPY")
             info = ticker.info
             return bool(info.get("symbol"))
-        except Exception:
+        except (OSError, ConnectionError, TimeoutError, KeyError):
             return False
 
     def get_option_chain(

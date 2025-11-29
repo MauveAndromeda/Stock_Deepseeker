@@ -224,7 +224,7 @@ class AlpacaStreamingProvider(StreamingDataProvider):
                 self.logger.debug("Timeout, sending heartbeat")
                 try:
                     await self._ws.ping()
-                except Exception:
+                except (ConnectionError, TimeoutError, OSError):
                     self.logger.warning("Heartbeat failed, reconnecting")
                     if self.auto_reconnect:
                         await self._attempt_reconnect()

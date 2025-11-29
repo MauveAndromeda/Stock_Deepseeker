@@ -418,7 +418,7 @@ def check_database_connection(connection_string: str) -> Callable[[], bool]:
             with engine.connect() as conn:
                 conn.execute(sqlalchemy.text("SELECT 1"))
             return True
-        except Exception:
+        except (ImportError, OSError, ConnectionError):
             return False
     return check
 
@@ -431,7 +431,7 @@ def check_redis_connection(host: str = "localhost", port: int = 6379) -> Callabl
             import redis
             r = redis.Redis(host=host, port=port, socket_connect_timeout=2)
             return r.ping()
-        except Exception:
+        except (ImportError, OSError, ConnectionError, TimeoutError):
             return False
     return check
 
@@ -444,7 +444,7 @@ def check_api_endpoint(url: str, timeout: float = 5.0) -> Callable[[], bool]:
             import requests
             response = requests.get(url, timeout=timeout)
             return response.status_code == 200
-        except Exception:
+        except (ImportError, OSError, ConnectionError, TimeoutError):
             return False
     return check
 

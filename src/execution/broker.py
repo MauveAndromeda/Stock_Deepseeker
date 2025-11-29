@@ -296,7 +296,7 @@ class AlpacaBroker(BrokerInterface):
                 side="long" if float(pos.qty) > 0 else "short"
             )
 
-        except Exception:
+        except (KeyError, AttributeError, ValueError):
             logger.debug(f"No position found for {symbol}")
             return None
 

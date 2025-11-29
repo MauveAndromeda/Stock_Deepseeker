@@ -198,7 +198,7 @@ class ValueStrategy(BaseStrategy):
                     return result.iloc[-1] if len(result) > 0 else None
                 return result
             return None
-        except Exception:
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
             return None
 
     def _apply_filters(self, value_scores: dict[str, float]) -> dict[str, float]:

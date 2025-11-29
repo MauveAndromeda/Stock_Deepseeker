@@ -137,7 +137,7 @@ class EnhancedTradingStrategy:
                     composite_score = valid_factors.mean()
                     scores[symbol] = composite_score
 
-            except Exception:
+            except (KeyError, TypeError, ValueError, ZeroDivisionError):
                 continue
 
         # 排序
