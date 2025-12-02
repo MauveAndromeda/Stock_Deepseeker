@@ -9,29 +9,64 @@ A **research-grade** quantitative trading framework for backtesting and strategy
 ```powershell
 # 1. Download ZIP from GitHub and extract
 # 2. Open terminal in extracted folder
-# 3. Run the portable backtest:
+# 3. Run the enhanced one-click backtest (RECOMMENDED):
 
-python .\一键回测_portable.py --mode fast --years 3
+python .\一键回测_增强版.py
 ```
 
 **That's it!** The script will:
-- ✅ Automatically create virtual environment (`.venv/`)
-- ✅ Install minimal dependencies (2-3 minutes first time)
-- ✅ Download market data (Yahoo Finance with Stooq fallback)
+- ✅ Automatically check system requirements
+- ✅ Create virtual environment (`.venv/`)
+- ✅ Install minimal dependencies (2-5 minutes first time)
+- ✅ Download market data (Yahoo Finance with multiple fallbacks)
 - ✅ Run backtest using simple SMA strategy
-- ✅ Generate JSON report in `backtest_reports/`
+- ✅ Generate detailed JSON report in `backtest_reports/`
 
-**Advanced features (optional):**
-```powershell
-# Enable AI-powered strategies (requires OpenAI API key)
-python .\一键回测_portable.py --mode fast --ai
+### 📊 Available Scripts
 
-# Quick test with 1 year, 2 stocks
-python .\一键回测_portable.py --mode turbo --years 1 --symbols AAPL MSFT
+**🌟 Enhanced Version (Recommended):**
+```bash
+# Default: Fast mode with diverse stock pool
+python 一键回测_增强版.py
+
+# Quick test mode (1 year)
+python 一键回测_增强版.py --mode turbo
+
+# Use predefined stock pools
+python 一键回测_增强版.py --pool tech        # Tech stocks
+python 一键回测_增强版.py --pool finance    # Financial stocks
 
 # Custom symbols
-python .\一键回测_portable.py --symbols AAPL GOOGL NVDA TSLA
+python 一键回测_增强版.py --symbols AAPL MSFT GOOGL
+
+# View all available stock pools
+python 一键回测_增强版.py --list-symbols
+
+# Enable AI features (requires API key)
+python 一键回测_增强版.py --ai
 ```
+
+**📦 Portable Version (Minimal):**
+```bash
+# Simple portable version
+python 一键回测_portable.py --mode fast --years 3
+
+# Quick test
+python 一键回测_portable.py --mode turbo --symbols AAPL MSFT
+```
+
+**🔧 Full Engine Version (Advanced):**
+```bash
+# Full backtest engine with complete features
+python scripts/run_backtest.py
+
+# Custom parameters
+python scripts/run_backtest.py --symbols AAPL MSFT --start 2022-01-01
+```
+
+### 📖 Documentation
+
+For complete feature documentation, see: **[REPO功能完整说明.md](REPO功能完整说明.md)**
 
 **⚠️ Path Length Note:** If you see warnings about long paths or parentheses, move the folder to a shorter location (e.g., `C:\Stock_Deepseeker\`)
 
