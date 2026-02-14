@@ -8,7 +8,7 @@ anthropic>=0.18.0
 # LangChain (pinned to avoid langsmith/zstandard DLL issues)
 langchain==0.3.9
 langchain-core==0.3.11
-langchain-openai==0.2.2
+langchain-openai==1.0.2
 langchain-anthropic==0.2.1
 
 # Async Support
