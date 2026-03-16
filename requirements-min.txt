@@ -11,7 +11,7 @@ charset-normalizer==3.4.0
 urllib3==2.1.0
 tqdm==4.66.5
 python-dotenv==1.0.1
-pyyaml==6.0.2
+pyyaml==6.0.3
 
 # Date/Time helpers
 python-dateutil==2.9.0
